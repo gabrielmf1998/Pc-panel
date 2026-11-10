@@ -13,6 +13,7 @@ optdepends=('nvidia-utils: NVIDIA graphics card readings and fan control'
             'kdialog: port dialog of the tray icon on KDE'
             'zenity: port dialog of the tray icon')
 install=pc-panel.install
+options=('!debug')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
 sha256sums=('SKIP')
 
