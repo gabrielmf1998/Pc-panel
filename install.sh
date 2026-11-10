@@ -140,4 +140,5 @@ PORT="$(cat "$CONF/pc-panel/port" 2>/dev/null || echo 47822)"
 echo
 echo "PC Panel $("$PREFIX/bin/pc-panel" --version | cut -d' ' -f2) is running. Open http://127.0.0.1:$PORT"
 [ -n "$TRAY" ] && echo "The monitor icon in the tray changes the port, turns start with system on or off, and quits."
-[ "$FANS" = yes ] || echo "Fan control is off. To enable it later run this installer again with --fans"
+[ "$FANS" = yes ] || [ -e "$ROOT_LIB/pc-panel-fans" ] || [ -e /usr/lib/pc-panel/pc-panel-fans ] && [ -e /etc/systemd/system/pc-panel-fans.path -o -e /usr/lib/systemd/system/pc-panel-fans.path ] \
+    || echo "Fan control is off. To enable it later run this installer again with --fans"
