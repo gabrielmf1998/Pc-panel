@@ -1,5 +1,8 @@
 [Unit]
-Description=PC Panel, local web dashboard at http://127.0.0.1:47822
+# give up after 10 failures in 2 minutes (for example the port is taken) instead of looping forever
+StartLimitIntervalSec=120
+StartLimitBurst=10
+Description=PC Panel, local web dashboard (port 47822 unless changed in the tray icon)
 
 [Service]
 ExecStart=@BIN@

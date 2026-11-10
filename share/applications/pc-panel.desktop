@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=PC Panel
+GenericName=System Monitor
+Comment=Local web dashboard to monitor and control this PC
+Exec=@TRAY@
+Icon=pc-panel
+Terminal=false
+Categories=System;Monitor;
+Keywords=monitor;ram;vram;gpu;cpu;fans;temperature;dashboard;

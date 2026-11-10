@@ -1,8 +1,9 @@
 [Desktop Entry]
 Type=Application
 Name=PC Panel
+GenericName=System Monitor
 Comment=Local web dashboard to monitor and control this PC
-Exec=pc-panel
+Exec=pc-panel-tray
 Icon=pc-panel
-Terminal=true
+Terminal=false
 Categories=System;Monitor;

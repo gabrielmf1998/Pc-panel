@@ -6,28 +6,64 @@ permissions:
   contents: write
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # the oldest supported Ubuntu, so the compiled tray icon runs on older glibc too
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
-      - name: Check and smoke test
+      - name: Tools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends gcc make libsystemd-dev file
+      - name: Check, build and smoke test
         run: |
           make check
+          make
+          bin/pc-panel-tray --version
+          [ "$(bin/pc-panel-tray --version)" = "pc-panel-tray ${GITHUB_REF_NAME#v}" ]
           PC_PANEL_PORT=47999 python3 -I bin/pc-panel & sleep 3
-          curl -fsS -H 'Host: 127.0.0.1:47999' http://127.0.0.1:47999/config | head -c 200
-          curl -fsS -H 'Host: 127.0.0.1:47999' http://127.0.0.1:47999/dados | head -c 200
-      - name: Source tarball
-        run: make dist
+          curl -fsS -H 'Host: 127.0.0.1:47999' http://127.0.0.1:47999/config | head -c 200; echo
+          curl -fsS -H 'Host: 127.0.0.1:47999' http://127.0.0.1:47999/dados | head -c 200; echo
+      - name: Source tarball and x86_64 bundle
+        run: |
+          make dist
+          make bundle
+          tar -tzf pc-panel-*-x86_64.tar.gz | grep -q 'bin/pc-panel-tray$'
       - name: AppImage
         run: |
           curl -fsSL -o appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
           chmod +x appimagetool
           APPIMAGETOOL="$PWD/appimagetool --appimage-extract-and-run" sh packaging/appimage/build.sh
+          ./pc-panel-*-x86_64.AppImage --appimage-extract-and-run --version
       - uses: actions/upload-artifact@v4
         with:
           name: base
           path: |
             pc-panel-*.tar.gz
             pc-panel-*.AppImage
+  arch:
+    needs: build
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: base
+      - name: Build and install the pacman package
+        run: |
+          pacman -Syu --noconfirm --needed base-devel python systemd
+          useradd -m builder
+          V="$(ls pc-panel-*.tar.gz | grep -v x86_64 | sed 's/pc-panel-\(.*\)\.tar\.gz/\1/')"
+          mkdir /home/builder/pkg
+          cp "pc-panel-$V.tar.gz" /home/builder/pkg/
+          tar -xzf "pc-panel-$V.tar.gz" -C /home/builder/pkg --strip-components=3 "pc-panel-$V/packaging/arch/PKGBUILD" "pc-panel-$V/packaging/arch/pc-panel.install"
+          chown -R builder /home/builder/pkg
+          runuser -u builder -- sh -c 'cd /home/builder/pkg && makepkg -f --noconfirm'
+          cp /home/builder/pkg/pc-panel-*.pkg.tar.zst .
+          pacman -U --noconfirm ./pc-panel-*.pkg.tar.zst
+          pc-panel --version
+          pc-panel-tray --version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: arch
+          path: pc-panel-*.pkg.tar.zst
   rpm:
     needs: build
     runs-on: ubuntu-latest
@@ -38,28 +74,35 @@ jobs:
           name: base
       - name: Build and install the RPM
         run: |
-          dnf -y install rpm-build make systemd-rpm-macros python3 tar gzip
+          dnf -y install rpm-build make gcc systemd-devel systemd-rpm-macros python3 tar gzip
+          V="$(ls pc-panel-*.tar.gz | grep -v x86_64 | sed 's/pc-panel-\(.*\)\.tar\.gz/\1/')"
           mkdir -p ~/rpmbuild/SOURCES
-          cp pc-panel-*.tar.gz ~/rpmbuild/SOURCES/
-          tar -xzf pc-panel-*.tar.gz --strip-components=3 --wildcards '*/packaging/rpm/pc-panel.spec'
+          cp "pc-panel-$V.tar.gz" ~/rpmbuild/SOURCES/
+          tar -xzf "pc-panel-$V.tar.gz" --strip-components=3 "pc-panel-$V/packaging/rpm/pc-panel.spec"
           rpmbuild -bb pc-panel.spec
-          cp ~/rpmbuild/RPMS/noarch/*.rpm .
+          cp ~/rpmbuild/RPMS/*/pc-panel-*.rpm .
           dnf -y install ./pc-panel-*.rpm
           pc-panel --version
+          pc-panel-tray --version
       - uses: actions/upload-artifact@v4
         with:
           name: rpm
           path: pc-panel-*.rpm
   publish:
-    needs: [build, rpm]
+    needs: [build, arch, rpm]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           merge-multiple: true
+          path: out
       - name: Checksums and release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
+          cd out
           sha256sum pc-panel-* > SHA256SUMS
-          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes pc-panel-* SHA256SUMS
+          cat SHA256SUMS
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --title "PC Panel ${GITHUB_REF_NAME#v}" \
+            --notes-file ../packaging/release-notes.md pc-panel-* SHA256SUMS

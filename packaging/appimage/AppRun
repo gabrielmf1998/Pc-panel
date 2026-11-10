@@ -1,7 +1,12 @@
 #!/bin/sh
-# Starts the dashboard from inside the AppImage and opens it in the browser.
+# Starts PC Panel from inside the AppImage: the tray icon, which runs the dashboard.
+# With arguments, or where the tray icon cannot run, it runs the dashboard directly.
 HERE="$(dirname "$(readlink -f "$0")")"
+if [ $# -eq 0 ] && "$HERE/usr/bin/pc-panel-tray" --version >/dev/null 2>&1; then
+    exec "$HERE/usr/bin/pc-panel-tray"
+fi
 if [ $# -eq 0 ]; then
-    ( sleep 1; xdg-open "http://127.0.0.1:${PC_PANEL_PORT:-47822}" >/dev/null 2>&1 ) &
+    PORT="${PC_PANEL_PORT:-$(cat "${XDG_CONFIG_HOME:-$HOME/.config}/pc-panel/port" 2>/dev/null || echo 47822)}"
+    ( sleep 1; xdg-open "http://127.0.0.1:$PORT" >/dev/null 2>&1 ) &
 fi
 exec python3 -I "$HERE/usr/bin/pc-panel" "$@"

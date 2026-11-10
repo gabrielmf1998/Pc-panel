@@ -1,18 +1,25 @@
 # Maintainer: PC Panel contributors
 pkgname=pc-panel
-pkgver=0.1.0
+pkgver=0.2.0
 pkgrel=1
-pkgdesc="Local web dashboard to monitor and control a Linux PC (RAM, VRAM, CPU, network, disks, fans)"
-arch=('any')
+pkgdesc="Local web dashboard to monitor and control a Linux PC (RAM, VRAM, CPU, network, disks, fans), with a tray icon"
+arch=('x86_64' 'aarch64')
 url="https://github.com/gabrielmf1998/pc-panel"
 license=('MIT')
-depends=('python>=3.12' 'systemd')
+depends=('python>=3.12' 'systemd' 'systemd-libs' 'glibc')
 optdepends=('nvidia-utils: NVIDIA graphics card readings and fan control'
             'fakeroot: check for pending system updates'
-            'flatpak: count pending Flatpak updates')
+            'flatpak: count pending Flatpak updates'
+            'kdialog: port dialog of the tray icon on KDE'
+            'zenity: port dialog of the tray icon')
 install=pc-panel.install
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
 sha256sums=('SKIP')
+
+build() {
+    cd "$pkgname-$pkgver"
+    make
+}
 
 package() {
     cd "$pkgname-$pkgver"

@@ -7,6 +7,7 @@
 # (/var/lib/pc-panel/fans.json, applied by the root helper pc-panel-fans).
 # With the page closed and nothing asking for samples (logging, graphics card
 # curve, fixed fan speed) the service sleeps and costs nothing.
+# The tray icon (pc-panel-tray) starts and stops this service and sets the port.
 # MIT license. Identifiers are still in Portuguese; the interface has English and Portuguese.
 import collections
 import csv
@@ -31,9 +32,23 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 
-VERSAO = "0.1.0"
+VERSAO = "0.2.0"
 REPO = "gabrielmf1998/pc-panel"         # owner/repository on GitHub, used only to look for a new version
-ENDERECO, PORTA = "127.0.0.1", int(os.environ.get("PC_PANEL_PORT", "47822"))
+PASTA_CFG = os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"), "pc-panel")
+
+
+def porta_salva():
+    # PC_PANEL_PORT wins, then the port chosen in the tray icon (~/.config/pc-panel/port), then 47822
+    try:
+        p = int(os.environ.get("PC_PANEL_PORT") or open(os.path.join(PASTA_CFG, "port")).read().strip())
+        if 1024 <= p <= 65535:
+            return p
+    except (OSError, ValueError):
+        pass
+    return 47822
+
+
+ENDERECO, PORTA = "127.0.0.1", porta_salva()
 HOSTS = ("127.0.0.1:%d" % PORTA, "localhost:%d" % PORTA)
 ORIGENS = tuple("http://" + h for h in HOSTS)
 PORTA_ESPECTADORES = 47821
@@ -42,7 +57,6 @@ HZ = os.sysconf("SC_CLK_TCK")
 PAGINA_KB = os.sysconf("SC_PAGE_SIZE") // 1024
 
 AQUI = os.path.dirname(os.path.realpath(__file__))
-PASTA_CFG = os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"), "pc-panel")
 ARQ_CFG = PASTA_CFG + "/config.json"
 ARQ_UPD = PASTA_CFG + "/atualizacoes.json"
 ARQ_PAGINA = os.path.join(AQUI, "..", "share", "pc-panel", "page.html")
@@ -1019,7 +1033,7 @@ def procurar_versao():
         return
     novidade["rodando"] = True
     try:
-        d = json.loads(baixar("https://api.github.com/repos/%s/releases/latest" % REPO))
+        d = json.loads(baixar(os.environ.get("PC_PANEL_RELEASES_API") or "https://api.github.com/repos/%s/releases/latest" % REPO))
         tag = str(d["tag_name"])
         novidade.update(quando=time.time(), versao=tag.lstrip("v"), erro=None, nova=versao_tupla(tag) > versao_tupla(VERSAO),
                         arquivos={a["name"]: a["browser_download_url"] for a in d.get("assets", [])})
@@ -1029,48 +1043,85 @@ def procurar_versao():
         novidade["rodando"] = False
 
 
+def gerenciador():
+    for nome in ("pacman", "dnf", "zypper"):
+        if shutil.which(nome):
+            return nome
+    return None
+
+
+def fora_do_servico(args):
+    # runs args in its own transient user unit, so restarting this service cannot kill it halfway
+    subprocess.Popen(["systemd-run", "--user", "--collect", "--quiet", "--unit", "pc-panel-update-%d" % time.time()] + args,
+                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
+
 def atualizar_painel():
-    # Downloads the new version, checks the published SHA-256 and swaps the files.
-    # Returns None on success or (error in Portuguese, error in English).
+    # Downloads the new version, checks the published SHA-256 and installs it the same
+    # way this copy was installed. Returns (None, needs_password) on success or
+    # ((error in Portuguese, error in English), False).
     metodo, versao, arquivos = metodo_instalacao(), novidade["versao"], novidade["arquivos"]
     if not novidade["nova"]:
-        return ("não há versão nova", "there is no new version")
-    if metodo == "pacote":
-        return ("este PC instalou por pacote, atualize pelo gerenciador de pacotes",
-                "this PC installed from a package, update with the package manager")
-    nome = "pc-panel-%s-x86_64.AppImage" % versao if metodo == "appimage" else "pc-panel-%s.tar.gz" % versao
+        return ("não há versão nova", "there is no new version"), False
+    maquina = os.uname().machine
+    gm = gerenciador()
+    if metodo == "appimage":
+        nome = "pc-panel-%s-x86_64.AppImage" % versao
+    elif metodo == "pacote" and gm == "pacman":
+        nome = "pc-panel-%s-1-%s.pkg.tar.zst" % (versao, maquina)
+    elif metodo == "pacote" and gm in ("dnf", "zypper"):
+        nome = "pc-panel-%s-1.%s.rpm" % (versao, maquina)
+    elif metodo == "pacote":
+        return ("não sei atualizar o pacote deste sistema", "unknown package manager on this system"), False
+    else:
+        nome = "pc-panel-%s-%s.tar.gz" % (versao, maquina)
+        if nome not in arquivos:
+            nome = "pc-panel-%s.tar.gz" % versao      # source only: the installer compiles the tray icon
     if nome not in arquivos or "SHA256SUMS" not in arquivos:
-        return ("a versão publicada não tem o arquivo " + nome, "the release lacks the file " + nome)
+        return ("a versão publicada não tem o arquivo " + nome, "the release lacks the file " + nome), False
     try:
         somas = dict(reversed(x.split()) for x in baixar(arquivos["SHA256SUMS"], 1 << 20).decode().splitlines() if len(x.split()) == 2)
         dados = baixar(arquivos[nome])
         if hashlib.sha256(dados).hexdigest() != somas.get(nome, somas.get("*" + nome)):
-            return ("o arquivo baixado não bate com o SHA-256 publicado", "the download does not match the published SHA-256")
+            return ("o arquivo baixado não bate com o SHA-256 publicado", "the download does not match the published SHA-256"), False
+        cache = os.path.join(os.environ.get("XDG_CACHE_HOME") or os.path.expanduser("~/.cache"), "pc-panel")
+        os.makedirs(cache, exist_ok=True)
         if metodo == "appimage":
             alvo = os.environ["APPIMAGE"]
             with open(alvo + ".novo", "wb") as f:
                 f.write(dados)
             os.chmod(alvo + ".novo", 0o755)
             os.replace(alvo + ".novo", alvo)
-            return None
-        raiz = os.path.dirname(AQUI)            # ~/.local when installed by the installer
-        with tempfile.TemporaryDirectory(prefix="pc-panel-novo-") as tmp:
-            with open(tmp + "/pacote.tar.gz", "wb") as f:
+
+            def trocar():
+                ao_parar()
+                os._exit(75)            # the tray icon sees 75 and starts the new AppImage
+            threading.Timer(1.5, trocar).start()
+            return None, False
+        if metodo == "pacote":
+            for velho in glob.glob(cache + "/pc-panel-*.rpm") + glob.glob(cache + "/pc-panel-*.pkg.tar.zst"):
+                os.remove(velho)
+            arq = os.path.join(cache, nome)
+            with open(arq, "wb") as f:
                 f.write(dados)
-            with tarfile.open(tmp + "/pacote.tar.gz") as t:
-                t.extractall(tmp + "/x", filter="data")
-            fonte = glob.glob(tmp + "/x/*/bin/pc-panel")
-            if not fonte:
-                return ("pacote com formato inesperado", "unexpected package layout")
-            base = os.path.dirname(os.path.dirname(fonte[0]))
-            for rel in ("share/pc-panel/page.html", "lib/pc-panel/pc-panel-fans", "bin/pc-panel"):
-                os.makedirs(os.path.dirname(os.path.join(raiz, rel)), exist_ok=True)
-                shutil.copy2(os.path.join(base, rel), os.path.join(raiz, rel) + ".novo")
-                os.replace(os.path.join(raiz, rel) + ".novo", os.path.join(raiz, rel))
-        subprocess.Popen(["systemctl", "--user", "restart", "pc-panel.service"])
-        return None
+            cmd = {"pacman": ["pacman", "-U", "--noconfirm", arq], "dnf": ["dnf", "install", "-y", arq],
+                   "zypper": ["zypper", "--non-interactive", "install", "--allow-unsigned-rpm", arq]}[gm]
+            fora_do_servico(["pkexec"] + cmd)       # the tray icon restarts the dashboard when the files change
+            return None, True
+        pasta = os.path.join(cache, "update")
+        shutil.rmtree(pasta, ignore_errors=True)
+        os.makedirs(pasta)
+        with open(pasta + "/pacote.tar.gz", "wb") as f:
+            f.write(dados)
+        with tarfile.open(pasta + "/pacote.tar.gz") as t:
+            t.extractall(pasta + "/x", filter="data")
+        script = glob.glob(pasta + "/x/*/install.sh")
+        if not script:
+            return ("pacote com formato inesperado", "unexpected package layout"), False
+        fora_do_servico(["sh", script[0], "--update"])
+        return None, False
     except (OSError, ValueError, tarfile.TarError) as e:
-        return ("não consegui atualizar (%s)" % e, "could not update (%s)" % e)
+        return ("não consegui atualizar (%s)" % e, "could not update (%s)" % e), False
 
 
 def todos_sensores():
@@ -1834,11 +1885,11 @@ class Pedido(BaseHTTPRequestHandler):
             procurar_versao()
             self.json(info_geral())
         elif caminho == "/atualizar":
-            falha = atualizar_painel()
+            falha, senha = atualizar_painel()
             if falha:
                 erro(falha)
             else:
-                self.json({"ok": True})
+                self.json({"ok": True, "senha": senha})
         else:
             self.send_error(404)
 

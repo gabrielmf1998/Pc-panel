@@ -424,8 +424,8 @@ pt: {conectando: 'conectando', nv_bom: 'ok', nv_aviso: 'atenção', nv_serio: 'a
   a_m_zomboid: 'Servidor do Project Zomboid hospedado neste PC, com jogadores, ticks e backup',
   a_reserva: 'Descontar da memória disponível, em MiB (3500 imita o RAM LEFT do MangoHud)',
   a_sobre: 'Sobre o PC Panel', a_versao: 'Versão {0}.', a_ver_btn: 'Procurar versão nova', a_atualizar: 'Atualizar agora',
-  a_ver_nova: ' Saiu a versão {0}.', a_ver_ok: ' Esta é a mais nova.', a_ver_pacote: ' Atualize pelo gerenciador de pacotes.',
-  a_ver_erro: ' Não consegui consultar, {0}.', a_ver_feito: 'Atualizado, recarregando a página.',
+  a_ver_nova: ' Saiu a versão {0}.', a_ver_ok: ' Esta é a mais nova.', a_ver_senha: 'Digite a senha de administrador na janela que abriu. A página recarrega quando terminar.',
+  a_ver_erro: ' Não consegui consultar, {0}.', a_ver_feito: 'Atualizando, a página recarrega em instantes.',
   psi_ram_t: 'Parte dos últimos 10 segundos em que algum programa ficou parado esperando memória',
   livre: 'Livre', maior: 'Maior uso', uso_pct: '% de uso', temperatura: 'Temperatura', consumo: 'Consumo', w_de: '{0} W de {1}',
   enc_t: 'Uso do codificador de vídeo, o que a live e a gravação usam',
@@ -509,8 +509,8 @@ en: {conectando: 'connecting', nv_bom: 'ok', nv_aviso: 'warning', nv_serio: 'hig
   a_m_zomboid: 'Project Zomboid server hosted on this PC, with players, ticks and backup',
   a_reserva: 'Subtract from available memory, in MiB (3500 mimics MangoHud RAM LEFT)',
   a_sobre: 'About PC Panel', a_versao: 'Version {0}.', a_ver_btn: 'Check for a new version', a_atualizar: 'Update now',
-  a_ver_nova: ' Version {0} is out.', a_ver_ok: ' This is the latest.', a_ver_pacote: ' Update with your package manager.',
-  a_ver_erro: ' Could not check, {0}.', a_ver_feito: 'Updated, reloading the page.',
+  a_ver_nova: ' Version {0} is out.', a_ver_ok: ' This is the latest.', a_ver_senha: 'Type the administrator password in the window that opened. The page reloads when it is done.',
+  a_ver_erro: ' Could not check, {0}.', a_ver_feito: 'Updating, the page reloads in a moment.',
   psi_ram_t: 'Share of the last 10 seconds in which some program was stalled waiting for memory',
   livre: 'Free', maior: 'Top user', uso_pct: '% usage', temperatura: 'Temperature', consumo: 'Power', w_de: '{0} W of {1}',
   enc_t: 'Video encoder usage, what streaming and recording use',
@@ -1208,9 +1208,10 @@ function infoAjustes(d) {
     u.erro ? T('a_upd_erro', u.erro[L === 'en' ? 1 : 0]) : T('a_upd_res', u.pacotes.length, u.flatpak == null ? '?' : u.flatpak, dur(Date.now() / 1000 - u.quando));
   $('aj-upd-lista').textContent = u.pacotes.join(', ');
   const n = d.novidade;
+  $('aj-versao').dataset.versao = d.versao;
   $('aj-versao').textContent = T('a_versao', d.versao) + (n.rodando ? ' ' + T('s_verificando') : n.erro ? T('a_ver_erro', n.erro[L === 'en' ? 1 : 0]) :
-    n.nova ? T('a_ver_nova', n.versao) + (d.metodo === 'pacote' ? T('a_ver_pacote') : '') : n.quando ? T('a_ver_ok') : '');
-  $('aj-atualizar').hidden = !(n.nova && d.metodo !== 'pacote');
+    n.nova ? T('a_ver_nova', n.versao) : n.quando ? T('a_ver_ok') : '');
+  $('aj-atualizar').hidden = !n.nova;
   $('aj-custo').textContent = custo();
 }
 async function abrirAjustes() {
@@ -1267,12 +1268,23 @@ async function procurarVersao() {
   $('aj-versao').textContent = T('s_verificando');
   try { infoAjustes(await pedir('/versao', {})); } catch (e) { $('aj-erro').textContent = T('a_nao_salvou'); }
 }
+function esperarNovaVersao() {
+  // reload once the dashboard answers with another version (up to 3 minutes for a password)
+  const antes = $('aj-versao').dataset.versao, fim = Date.now() + 180000;
+  const t = setInterval(async () => {
+    try {
+      const d = await pedir('/config');
+      if (d.versao !== antes) { clearInterval(t); location.reload(); }
+    } catch (e) { }
+    if (Date.now() > fim) clearInterval(t);
+  }, 3000);
+}
 async function atualizarPainel() {
   try {
     const d = await pedir('/atualizar', {});
     if (d.erro) { $('aj-erro').textContent = d.erro; return; }
-    $('aj-versao').textContent = T('a_ver_feito');
-    setTimeout(() => location.reload(), 7000);
+    $('aj-versao').textContent = T(d.senha ? 'a_ver_senha' : 'a_ver_feito');
+    esperarNovaVersao();
   } catch (e) { $('aj-erro').textContent = T('a_nao_salvou'); }
 }
 

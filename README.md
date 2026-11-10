@@ -2,6 +2,7 @@
 
 A local web dashboard to **monitor and control a Linux PC**, made to live on a second screen.
 It runs as one small user service, opens at `http://127.0.0.1:47822`, and sleeps when the page is closed.
+A tiny tray icon starts it, stops it and changes its port.
 
 The interface is available in English and Portuguese.
 
@@ -25,6 +26,19 @@ automatic, fixed, or follow a custom curve.
 
 Fan control needs one step with the administrator password and is **off until you enable it**.
 
+## Tray icon
+
+A monitor icon in the system tray. Left click opens the dashboard. Its menu has only:
+
+- **Change port**: asks for a new port (1024 to 65535) and restarts the dashboard on it
+- **Start with system**: on or off
+- **Quit**: stops the dashboard service and closes the icon, so nothing keeps running
+
+Everything else lives in the web page. The icon is a small C program on sd-bus (part of systemd)
+with no GUI toolkit, no timers and no polling: about 0.3 MiB of private memory and 0 CPU while idle.
+It needs a tray that speaks StatusNotifierItem (KDE Plasma, XFCE, LXQt, Cinnamon, and GNOME with the
+AppIndicator extension). The port dialog uses `kdialog` or `zenity`.
+
 ## Install
 
 Quick, for one user, no root needed:
@@ -39,30 +53,33 @@ Add fan control (asks for the administrator password):
 curl -fsSL https://raw.githubusercontent.com/gabrielmf1998/pc-panel/main/install.sh | sh -s -- --fans
 ```
 
-Other ways, from the [releases page](https://github.com/gabrielmf1998/pc-panel/releases):
+Other ways, from the [releases page](https://github.com/gabrielmf1998/pc-panel/releases)
+(also mirrored on [GitLab](https://gitlab.com/gabriel17166/pc-panel/-/releases)):
 
 | System | How |
 |---|---|
-| Arch Linux | `packaging/arch/PKGBUILD` with `makepkg -si` |
-| Fedora | `sudo dnf install ./pc-panel-*.noarch.rpm` |
-| Any distro | `pc-panel-*-x86_64.AppImage` (dashboard only, uses the system python3) |
+| Arch Linux | `sudo pacman -U ./pc-panel-*-x86_64.pkg.tar.zst`, or build `packaging/arch/PKGBUILD` with `makepkg -si` |
+| Fedora | `sudo dnf install ./pc-panel-*.x86_64.rpm` |
+| Any distro | `chmod +x pc-panel-*-x86_64.AppImage` and run it (uses the system python3) |
 
-After a package install, start it for your user with `systemctl --user enable --now pc-panel`.
+After a package install, open **PC Panel** from the application menu once and tick **Start with system** in the tray menu.
 
-Remove a quick install with `sh install.sh --uninstall`.
+Remove a quick install with `curl -fsSL https://raw.githubusercontent.com/gabrielmf1998/pc-panel/main/install.sh | sh -s -- --uninstall`.
 
 ## Requirements and supported hardware
 
 - Linux with systemd and Python 3.12 or newer. No Python packages needed.
+- The tray icon is built for x86_64. On other machines the quick installer compiles it when a C compiler and the systemd headers exist.
 - Graphics card readings: NVIDIA with the proprietary driver, or AMD through the kernel driver. Without one, those cards are hidden.
 - Fan control and motherboard fan speeds: Nuvoton NCT67xx fan chips (driver `nct6775`). Other chips are not supported yet.
 - Developed and tested on one Arch Linux machine (Ryzen, RTX 3060 Ti). Fedora packages are built and installed by the release workflow but have not been used on real hardware yet. Reports are welcome.
 
 ## Updating
 
-Settings has a "Check for a new version" button. With the quick install or the AppImage it downloads the
-new release, checks it against the published SHA-256 and swaps the files. With a distro package it only
-tells you a new version exists, because the package manager owns the files.
+Settings has a "Check for a new version" button, then "Update now". The download is checked against the
+published `SHA256SUMS` first. The quick install and the AppImage replace their own files; the Arch and Fedora
+packages are installed with `pacman -U` or `dnf install` after you type the administrator password.
+The tray icon notices the new files and reloads itself and the dashboard.
 
 ## Safety notes
 
@@ -75,7 +92,8 @@ tells you a new version exists, because the package manager owns the files.
 
 ```
 bin/pc-panel                 the service (Python standard library only)
-share/pc-panel/page.html   the page
+tray/pc-panel-tray.c         the tray icon (C, sd-bus)
+share/pc-panel/page.html     the page
 lib/pc-panel/pc-panel-fans   the root fan helper
 systemd/                     unit templates
 install.sh                   quick installer
