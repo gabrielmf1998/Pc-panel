@@ -1,0 +1,12 @@
+post_install() {
+    echo ">>> Start the dashboard for your user:  systemctl --user enable --now pc-panel"
+    echo ">>> Then open http://127.0.0.1:47822"
+    echo ">>> Optional fan control:  sudo /usr/lib/pc-panel/pc-panel-fans --allow \$USER"
+    echo ">>>                        sudo systemctl enable --now pc-panel-fans.path && sudo systemctl enable pc-panel-fans.service"
+}
+post_upgrade() {
+    echo ">>> Restart the dashboard to load the new version:  systemctl --user restart pc-panel"
+}
+pre_remove() {
+    systemctl disable --now pc-panel-fans.path pc-panel-fans.service 2>/dev/null || true
+}

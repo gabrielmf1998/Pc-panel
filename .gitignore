@@ -1,0 +1,8 @@
+*.tar.gz
+*.rpm
+*.AppImage
+*.pkg.tar.*
+AppDir/
+pkg/
+src/
+__pycache__/

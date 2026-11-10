@@ -1,0 +1,15 @@
+[Unit]
+Description=PC Panel, local web dashboard at http://127.0.0.1:47822
+
+[Service]
+ExecStart=@BIN@
+# if the panel stops, a custom graphics card fan curve falls back to the factory curve
+ExecStopPost=@BIN@ --on-stop
+Restart=on-failure
+RestartSec=5
+# never compete with a game
+Nice=19
+MemoryMax=200M
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,192 @@
+#!/usr/bin/python3 -I
+"""pc-panel-fans: applies the fan choice made in pc-panel. Runs as root.
+
+When it runs: the choice file changed (pc-panel-fans.path), or the PC booted
+or resumed from sleep (pc-panel-fans.service).
+The choice lives in /var/lib/pc-panel/fans.json, a file the owner of the panel
+can write; so everything read from it is validated and anything unexpected
+becomes 100%. The result goes to /run/pc-panel-fans.json.
+
+Each motherboard fan (a channel of an nct67xx chip) has its own choice:
+maximum, fixed value, or a 4 point curve stored in the chip (Smart Fan IV,
+follows the processor temperature with no program running).
+An NVIDIA graphics card accepts maximum, automatic (factory curve) or a value;
+its custom curve is computed by the panel, which sends the value in "alvo".
+
+  pc-panel-fans --allow USER   create the choice file for that user
+"""
+import ctypes
+import glob
+import json
+import os
+import pwd
+import re
+import sys
+import time
+
+ESCOLHA = "/var/lib/pc-panel/fans.json"
+ESTADO = "/run/pc-panel-fans.json"
+
+
+def numero(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+def pontos_validos(p):
+    # 4 points [degrees, %]: degrees always rising (20 to 90), % never falling (20 to 100)
+    if not isinstance(p, list) or len(p) != 4:
+        return None
+    saida = []
+    for x in p:
+        if not (isinstance(x, list) and len(x) == 2 and numero(x[0]) and numero(x[1])):
+            return None
+        saida.append((int(min(90, max(20, x[0]))), int(min(100, max(20, x[1])))))
+    for a, b in zip(saida, saida[1:]):
+        if b[0] <= a[0] or b[1] < a[1]:
+            return None
+    return saida
+
+
+def ler_escolha(erros):
+    escolha = {"gpu": {"modo": "max", "pct": 100}, "placa": {}}
+    try:
+        fd = os.open(ESCOLHA, os.O_RDONLY | os.O_NOFOLLOW)
+        with os.fdopen(fd, "rb") as f:
+            d = json.loads(f.read(8192))
+    except FileNotFoundError:
+        return escolha
+    except (OSError, ValueError):
+        erros.append("unreadable choice, using 100%")
+        return escolha
+    if not isinstance(d, dict):
+        return escolha
+    g = d.get("gpu")
+    if isinstance(g, dict) and g.get("modo") in ("max", "auto", "fixo", "curva"):
+        valor = g.get("alvo") if g["modo"] == "curva" else g.get("pct")
+        escolha["gpu"] = {"modo": g["modo"], "pct": int(min(100, max(30, valor))) if numero(valor) else 100}
+    p = d.get("placa")
+    if isinstance(p, dict):
+        for canal in "1234567":
+            x = p.get(canal)
+            if not isinstance(x, dict) or x.get("modo") not in ("fixo", "curva"):
+                continue
+            if x["modo"] == "fixo" and numero(x.get("pct")):
+                escolha["placa"][canal] = {"modo": "fixo", "pct": int(min(100, max(20, x["pct"])))}
+            elif x["modo"] == "curva":
+                pontos = pontos_validos(x.get("pontos"))
+                if pontos:
+                    escolha["placa"][canal] = {"modo": "curva", "pontos": pontos}
+                else:
+                    erros.append("invalid curve on channel %s, using 100%%" % canal)
+    return escolha
+
+
+def escrever(caminho, valor):
+    with open(caminho, "w") as f:
+        f.write(str(valor))
+
+
+def placa_mae(placa, erros):
+    chip = None
+    for hw in sorted(glob.glob("/sys/class/hwmon/hwmon*")):
+        try:
+            with open(hw + "/name") as f:
+                if f.read().strip().startswith("nct67"):
+                    chip = hw
+                    break
+        except OSError:
+            continue
+    if not chip:
+        if placa:
+            erros.append("motherboard fan chip not found")
+        return
+    fonte = None                    # sensor that reads the processor
+    for rotulo in glob.glob(chip + "/temp*_label"):
+        try:
+            with open(rotulo) as f:
+                # AMD exposes the processor as SMBUSMASTER 0 (TSI), Intel as PECI Agent 0
+                if f.read().strip() in ("SMBUSMASTER 0", "PECI Agent 0"):
+                    fonte = int(re.search(r"temp(\d+)_label", rotulo).group(1))
+        except (OSError, AttributeError):
+            pass
+    for pwm in sorted(glob.glob(chip + "/pwm[0-9]")):
+        e = placa.get(pwm[-1], {"modo": "max"})
+        try:
+            # always go through manual mode first, the fan is never left without a command
+            escrever(pwm + "_enable", 1)
+            escrever(pwm, round(e["pct"] * 2.55) if e["modo"] == "fixo" else 255)
+            if e["modo"] != "curva":
+                continue
+            if fonte is None:
+                raise OSError("processor sensor not found in the chip")
+            escrever(pwm + "_temp_sel", fonte)
+            for i, (graus, pct) in enumerate(e["pontos"], 1):
+                escrever("%s_auto_point%d_temp" % (pwm, i), graus * 1000)
+                escrever("%s_auto_point%d_pwm" % (pwm, i), round(pct * 2.55))
+            escrever(pwm + "_auto_point5_temp", 90000)      # critical point: 100% from 90 degrees
+            escrever(pwm + "_auto_point5_pwm", 255)
+            escrever(pwm + "_enable", 5)        # 5 = Smart Fan IV, the curve runs inside the chip
+            with open(pwm + "_enable") as f:
+                if f.read().strip() != "5":
+                    raise OSError("the chip did not accept the curve")
+        except (OSError, ValueError) as erro:
+            erros.append("%s: %s" % (os.path.basename(pwm), erro))
+            try:
+                escrever(pwm + "_enable", 1)
+                escrever(pwm, 255)
+            except OSError:
+                pass
+
+
+def placa_video(e, erros):
+    try:
+        nvml = ctypes.CDLL("libnvidia-ml.so.1")
+    except OSError:
+        return                      # no NVIDIA card: nothing to do here
+    if nvml.nvmlInit_v2() != 0:
+        if e["modo"] != "max":
+            erros.append("graphics card not answering")
+        return
+    try:
+        quantas = ctypes.c_uint()
+        nvml.nvmlDeviceGetCount_v2(ctypes.byref(quantas))
+        for d in range(quantas.value):
+            h = ctypes.c_void_p()
+            if nvml.nvmlDeviceGetHandleByIndex_v2(d, ctypes.byref(h)):
+                continue
+            fans = ctypes.c_uint()
+            nvml.nvmlDeviceGetNumFans(h, ctypes.byref(fans))
+            for i in range(fans.value):
+                if e["modo"] == "auto":
+                    r = nvml.nvmlDeviceSetDefaultFanSpeed_v2(h, i)
+                else:
+                    r = nvml.nvmlDeviceSetFanSpeed_v2(h, i, 100 if e["modo"] == "max" else e["pct"])
+                if r:
+                    erros.append("graphics card fan %d: error %d" % (i, r))
+    finally:
+        nvml.nvmlShutdown()
+
+
+if len(sys.argv) == 3 and sys.argv[1] == "--allow":
+    # create the choice file owned by the user who will use the panel
+    dono = pwd.getpwnam(sys.argv[2])
+    os.makedirs(os.path.dirname(ESCOLHA), mode=0o755, exist_ok=True)
+    if not os.path.exists(ESCOLHA):
+        with open(ESCOLHA, "w") as f:
+            json.dump({"v": 2, "gpu": {"modo": "auto", "pct": 100}, "placa": {}}, f)
+    os.chown(ESCOLHA, dono.pw_uid, dono.pw_gid)
+    os.chmod(ESCOLHA, 0o644)
+    print("fan control enabled for", sys.argv[2])
+    sys.exit(0)
+if not os.path.exists(ESCOLHA):
+    sys.exit(0)                     # nobody enabled fan control: touch nothing
+
+erros = []
+escolha = ler_escolha(erros)
+placa_mae(escolha["placa"], erros)
+placa_video(escolha["gpu"], erros)
+with open(ESTADO + ".novo", "w") as f:
+    json.dump({"t": time.time(), "gpu": escolha["gpu"], "placa": escolha["placa"], "erros": erros}, f)
+os.chmod(ESTADO + ".novo", 0o644)
+os.replace(ESTADO + ".novo", ESTADO)
+print("fans:", json.dumps(escolha), "erros:", erros, flush=True)

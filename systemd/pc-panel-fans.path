@@ -1,0 +1,8 @@
+[Unit]
+Description=Apply the PC Panel fan choice when it changes
+
+[Path]
+PathChanged=/var/lib/pc-panel/fans.json
+
+[Install]
+WantedBy=multi-user.target

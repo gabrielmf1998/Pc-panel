@@ -1,0 +1,1892 @@
+#!/usr/bin/python3 -I
+# pc-panel: a local web dashboard to monitor and control a Linux PC.
+# It measures RAM, graphics card, processor, network, disks, system health and what
+# is running, and shows it on a local page:   http://127.0.0.1:47822
+# It only reads the system. What it writes: its own settings (~/.config/pc-panel),
+# the CSV log when enabled in Settings, and the fan command file
+# (/var/lib/pc-panel/fans.json, applied by the root helper pc-panel-fans).
+# With the page closed and nothing asking for samples (logging, graphics card
+# curve, fixed fan speed) the service sleeps and costs nothing.
+# MIT license. Identifiers are still in Portuguese; the interface has English and Portuguese.
+import collections
+import csv
+import ctypes
+import glob
+import hashlib
+import http.client
+import json
+import os
+import re
+import shutil
+import signal
+import socket
+import struct
+import subprocess
+import sys
+import tarfile
+import tempfile
+import threading
+import time
+import urllib.request
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import parse_qs, urlsplit
+
+VERSAO = "0.1.0"
+REPO = "gabrielmf1998/pc-panel"         # owner/repository on GitHub, used only to look for a new version
+ENDERECO, PORTA = "127.0.0.1", int(os.environ.get("PC_PANEL_PORT", "47822"))
+HOSTS = ("127.0.0.1:%d" % PORTA, "localhost:%d" % PORTA)
+ORIGENS = tuple("http://" + h for h in HOSTS)
+PORTA_ESPECTADORES = 47821
+INSTANCIA = "%x" % int(time.time() * 1000)
+HZ = os.sysconf("SC_CLK_TCK")
+PAGINA_KB = os.sysconf("SC_PAGE_SIZE") // 1024
+
+AQUI = os.path.dirname(os.path.realpath(__file__))
+PASTA_CFG = os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"), "pc-panel")
+ARQ_CFG = PASTA_CFG + "/config.json"
+ARQ_UPD = PASTA_CFG + "/atualizacoes.json"
+ARQ_PAGINA = os.path.join(AQUI, "..", "share", "pc-panel", "page.html")
+ARQ_FANS = "/var/lib/pc-panel/fans.json"
+ARQ_FANS_ESTADO = "/run/pc-panel-fans.json"
+AJUDANTES_FANS = ("/usr/lib/pc-panel/pc-panel-fans", "/usr/local/lib/pc-panel/pc-panel-fans")
+CARTOES = ("ram", "vram", "gpu", "cpu", "rede", "prog", "temp", "disc", "saude", "jogo", "live", "pz", "sis", "eventos")
+TEMAS = ("escuro", "preto", "noite", "claro", "contraste")
+CORES = ("azul", "agua", "violeta", "magenta")
+PERFIS = ("tudo", "jogo", "live", "hardware", "proprio")
+NIVEIS = ("bom", "aviso", "serio", "critico")
+# degrees at which a reading becomes warning, high and critical
+LIM = {"cpu": (85, 90, 94), "gpu": (80, 85, 90), "ssd": (65, 72, 80), "placa": (55, 65, 75), "mem": (60, 70, 80)}
+NOME_TEMP = {"cpu": ("Processador", "Processor"), "gpu": ("Placa de vídeo", "Graphics card"),
+             "placa": ("Placa-mãe", "Motherboard"), "mem": ("Memória", "Memory")}
+# ready-made curves: (degrees, fan %)
+CURVAS = {"silenciosa": [[25, 30], [45, 30], [65, 55], [82, 100]],
+          "equilibrada": [[25, 40], [40, 40], [60, 65], [78, 100]],
+          "desempenho": [[25, 55], [35, 55], [55, 80], [72, 100]]}
+CURVA_GPU = [[40, 30], [60, 45], [72, 70], [82, 100]]
+VELHO = ("Falta atualizar a parte de administrador das fans, reinstale o pc-panel-fans.",
+         "The administrator part of the fan control needs an update, reinstall pc-panel-fans.")
+RE_IP = re.compile(r"\d{1,3}(\.\d{1,3}){3}")
+
+APELIDOS = {
+    "chrome": "Chrome", "vesktop": "Vesktop", "Telegram": "Telegram",
+    "kwin_wayland": "KWin", "plasmashell": "Plasma", "steam": "Steam",
+    "steamwebhelper": "Steam", "obs": "OBS", "cs2": "CS2",
+    "ProjectZomboid6": "Project Zomboid", "claude": "Claude Code",
+}
+
+
+class Falha(Exception):
+    """error with a Portuguese and an English message"""
+
+
+def ler(caminho):
+    try:
+        with open(caminho) as f:
+            return f.read()
+    except OSError:
+        return None
+
+
+def ler_int(caminho):
+    try:
+        with open(caminho) as f:
+            return int(f.read())
+    except (OSError, ValueError, TypeError):
+        return None
+
+
+def grau(caminho):
+    v = ler_int(caminho) if caminho else None
+    return round(v / 1000, 1) if v else None
+
+
+def avisar(onde, erro):
+    print("pc-panel: %s: %r" % (onde, erro), file=sys.stderr, flush=True)
+
+
+def copia(d):
+    return json.loads(json.dumps(d))
+
+
+def numero(v):
+    return isinstance(v, (int, float)) and not isinstance(v, bool)
+
+
+def nivel(v, lim):          # the higher, the worse
+    return "bom" if v is None else NIVEIS[sum(v >= x for x in lim)]
+
+
+def nivel_min(v, lim):      # the lower, the worse
+    return "bom" if v is None else NIVEIS[sum(v <= x for x in lim)]
+
+
+def rodar(args, espera=10):
+    try:
+        return subprocess.run(args, capture_output=True, text=True, timeout=espera,
+                              env=dict(os.environ, LC_ALL="C")).stdout
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
+BOOT = int(re.search(r"^btime (\d+)", ler("/proc/stat") or "btime 0", re.M).group(1))
+NOME_CPU = re.sub(r"^AMD |^Intel\(R\) Core\(TM\) | \d+-Core Processor.*$", "",
+                  (re.search(r"model name\s*:\s*(.+)", ler("/proc/cpuinfo") or "") or [None, "Processador"])[1]).strip()
+FREQS = sorted(glob.glob("/sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_cur_freq"))
+
+# ---------------------------------------------------------------- state
+
+trava = threading.Lock()
+novo = threading.Condition()
+acordar = threading.Event()
+hist = collections.deque(maxlen=700)        # 11 minutes even when sampling every 1 s
+seq = 0
+estado = {"t": 0}
+visto = [0.0]                       # when the last page request arrived
+fontes = {"cpu": None, "placa": None, "chip": None, "mem": [], "fans": [], "nvme": {}}
+rota = {"iface": None, "gw": None, "ip": None, "link": None, "erros": None, "descartes": None}
+discos = []
+pings = {"gw": (0.0, None), "net": (0.0, None)}
+ult_vram = {}                       # pid -> MiB, from the last card reading
+extra = {"progs": None, "jogos": [], "live": {"obs": False}, "pz": None, "obs": False,
+         "sis": {"kernel": os.uname().release, "falhas": [], "bateria": None},
+         "saude": {"kerr": None, "kult": "", "trav": None, "tult": "", "reinicio": False, "atualizado": None}}
+fans = {"pode": False, "aplicado": None, "calibrando": None, "velho": False}
+curva_gpu = {"alvo": None, "quando": 0.0}
+upd = {"quando": None, "pacotes": [], "flatpak": None, "erro": None, "rodando": False}
+novidade = {"quando": None, "versao": None, "nova": False, "erro": None, "rodando": False, "arquivos": {}}
+eventos = collections.deque(maxlen=300)
+ev_seq = [0]
+cfg_seq = [0]
+cfg = {}
+
+
+def assistindo(limite=20):
+    return time.time() - visto[0] < limite
+
+
+def ritmo():
+    # (seconds between samples, page open?) or (None, False) to sleep
+    if assistindo():
+        return float(cfg["passo"]), True
+    lento = []
+    if cfg["registro"]["ligado"]:
+        lento.append(cfg["registro"]["intervalo"])
+    f = cfg["fans"]
+    if fans["pode"] and f:
+        if f["gpu"]["modo"] == "curva":
+            lento.append(4)         # the graphics card curve is driven from here
+        if f["gpu"]["modo"] == "fixo" or any(x["modo"] == "fixo" for x in f["placa"].values()):
+            lento.append(10)        # fixed fan speed: keep an eye on the temperature
+    return (float(min(lento)), False) if lento else (None, False)
+
+
+# ---------------------------------------------------------------- settings
+
+def cfg_padrao():
+    return {"idioma": "pt" if os.environ.get("LANG", "").startswith("pt") else "en", "tema": "escuro", "cor": "azul", "fonte": 1, "passo": 2, "perfil": "tudo",
+            "cartoes": {c: True for c in CARTOES}, "encaixe": True, "ping_alvo": "1.1.1.1",
+            "avisar": {"desktop": False, "som": False},
+            "registro": {"ligado": False, "pasta": "~/.local/share/pc-panel/registro", "intervalo": 10, "dias": 30},
+            # extra modules, off by default: Project Zomboid server and live viewer counter
+            "modulos": {"zomboid": False, "live": False},
+            # MiB subtracted from available memory (3500 mimics the MangoHud "RAM LEFT" row)
+            "ram_reserva": 0,
+            "fans": None, "canais": [], "calib": {}, "nomes_fans": {}}
+
+
+def limpar_cfg(d, base):
+    # merges what came in (d) over the current settings (base);
+    # returns (valid settings, None) or (None, (error in Portuguese, error in English))
+    nova = copia(base)
+    if not isinstance(d, dict):
+        return nova, None
+    for chave, validos in (("idioma", ("pt", "en")), ("tema", TEMAS), ("cor", CORES), ("fonte", (1, 1.15, 1.3)),
+                           ("passo", (1, 2, 5)), ("perfil", PERFIS)):
+        if not isinstance(d.get(chave), bool) and d.get(chave) in validos:
+            nova[chave] = d[chave]
+    if isinstance(d.get("cartoes"), dict):
+        for c in CARTOES:
+            if c in d["cartoes"]:
+                nova["cartoes"][c] = bool(d["cartoes"][c])
+    if "encaixe" in d:
+        nova["encaixe"] = bool(d["encaixe"])
+    if isinstance(d.get("avisar"), dict):
+        for k in ("desktop", "som"):
+            if k in d["avisar"]:
+                nova["avisar"][k] = bool(d["avisar"][k])
+    if isinstance(d.get("modulos"), dict):
+        for k in ("zomboid", "live"):
+            if k in d["modulos"]:
+                nova["modulos"][k] = bool(d["modulos"][k])
+    if numero(d.get("ram_reserva")):
+        nova["ram_reserva"] = int(min(16000, max(0, d["ram_reserva"])))
+    alvo = d.get("ping_alvo")
+    if isinstance(alvo, str) and alvo.strip():
+        alvo = alvo.strip()
+        if not RE_IP.fullmatch(alvo) or any(int(x) > 255 for x in alvo.split(".")):
+            return None, ("O endereço do ping precisa ser um IP, por exemplo 1.1.1.1",
+                          "The ping address must be an IP, for example 1.1.1.1")
+        nova["ping_alvo"] = alvo
+    r = d.get("registro")
+    if isinstance(r, dict):
+        if "ligado" in r:
+            nova["registro"]["ligado"] = bool(r["ligado"])
+        if r.get("intervalo") in (5, 10, 30, 60):
+            nova["registro"]["intervalo"] = r["intervalo"]
+        if r.get("dias") in (0, 7, 30, 90, 365):
+            nova["registro"]["dias"] = r["dias"]
+        if isinstance(r.get("pasta"), str) and r["pasta"].strip():
+            pasta = r["pasta"].strip()
+            if not os.path.isabs(os.path.expanduser(pasta)):
+                return None, ("A pasta do registro precisa ser um caminho completo, por exemplo /mnt/data/pc-panel",
+                              "The log folder must be a full path, for example /mnt/data/pc-panel")
+            nova["registro"]["pasta"] = pasta
+    if nova["registro"]["ligado"]:
+        real = os.path.expanduser(nova["registro"]["pasta"])
+        try:
+            os.makedirs(real, exist_ok=True)
+            teste = os.path.join(real, ".teste-pc-panel")
+            open(teste, "w").close()
+            os.remove(teste)
+        except OSError as e:
+            return None, ("Não consegui gravar na pasta %s (%s)" % (real, e.strerror),
+                          "Could not write to the folder %s (%s)" % (real, e.strerror))
+    return nova, None
+
+
+def carregar_cfg():
+    global cfg
+    try:
+        salvo = json.loads(ler(ARQ_CFG) or "null")
+    except ValueError:
+        salvo = None
+    nova, erro = limpar_cfg(salvo, cfg_padrao())
+    if erro:                        # log folder is gone: carry on without logging
+        avisar("config", erro[0])
+        salvo["registro"]["ligado"] = False
+        nova, erro = limpar_cfg(salvo, cfg_padrao())
+    if isinstance(salvo, dict):     # parts only this program writes
+        if isinstance(salvo.get("canais"), list):
+            nova["canais"] = [c for c in salvo["canais"] if c in tuple("1234567")]
+        if isinstance(salvo.get("calib"), dict):
+            nova["calib"] = salvo["calib"]
+        if isinstance(salvo.get("nomes_fans"), dict):
+            nova["nomes_fans"] = {k: str(v)[:24] for k, v in salvo["nomes_fans"].items()}
+        nova["fans"] = salvo.get("fans")
+    cfg = nova
+
+
+def salvar_cfg(nova):
+    global cfg
+    os.makedirs(PASTA_CFG, exist_ok=True)
+    with open(ARQ_CFG + ".novo", "w") as f:
+        json.dump(nova, f, indent=1, ensure_ascii=False)
+    os.replace(ARQ_CFG + ".novo", ARQ_CFG)
+    cfg = nova
+    cfg_seq[0] += 1
+
+
+# ---------------------------------------------------------------- logging to file
+
+class Registro:
+    COLUNAS = ["hora", "ram_usada_gib", "ram_left_mib", "swap_gib", "vram_gib", "placa_uso", "placa_temp",
+               "placa_watts", "placa_fan", "cpu_uso", "cpu_temp", "fans_rpm", "ping_ms", "download_mbit",
+               "upload_mbit", "jogo", "jogo_ram_gib", "jogo_vram_gib", "espectadores", "pz_ticks", "pz_jogadores"]
+
+    def __init__(self):
+        self.f = self.caminho = self.erro = None
+        self.proxima = self.limpeza = 0.0
+
+    def pasta(self):
+        return os.path.expanduser(cfg["registro"]["pasta"])
+
+    def fechar(self):
+        if self.f:
+            try:
+                self.f.close()
+            except OSError:
+                pass
+        self.f = self.caminho = None
+
+    def abrir(self, nome, cabecalho):
+        os.makedirs(self.pasta(), exist_ok=True)
+        caminho = os.path.join(self.pasta(), nome)
+        vazio = not os.path.exists(caminho) or os.path.getsize(caminho) == 0
+        f = open(caminho, "a", newline="", encoding="utf-8")
+        if vazio:
+            csv.writer(f).writerow(cabecalho)
+        return f
+
+    def medida(self, a):
+        if not cfg["registro"]["ligado"]:
+            self.fechar()
+            return
+        agora = time.monotonic()
+        if agora < self.proxima:
+            return
+        self.proxima = agora + cfg["registro"]["intervalo"] - 0.3
+        try:
+            nome = time.strftime("painel-%Y-%m-%d.csv")
+            caminho = os.path.join(self.pasta(), nome)
+            if caminho != self.caminho or not os.path.exists(caminho):
+                self.fechar()
+                self.f, self.caminho = self.abrir(nome, self.COLUNAS), caminho
+            csv.writer(self.f).writerow(self.linha(a))
+            self.f.flush()
+            self.erro = None
+            if agora >= self.limpeza:
+                self.limpeza = agora + 3600
+                self.limpar()
+        except OSError as e:
+            self.erro = e.strerror or str(e)
+            self.fechar()
+
+    def linha(self, a):
+        def n(v, casas=1):
+            return "" if v is None else round(v, casas)
+
+        g, r, c, rd, lv, z = a["gpu"], a["ram"], a["cpu"], a["rede"], a["live"], a["pz"]
+        j = a["jogos"][0] if a["jogos"] else None
+        ping = rd["ping"]
+        vivas = [v for v in (lv.get("twitch"), lv.get("youtube"), lv.get("kick")) if isinstance(v, int)]
+        return [time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(a["t"])),
+                n(r["usada"] / 1048576, 2), r["left"] // 1024, n(r["swap"] / 1048576, 2),
+                n(g["vram"] / 1024, 2) if g["ok"] else "", g.get("uso", ""), g.get("temp", ""),
+                g.get("watts", ""), g.get("fan", ""), n(c["uso"]), n(c["temp"]),
+                " ".join(str(x["rpm"]) for x in a["fans"]["canais"]),
+                "" if ping is None else "perdido" if ping < 0 else ping,
+                n(None if rd["rx"] is None else rd["rx"] * 8 / 1e6, 2),
+                n(None if rd["tx"] is None else rd["tx"] * 8 / 1e6, 2),
+                j["nome"] if j else "", n(j["kb"] / 1048576, 2) if j else "", n(j["vram"] / 1024, 2) if j else "",
+                sum(vivas) if vivas else "", n(z["ticks"]) if z else "",
+                len(z["jogadores"]) if z and z["jogadores"] is not None else ""]
+
+    def evento(self, tipo, ev):
+        if not cfg["registro"]["ligado"]:
+            return
+        try:
+            with self.abrir("eventos.csv", ["hora", "tipo", "nivel", "texto", "jogo", "duracao_s"]) as f:
+                quando = ev["fim"] if tipo == "fim" else ev["t"]
+                csv.writer(f).writerow([time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(quando)), tipo, ev["nv"],
+                                        ev[cfg["idioma"]], ev["jogo"] or "",
+                                        round(ev["fim"] - ev["t"]) if ev["fim"] else ""])
+        except OSError as e:
+            self.erro = e.strerror or str(e)
+
+    def limpar(self):
+        dias = cfg["registro"]["dias"]
+        if not dias:
+            return
+        corte = time.strftime("painel-%Y-%m-%d.csv", time.localtime(time.time() - dias * 86400))
+        for arq in glob.glob(os.path.join(glob.escape(self.pasta()), "painel-????-??-??.csv")):
+            if os.path.basename(arq) < corte:
+                os.remove(arq)
+
+    def info(self):
+        pasta = self.pasta()
+        arqs = [a for a in glob.glob(os.path.join(glob.escape(pasta), "*.csv"))
+                if re.fullmatch(r"painel-\d{4}-\d\d-\d\d\.csv|eventos\.csv", os.path.basename(a))]
+        hoje = time.strftime("painel-%Y-%m-%d.csv")
+        return {"pasta": pasta, "arquivos": len(arqs), "bytes": sum(os.path.getsize(a) for a in arqs),
+                "hoje": hoje if os.path.exists(os.path.join(pasta, hoje)) else None, "erro": self.erro}
+
+
+registro = Registro()
+
+# ---------------------------------------------------------------- warnings and events
+
+abertos, pendentes = {}, {}
+
+
+def notificar(ev):
+    # desktop notification, only when enabled in Settings
+    if not cfg["avisar"]["desktop"]:
+        return
+    args = ["busctl", "--user", "call", "org.freedesktop.Notifications", "/org/freedesktop/Notifications",
+            "org.freedesktop.Notifications", "Notify", "susssasa{sv}i", "PC Panel", "0",
+            "dialog-warning" if ev["nv"] == "aviso" else "dialog-error", "PC Panel", ev[cfg["idioma"]],
+            "0", "0", "10000"]
+    threading.Thread(target=rodar, args=(args, 5), daemon=True).start()
+
+
+def acompanhar(avisos, t, jogo):
+    # a warning becomes an event after 2 samples in a row and closes after 3 good samples
+    vistos = set()
+    for a in avisos:
+        ident = a["id"]
+        vistos.add(ident)
+        aberto = abertos.get(ident)
+        if aberto:
+            aberto["ok"] = 0
+            if NIVEIS.index(a["nv"]) > NIVEIS.index(aberto["ev"]["nv"]):
+                aberto["ev"].update(nv=a["nv"], pt=a["pt"], en=a["en"])
+                ev_seq[0] += 1
+            continue
+        pendentes[ident] = pendentes.get(ident, 0) + 1
+        if pendentes[ident] >= 2:
+            ev = {"t": round(t), "fim": None, "nv": a["nv"], "pt": a["pt"], "en": a["en"], "jogo": jogo, "c": a["c"]}
+            eventos.append(ev)
+            abertos[ident] = {"ev": ev, "ok": 0}
+            del pendentes[ident]
+            ev_seq[0] += 1
+            registro.evento("comeco", ev)
+            notificar(ev)
+    for ident in [i for i in pendentes if i not in vistos]:
+        del pendentes[ident]
+    for ident in [i for i in abertos if i not in vistos]:
+        aberto = abertos[ident]
+        aberto["ok"] += 1
+        if aberto["ok"] >= 3:
+            aberto["ev"]["fim"] = round(t)
+            del abertos[ident]
+            ev_seq[0] += 1
+            registro.evento("fim", aberto["ev"])
+
+
+def evento_avulso(nv, pt, en, cartao="saude"):
+    t = round(time.time())
+    jogo = extra["jogos"][0]["nome"] if extra["jogos"] else None
+    ev = {"t": t, "fim": t, "nv": nv, "pt": pt, "en": en, "jogo": jogo, "c": cartao}
+    eventos.append(ev)
+    ev_seq[0] += 1
+    registro.evento("fim", ev)
+    notificar(ev)
+
+
+# ---------------------------------------------------------------- fans (the part without root)
+
+def pontos_validos(p, minimo):
+    # 4 points [degrees, %]: degrees always rising (20 to 90), % never falling
+    if not isinstance(p, list) or len(p) != 4:
+        return None
+    saida = []
+    for x in p:
+        if not (isinstance(x, list) and len(x) == 2 and numero(x[0]) and numero(x[1])):
+            return None
+        saida.append([int(min(90, max(20, x[0]))), int(min(100, max(minimo, x[1])))])
+    for a, b in zip(saida, saida[1:]):
+        if b[0] <= a[0] or b[1] < a[1]:
+            return None
+    return saida
+
+
+def limpar_fans(d, canais):
+    # the user's choice: graphics card + one entry per motherboard fan
+    nova = {"gpu": {"modo": "max", "pct": 100, "pontos": copia(CURVA_GPU)},
+            "placa": {c: {"modo": "max", "pct": 100, "pontos": copia(CURVAS["equilibrada"])} for c in canais}}
+    if not isinstance(d, dict):
+        return nova
+    g = d.get("gpu")
+    if isinstance(g, dict):
+        if g.get("modo") in ("max", "auto", "fixo", "curva"):
+            nova["gpu"]["modo"] = g["modo"]
+        if numero(g.get("pct")):
+            nova["gpu"]["pct"] = int(min(100, max(30, g["pct"])))
+        nova["gpu"]["pontos"] = pontos_validos(g.get("pontos"), 30) or nova["gpu"]["pontos"]
+    p = d.get("placa")
+    if isinstance(p, dict) and "modo" in p:     # old format: one choice for all fans
+        p = {c: dict(p, pontos=CURVAS.get(p.get("curva"))) for c in canais}
+    if isinstance(p, dict):
+        for c in canais:
+            x = p.get(c)
+            if not isinstance(x, dict):
+                continue
+            if x.get("modo") in ("max", "fixo", "curva"):
+                nova["placa"][c]["modo"] = x["modo"]
+            if numero(x.get("pct")):
+                nova["placa"][c]["pct"] = int(min(100, max(20, x["pct"])))
+            nova["placa"][c]["pontos"] = pontos_validos(x.get("pontos"), 20) or nova["placa"][c]["pontos"]
+    return nova
+
+
+def interpolar(pontos, temp):
+    if temp <= pontos[0][0]:
+        return pontos[0][1]
+    for (t0, p0), (t1, p1) in zip(pontos, pontos[1:]):
+        if temp <= t1:
+            return p0 + (p1 - p0) * (temp - t0) / (t1 - t0)
+    return pontos[-1][1]
+
+
+def alvo_da_curva(temp):
+    if temp is None or temp >= 86:
+        return 100
+    return int(max(30, min(100, round(interpolar(cfg["fans"]["gpu"]["pontos"], temp)))))
+
+
+def gravar_comando(alvo_gpu=None, placa=None, so_se_mudou=False):
+    # the root helper (pc-panel-fans.path) sees the file change and applies it
+    f = cfg["fans"]
+    cmd = {"v": 2, "gpu": {"modo": f["gpu"]["modo"], "pct": f["gpu"]["pct"]}, "placa": placa or f["placa"]}
+    if f["gpu"]["modo"] == "curva":
+        cmd["gpu"]["alvo"] = alvo_gpu or 100
+    if so_se_mudou:
+        try:
+            if json.loads(ler(ARQ_FANS) or "null") == cmd:
+                return
+        except ValueError:
+            pass
+    with open(ARQ_FANS, "w") as arq:
+        json.dump(cmd, arq)
+
+
+def ler_fans():
+    pode = any(os.path.exists(a) for a in AJUDANTES_FANS) and os.access(ARQ_FANS, os.W_OK)
+    aplicado = None
+    if pode:
+        try:
+            aplicado = json.loads(ler(ARQ_FANS_ESTADO) or "null")
+        except ValueError:
+            aplicado = None
+    # the old helper answered with a single choice for the motherboard
+    velho = isinstance(aplicado, dict) and "modo" in (aplicado.get("placa") or {})
+    fans.update(pode=pode, aplicado=aplicado, velho=velho)
+
+
+def canais_fans():
+    # motherboard fans that spin; once seen, a fan stays in the list
+    achados = list(cfg["canais"])
+    for arq in fontes["fans"]:
+        n = re.search(r"fan(\d)_input", arq).group(1)
+        if n not in achados and (ler_int(arq) or 0) > 0:
+            achados.append(n)
+    return sorted(achados)
+
+
+def preparar_fans():
+    # builds the choice the first time (from what was already applied)
+    canais = canais_fans()
+    escolha = cfg["fans"]
+    if escolha is None:
+        try:
+            escolha = json.loads(ler(ARQ_FANS) or "null")
+        except ValueError:
+            escolha = None
+    nova = limpar_fans(escolha, canais)
+    if nova != cfg["fans"] or canais != cfg["canais"]:
+        c = copia(cfg)
+        c.update(fans=nova, canais=canais)
+        try:
+            salvar_cfg(c)
+        except OSError as e:
+            avisar("config", e)
+            cfg.update(fans=nova, canais=canais)
+
+
+def guiar_gpu(temp):
+    # custom graphics card curve: NVIDIA cards do not store a curve, so the
+    # target is recomputed here and sent only when it really changes
+    f = cfg["fans"]
+    if not fans["pode"] or not f or f["gpu"]["modo"] != "curva" or temp is None or fans["calibrando"] is not None:
+        return
+    alvo = alvo_da_curva(temp)
+    antes, agora = curva_gpu["alvo"], time.monotonic()
+    if antes is not None:
+        sobe, desce = alvo - antes, antes - alvo
+        if sobe < 3 and desce < 5:
+            return
+        if agora - curva_gpu["quando"] < (2 if sobe >= 10 else 6):
+            return
+    try:
+        gravar_comando(alvo)
+        curva_gpu.update(alvo=alvo, quando=agora)
+    except OSError as e:
+        avisar("fans", e)
+
+
+quente = {"gpu": 0, "placa": 0}
+
+
+def proteger_fans(tgpu, tcpu):
+    # a fixed fan does not speed up by itself: if it gets too hot, go back to 100 %
+    f = cfg["fans"]
+    if not fans["pode"] or not f or fans["calibrando"] is not None:
+        return
+    nova = None
+    if f["gpu"]["modo"] == "fixo" and tgpu is not None and tgpu >= 86:
+        quente["gpu"] += 1
+        if quente["gpu"] >= 3:
+            nova = copia(f)
+            nova["gpu"]["modo"] = "max"
+            evento_avulso("serio", "Proteção colocou as fans da placa de vídeo em 100 %% (%d °C)" % tgpu,
+                          "Protection set the graphics card fans to 100 %% (%d °C)" % tgpu, "temp")
+    else:
+        quente["gpu"] = 0
+    if any(x["modo"] == "fixo" for x in f["placa"].values()) and tcpu is not None and tcpu >= 93:
+        quente["placa"] += 1
+        if quente["placa"] >= 3:
+            nova = nova or copia(f)
+            for x in nova["placa"].values():
+                if x["modo"] == "fixo":
+                    x["modo"] = "max"
+            evento_avulso("serio", "Proteção colocou as fans do processador em 100 %% (%d °C)" % tcpu,
+                          "Protection set the processor fans to 100 %% (%d °C)" % tcpu, "temp")
+    else:
+        quente["placa"] = 0
+    if nova:
+        quente.update(gpu=0, placa=0)
+        c = copia(cfg)
+        c["fans"] = nova
+        try:
+            salvar_cfg(c)
+            gravar_comando(curva_gpu["alvo"])
+        except OSError as e:
+            avisar("fans", e)
+
+
+def calibrar():
+    # measures how many rpm each motherboard fan makes at each percentage (42 s)
+    canais = list(cfg["fans"]["placa"])
+    if not canais or fans["calibrando"] is not None:
+        return
+    fans["calibrando"] = 0
+    tabela = {c: [] for c in canais}
+    try:
+        for i, pct in enumerate((100, 85, 70, 55, 40, 30, 20)):
+            if ((estado.get("cpu") or {}).get("temp") or 0) >= 90:
+                break               # too hot to slow the fan down
+            gravar_comando(curva_gpu["alvo"], {c: {"modo": "fixo", "pct": pct, "pontos": CURVAS["equilibrada"]}
+                                               for c in canais})
+            time.sleep(6)
+            for c in canais:
+                tabela[c].append([pct, ler_int("%s/fan%s_input" % (fontes["chip"], c)) or 0])
+            fans["calibrando"] = i + 1
+        if all(len(v) >= 3 for v in tabela.values()):
+            c = copia(cfg)
+            c["calib"] = tabela
+            salvar_cfg(c)
+    except OSError as e:
+        avisar("calibrar", e)
+    finally:
+        try:
+            gravar_comando(curva_gpu["alvo"])       # back to the user's choice
+        except OSError:
+            pass
+        fans["calibrando"] = None
+
+
+def ao_parar():
+    # with the panel stopped nobody drives the graphics card curve: hand it back to
+    # the factory curve. The choice stays saved and returns when the panel starts.
+    try:
+        cmd = json.loads(ler(ARQ_FANS) or "null")
+        if isinstance(cmd, dict) and isinstance(cmd.get("gpu"), dict) and cmd["gpu"].get("modo") == "curva":
+            cmd["gpu"] = {"modo": "auto", "pct": 100}
+            with open(ARQ_FANS, "w") as arq:
+                json.dump(cmd, arq)
+    except (OSError, ValueError):
+        pass
+
+
+# ---------------------------------------------------------------- graphics card (NVML)
+
+class _Uso(ctypes.Structure):
+    _fields_ = [("gpu", ctypes.c_uint), ("mem", ctypes.c_uint)]
+
+
+class _Mem(ctypes.Structure):
+    _fields_ = [("total", ctypes.c_ulonglong), ("livre", ctypes.c_ulonglong), ("usada", ctypes.c_ulonglong)]
+
+
+class _Proc(ctypes.Structure):
+    _fields_ = [("pid", ctypes.c_uint), ("mem", ctypes.c_ulonglong),
+                ("gi", ctypes.c_uint), ("ci", ctypes.c_uint)]
+
+
+class _Rpm(ctypes.Structure):
+    _fields_ = [("versao", ctypes.c_uint), ("fan", ctypes.c_uint), ("rpm", ctypes.c_uint)]
+
+
+class Nvidia:
+    # Reads the card through the NVIDIA library, without spawning a process (nvidia-smi)
+    # per sample and without creating a graphics context (uses no VRAM).
+    def __init__(self):
+        self.lib = self.h = None
+        self.fixo = {}
+        self.nfans = 0
+        self.tentar_em = 0.0
+        self.ausente = False        # this PC does not have the NVIDIA library
+        self.erro = ("ainda não li a placa", "card not read yet")
+
+    def abrir(self):
+        self.tentar_em = time.monotonic() + 30
+        try:
+            try:
+                lib = ctypes.CDLL("libnvidia-ml.so.1")
+            except OSError:
+                self.ausente = True
+                raise
+            r = lib.nvmlInit_v2()
+            if r == 9:              # NVML_ERROR_DRIVER_NOT_LOADED: library installed, no card
+                self.ausente = True
+            if r == 18:
+                raise Falha("o driver foi atualizado e falta reiniciar o PC", "the driver was updated, reboot needed")
+            if r:
+                raise Falha("a biblioteca da NVIDIA devolveu o erro %d" % r, "the NVIDIA library returned error %d" % r)
+            h = ctypes.c_void_p()
+            if lib.nvmlDeviceGetHandleByIndex_v2(0, ctypes.byref(h)):
+                lib.nvmlShutdown()
+                raise Falha("placa NVIDIA não encontrada", "NVIDIA card not found")
+            nome, drv = ctypes.create_string_buffer(96), ctypes.create_string_buffer(80)
+            lim, nf = ctypes.c_uint(), ctypes.c_uint()
+            lib.nvmlDeviceGetName(h, nome, 96)
+            lib.nvmlSystemGetDriverVersion(drv, 80)
+            lib.nvmlDeviceGetPowerManagementLimit(h, ctypes.byref(lim))
+            lib.nvmlDeviceGetNumFans(h, ctypes.byref(nf))
+            self.nfans = min(nf.value, 4)
+            self.fixo = {"nome": nome.value.decode(errors="replace").replace("NVIDIA GeForce ", ""),
+                         "driver": drv.value.decode(errors="replace"), "watts_max": round(lim.value / 1000)}
+            self.lib, self.h, self.erro = lib, h, None
+        except Falha as e:
+            self.lib, self.erro = None, e.args
+        except (OSError, AttributeError) as e:
+            self.lib, self.erro = None, (str(e), str(e))
+
+    def medir(self):
+        if self.lib is None and time.monotonic() >= self.tentar_em:
+            self.abrir()
+        if self.lib is None:
+            return {"ok": False, "erro": self.erro}, {}
+        lib, h, ref = self.lib, self.h, ctypes.byref
+        uso, mem = _Uso(), _Mem()
+        temp, mw, fan, mhz, enc, periodo = (ctypes.c_uint() for _ in range(6))
+        if lib.nvmlDeviceGetUtilizationRates(h, ref(uso)) or lib.nvmlDeviceGetMemoryInfo(h, ref(mem)):
+            lib.nvmlShutdown()
+            self.lib, self.erro = None, ("a placa parou de responder", "the card stopped answering")
+            self.tentar_em = time.monotonic() + 30
+            return {"ok": False, "erro": self.erro}, {}
+        lib.nvmlDeviceGetTemperature(h, 0, ref(temp))
+        lib.nvmlDeviceGetPowerUsage(h, ref(mw))
+        lib.nvmlDeviceGetFanSpeed(h, ref(fan))
+        lib.nvmlDeviceGetClockInfo(h, 0, ref(mhz))
+        lib.nvmlDeviceGetEncoderUtilization(h, ref(enc), ref(periodo))
+        rpm = []
+        for i in range(self.nfans):
+            r = _Rpm(ctypes.sizeof(_Rpm) | (1 << 24), i, 0)
+            try:
+                if lib.nvmlDeviceGetFanSpeedRPM(h, ref(r)) == 0:
+                    rpm.append(r.rpm)
+            except AttributeError:
+                break
+        procs = {}
+        for funcao in ("nvmlDeviceGetGraphicsRunningProcesses_v3", "nvmlDeviceGetComputeRunningProcesses_v3"):
+            n, lista = ctypes.c_uint(128), (_Proc * 128)()
+            try:
+                if getattr(lib, funcao)(h, ref(n), lista) == 0:
+                    for p in lista[:n.value]:
+                        if p.mem < 1 << 60:
+                            procs[p.pid] = max(procs.get(p.pid, 0), p.mem >> 20)
+            except AttributeError:
+                pass
+        # "used" = total minus free: includes the ~300 MiB the driver reserves,
+        # same as MangoHud (nvidia-smi shows it without that reserve)
+        info = dict(self.fixo, ok=True, uso=uso.gpu, vram=(mem.total - mem.livre) >> 20,
+                    vram_total=mem.total >> 20, temp=temp.value, watts=round(mw.value / 1000),
+                    fan=fan.value, rpm=rpm, mhz=mhz.value, enc=enc.value)
+        return info, procs
+
+
+class Amd:
+    # AMD card (and integrated graphics) through the amdgpu sysfs. No per-program VRAM.
+    def __init__(self):
+        self.dev = self.hw = None
+        melhor = -1
+        for d in glob.glob("/sys/class/drm/card[0-9]*/device"):
+            total = ler_int(d + "/mem_info_vram_total")
+            if (ler(d + "/vendor") or "").strip() == "0x1002" and total is not None and total > melhor:
+                melhor, self.dev = total, d
+        if self.dev:
+            self.hw = (glob.glob(self.dev + "/hwmon/hwmon*") or [None])[0]
+
+    def medir(self):
+        d, h = self.dev, self.hw
+        total, usada = ler_int(d + "/mem_info_vram_total") or 0, ler_int(d + "/mem_info_vram_used") or 0
+        if not total:
+            return {"ok": False, "ausente": True, "erro": ("placa sem leitura", "card not readable")}, {}
+        temp = ler_int(h + "/temp1_input") if h else None
+        watts = (ler_int(h + "/power1_average") or ler_int(h + "/power1_input")) if h else None
+        pwm, rpm = (ler_int(h + "/pwm1"), ler_int(h + "/fan1_input")) if h else (None, None)
+        mhz = ler_int(h + "/freq1_input") if h else None
+        return {"ok": True, "nome": "AMD Radeon", "driver": None, "watts_max": None,
+                "uso": ler_int(d + "/gpu_busy_percent") or 0, "vram": usada >> 20, "vram_total": max(1, total >> 20),
+                "temp": round(temp / 1000) if temp else None, "watts": round(watts / 1e6) if watts else None,
+                "fan": None if pwm is None else round(pwm / 2.55), "rpm": [rpm] if rpm else [],
+                "mhz": round(mhz / 1e6) if mhz else None, "enc": None}, {}
+
+
+# ---------------------------------------------------------------- sensors, route and disks (slow)
+
+def achar_fontes():
+    f = {"cpu": None, "placa": None, "chip": None, "mem": [], "fans": [], "nvme": {}}
+    for d in sorted(glob.glob("/sys/class/hwmon/hwmon*")):
+        nome = (ler(d + "/name") or "").strip()
+        if nome in ("k10temp", "zenpower", "coretemp"):
+            f["cpu"] = d + "/temp1_input"
+        elif nome.startswith("nct67"):
+            f["placa"], f["chip"] = d + "/temp1_input", d
+            f["fans"] = sorted(glob.glob(d + "/fan[0-9]_input"))
+        elif nome == "spd5118":
+            f["mem"].append(d + "/temp1_input")
+        elif nome == "nvme":
+            f["nvme"][os.path.realpath(d + "/device")] = d + "/temp1_input"
+    fontes.update(f)
+
+
+def achar_rota():
+    # interface and router of the default route (lowest metric)
+    melhor = None
+    for linha in (ler("/proc/net/route") or "").splitlines()[1:]:
+        p = linha.split()
+        if len(p) > 7 and p[1] == "00000000" and int(p[3], 16) & 2:
+            if melhor is None or int(p[6]) < melhor[0]:
+                melhor = (int(p[6]), p[0], socket.inet_ntoa(struct.pack("<L", int(p[2], 16))))
+    if not melhor:
+        rota.update(iface=None, gw=None, ip=None, link=None, erros=None, descartes=None)
+        return
+    ip = None
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect((melhor[2], 9))       # sends nothing, only finds the local IP
+        ip = s.getsockname()[0]
+        s.close()
+    except OSError:
+        pass
+    base = "/sys/class/net/%s/" % melhor[1]
+
+    def soma(*nomes):
+        return sum(ler_int(base + "statistics/" + n) or 0 for n in nomes)
+
+    link = ler_int(base + "speed")
+    rota.update(iface=melhor[1], gw=melhor[2], ip=ip, link=link if link and link > 0 else None,
+                erros=soma("rx_errors", "tx_errors"), descartes=soma("rx_dropped", "tx_dropped"))
+
+
+def achar_discos():
+    achados, vistos = [], set()
+    for linha in (ler("/proc/mounts") or "").splitlines():
+        p = linha.split()
+        if len(p) < 3 or not p[0].startswith("/dev/"):
+            continue
+        if p[2] not in ("ext4", "btrfs", "xfs", "f2fs", "ntfs", "ntfs3", "exfat"):
+            continue
+        ponto = p[1].replace("\\040", " ")
+        bloco = os.path.realpath("/sys/class/block/" + os.path.basename(os.path.realpath(p[0])))
+        if not os.path.isdir(bloco):
+            continue
+        if os.path.exists(bloco + "/partition"):
+            bloco = os.path.dirname(bloco)
+        dev = os.path.basename(bloco)
+        if dev in vistos:
+            continue
+        vistos.add(dev)
+        d = {"nome": "/" if ponto == "/" else os.path.basename(ponto),
+             "modelo": " ".join((ler(bloco + "/device/model") or "").split()),
+             "ponto": ponto, "dev": dev, "total": 0, "livre": 0,
+             "temp_arq": fontes["nvme"].get(os.path.realpath(bloco + "/device"))}
+        try:
+            s = os.statvfs(ponto)
+            d["total"], d["livre"] = s.f_blocks * s.f_frsize, s.f_bavail * s.f_frsize
+        except OSError:
+            pass
+        achados.append(d)
+    discos[:] = achados
+
+
+def info_sistema():
+    falhas = []
+    for args in (["systemctl", "--failed", "--no-legend", "--plain"],
+                 ["systemctl", "--user", "--failed", "--no-legend", "--plain"]):
+        for linha in (rodar(args, 8) or "").splitlines():
+            unidade = linha.split()[0] if linha.split() else ""
+            # app-*.service are programs started from the menu that exited with an error
+            if unidade and not unidade.startswith("app-"):
+                falhas.append(unidade)
+    bateria = None
+    for d in glob.glob("/sys/class/power_supply/*"):
+        pct, st = ler_int(d + "/capacity"), (ler(d + "/status") or "").strip()
+        if pct is not None and st in ("Discharging", "Charging", "Full"):
+            modelo = (ler(d + "/model_name") or os.path.basename(d)).strip()
+            fone = any(x in modelo.upper() for x in ("VOID", "HEADSET"))
+            bateria = {"nome": "Headset" if fone else modelo, "pct": pct, "carregando": st == "Charging"}
+            break
+    return {"kernel": os.uname().release, "falhas": falhas, "bateria": bateria}
+
+
+def cauda(arq, bytes_):
+    try:
+        with open(arq, "rb") as f:
+            f.seek(0, 2)
+            f.seek(max(0, f.tell() - bytes_))
+            return f.read()
+    except OSError:
+        return b""
+
+
+def info_saude():
+    # kernel errors since boot, programs that crashed today, pending reboot
+    # and when the last full system upgrade happened
+    s, antes = dict(extra["saude"]), extra["saude"]
+    saida = rodar(["journalctl", "-k", "-b", "-p", "3", "-q", "--no-pager", "-o", "cat"])
+    if saida is not None:
+        linhas = [x.strip() for x in saida.splitlines() if x.strip()]
+        s["kerr"], s["kult"] = len(linhas), (linhas[-1][:220] if linhas else "")
+        if antes["kerr"] is not None and s["kerr"] > antes["kerr"]:
+            evento_avulso("aviso", "Erro novo do kernel: " + s["kult"], "New kernel error: " + s["kult"])
+    saida = rodar(["coredumpctl", "list", "--since", "today", "--no-legend", "-q", "--no-pager"])
+    if saida is not None:
+        nomes = [os.path.basename(p) for linha in saida.splitlines() for p in linha.split() if p.startswith("/")]
+        s["trav"], s["tult"] = len(nomes), (nomes[-1] if nomes else "")
+        if antes["trav"] is not None and s["trav"] > antes["trav"]:
+            evento_avulso("aviso", "%s travou e foi fechado pelo sistema" % s["tult"], "%s crashed" % s["tult"])
+    s["reinicio"] = not os.path.exists("/usr/lib/modules/%s/pkgbase" % os.uname().release)
+    achados = re.findall(r"^\[([0-9T:+-]+)\] \[PACMAN\] starting full system upgrade",
+                         cauda("/var/log/pacman.log", 262144).decode(errors="replace"), re.M)
+    if achados:
+        try:
+            s["atualizado"] = time.mktime(time.strptime(achados[-1][:19], "%Y-%m-%dT%H:%M:%S"))
+        except ValueError:
+            pass
+    extra["saude"] = s
+
+
+def verificar_atualizacoes():
+    # Downloads the package list to a temporary folder and compares. Never touches
+    # the real pacman database and installs nothing.
+    if upd["rodando"]:
+        return
+    upd["rodando"] = True
+    tmp = tempfile.mkdtemp(prefix="pc-panel-db-")
+    try:
+        erro, pacotes, flat = None, [], None
+        if not shutil.which("pacman") and shutil.which("dnf"):
+            # Fedora: dnf checks with the user's own cache, no root and no install
+            r = subprocess.run(["nice", "-n", "19", "dnf", "check-update", "-q"], capture_output=True, text=True, timeout=300)
+            if r.returncode not in (0, 100):
+                erro = ("o dnf não conseguiu consultar", "dnf could not check")
+            pacotes = [" ".join(x.split()[:2]) for x in r.stdout.splitlines() if len(x.split()) == 3][:400]
+        elif not shutil.which("pacman"):
+            erro = ("este sistema não usa pacman nem dnf", "this system uses neither pacman nor dnf")
+        elif not shutil.which("fakeroot"):
+            erro = ("falta o programa fakeroot", "the fakeroot program is missing")
+        else:
+            os.symlink("/var/lib/pacman/local", tmp + "/local")
+            r = subprocess.run(["nice", "-n", "19", "fakeroot", "--", "pacman", "-Sy", "--disable-sandbox",
+                                "--dbpath", tmp, "--logfile", "/dev/null"],
+                               capture_output=True, text=True, timeout=180)
+            if r.returncode:
+                erro = ("não consegui baixar a lista de pacotes", "could not download the package list")
+            else:
+                saida = rodar(["pacman", "-Qu", "--dbpath", tmp], 60) or ""
+                pacotes = [x.split()[0] + " " + x.split()[-1] for x in saida.splitlines() if "->" in x][:400]
+        if shutil.which("flatpak"):
+            saida = rodar(["flatpak", "remote-ls", "--updates", "--system", "--columns=application"], 90)
+            flat = None if saida is None else len([x for x in saida.splitlines() if x.strip()])
+        upd.update(quando=time.time(), pacotes=pacotes, flatpak=flat, erro=erro)
+        os.makedirs(PASTA_CFG, exist_ok=True)
+        with open(ARQ_UPD, "w") as f:
+            json.dump({k: upd[k] for k in ("quando", "pacotes", "flatpak", "erro")}, f)
+    except (OSError, subprocess.SubprocessError) as e:
+        upd.update(quando=time.time(), erro=(str(e), str(e)))
+    finally:
+        try:
+            if os.path.islink(tmp + "/local"):
+                os.unlink(tmp + "/local")
+            shutil.rmtree(tmp, ignore_errors=True)
+        finally:
+            upd["rodando"] = False
+
+
+def metodo_instalacao():
+    # how this program was installed decides who updates it: itself or the package manager
+    if os.environ.get("APPIMAGE"):
+        return "appimage"
+    return "usuario" if os.path.realpath(__file__).startswith(os.path.expanduser("~") + os.sep) else "pacote"
+
+
+def baixar(url, limite=96 << 20):
+    pedido = urllib.request.Request(url, headers={"User-Agent": "pc-panel/" + VERSAO})
+    with urllib.request.urlopen(pedido, timeout=40) as r:
+        return r.read(limite)
+
+
+def versao_tupla(v):
+    return tuple(int(x) for x in re.findall(r"\d+", v)[:3])
+
+
+def procurar_versao():
+    # runs only when the user clicks: one request to GitHub, nothing but the version number travels
+    if novidade["rodando"]:
+        return
+    novidade["rodando"] = True
+    try:
+        d = json.loads(baixar("https://api.github.com/repos/%s/releases/latest" % REPO))
+        tag = str(d["tag_name"])
+        novidade.update(quando=time.time(), versao=tag.lstrip("v"), erro=None, nova=versao_tupla(tag) > versao_tupla(VERSAO),
+                        arquivos={a["name"]: a["browser_download_url"] for a in d.get("assets", [])})
+    except (OSError, ValueError, KeyError) as e:
+        novidade.update(quando=time.time(), erro=("não achei versões publicadas (%s)" % e, "no published release found (%s)" % e))
+    finally:
+        novidade["rodando"] = False
+
+
+def atualizar_painel():
+    # Downloads the new version, checks the published SHA-256 and swaps the files.
+    # Returns None on success or (error in Portuguese, error in English).
+    metodo, versao, arquivos = metodo_instalacao(), novidade["versao"], novidade["arquivos"]
+    if not novidade["nova"]:
+        return ("não há versão nova", "there is no new version")
+    if metodo == "pacote":
+        return ("este PC instalou por pacote, atualize pelo gerenciador de pacotes",
+                "this PC installed from a package, update with the package manager")
+    nome = "pc-panel-%s-x86_64.AppImage" % versao if metodo == "appimage" else "pc-panel-%s.tar.gz" % versao
+    if nome not in arquivos or "SHA256SUMS" not in arquivos:
+        return ("a versão publicada não tem o arquivo " + nome, "the release lacks the file " + nome)
+    try:
+        somas = dict(reversed(x.split()) for x in baixar(arquivos["SHA256SUMS"], 1 << 20).decode().splitlines() if len(x.split()) == 2)
+        dados = baixar(arquivos[nome])
+        if hashlib.sha256(dados).hexdigest() != somas.get(nome, somas.get("*" + nome)):
+            return ("o arquivo baixado não bate com o SHA-256 publicado", "the download does not match the published SHA-256")
+        if metodo == "appimage":
+            alvo = os.environ["APPIMAGE"]
+            with open(alvo + ".novo", "wb") as f:
+                f.write(dados)
+            os.chmod(alvo + ".novo", 0o755)
+            os.replace(alvo + ".novo", alvo)
+            return None
+        raiz = os.path.dirname(AQUI)            # ~/.local when installed by the installer
+        with tempfile.TemporaryDirectory(prefix="pc-panel-novo-") as tmp:
+            with open(tmp + "/pacote.tar.gz", "wb") as f:
+                f.write(dados)
+            with tarfile.open(tmp + "/pacote.tar.gz") as t:
+                t.extractall(tmp + "/x", filter="data")
+            fonte = glob.glob(tmp + "/x/*/bin/pc-panel")
+            if not fonte:
+                return ("pacote com formato inesperado", "unexpected package layout")
+            base = os.path.dirname(os.path.dirname(fonte[0]))
+            for rel in ("share/pc-panel/page.html", "lib/pc-panel/pc-panel-fans", "bin/pc-panel"):
+                os.makedirs(os.path.dirname(os.path.join(raiz, rel)), exist_ok=True)
+                shutil.copy2(os.path.join(base, rel), os.path.join(raiz, rel) + ".novo")
+                os.replace(os.path.join(raiz, rel) + ".novo", os.path.join(raiz, rel))
+        subprocess.Popen(["systemctl", "--user", "restart", "pc-panel.service"])
+        return None
+    except (OSError, ValueError, tarfile.TarError) as e:
+        return ("não consegui atualizar (%s)" % e, "could not update (%s)" % e)
+
+
+def todos_sensores():
+    def natural(x):
+        return [int(y) if y.isdigit() else y for y in re.split(r"(\d+)", x)]
+
+    grupos = []
+    for d in sorted(glob.glob("/sys/class/hwmon/hwmon*"), key=natural):
+        itens = []
+        for arq in sorted(glob.glob(d + "/*_input"), key=natural):
+            base, v = os.path.basename(arq)[:-6], ler_int(arq)
+            if v is None:
+                continue
+            tipo = re.match(r"[a-z]+", base).group(0)
+            txt = {"temp": "%.1f °C" % (v / 1000), "fan": "%d rpm" % v, "in": "%.3f V" % (v / 1000),
+                   "power": "%.1f W" % (v / 1e6), "curr": "%.2f A" % (v / 1000)}.get(tipo, str(v))
+            itens.append({"nome": (ler("%s/%s_label" % (d, base)) or base).strip(), "v": txt})
+        if itens:
+            grupos.append({"chip": (ler(d + "/name") or "?").strip(), "itens": itens})
+    return grupos
+
+
+# ---------------------------------------------------------------- processes, game, Zomboid server
+
+RE_STATUS = re.compile(rb"RssAnon:\s+(\d+) kB\nRssFile:\s+\d+ kB\nRssShmem:\s+(\d+) kB\n"
+                       rb"(?:[^\n]*\n){0,8}?VmSwap:\s+(\d+)")
+RE_PONG = re.compile(rb"\[(\d\d)-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d)\.(\d\d\d)\][^\n]*? f:(\d+) [^\n]*ping@pong")
+RE_CONEXAO = re.compile(rb'event="([^"]*)" message="([^"]*)" guid="(\d+)"(?:[^\n]*? username="([^"]*)")?')
+nomes_app = {}
+cache_pz = {"pid": None, "quando": 0.0, "dados": None, "con": (None, None)}
+ant_cpu = {"t": 0.0, "ticks": {}}
+
+
+def varrer_processos():
+    procs = {}
+    for nome in os.listdir("/proc"):
+        if not nome.isdigit():
+            continue
+        try:
+            with open("/proc/" + nome + "/stat", "rb") as f:
+                s = f.read()
+            a, b = s.index(b"("), s.rindex(b")")
+            campos = s[b + 2:].split()
+            p = {"comm": s[a + 1:b].decode(errors="replace"), "ppid": int(campos[1]),
+                 "ticks": int(campos[11]) + int(campos[12]), "inicio": int(campos[19]), "kb": 0, "swap": 0}
+            if int(campos[21]) * PAGINA_KB >= 8192:
+                # real RAM of the program: anonymous + shared (the Java heap of
+                # Zomboid shows up as shared memory)
+                with open("/proc/" + nome + "/status", "rb") as f:
+                    m = RE_STATUS.search(f.read())
+                if m:
+                    p["kb"], p["swap"] = int(m.group(1)) + int(m.group(2)), int(m.group(3))
+        except (OSError, ValueError, IndexError):
+            continue
+        procs[int(nome)] = p
+    return procs
+
+
+def argumentos(pid):
+    try:
+        with open("/proc/%d/cmdline" % pid, "rb") as f:
+            return f.read().split(b"\0")
+    except OSError:
+        return []
+
+
+def nome_app(appid, raiz_steam):
+    if appid in nomes_app:
+        return nomes_app[appid]
+    pastas = [raiz_steam, os.path.expanduser("~/.local/share/Steam")]
+    for raiz in list(pastas):
+        pastas += re.findall(r'"path"\s+"([^"]+)"', ler(raiz + "/steamapps/libraryfolders.vdf") or "")
+    nome = None
+    for pasta in dict.fromkeys(pastas):
+        m = re.search(r'"name"\s+"([^"]+)"', ler("%s/steamapps/appmanifest_%s.acf" % (pasta, appid)) or "")
+        if m:
+            nome = m.group(1)
+            break
+    nomes_app[appid] = nome
+    return nome
+
+
+def mais_novo(padrao, desde):
+    arqs = [(os.path.getmtime(a), a) for a in glob.glob(padrao)]
+    arqs = [x for x in arqs if x[0] >= desde - 120]
+    return max(arqs)[1] if arqs else None
+
+
+def ticks_pz(arq):
+    # the server writes "ping@pong" every 5 s with the tick counter (f:)
+    achados = RE_PONG.findall(cauda(arq, 65536))[-4:]
+    if len(achados) < 2:
+        return None
+
+    def quando(a):
+        d, mes, ano, h, mi, s, ms = (int(x) for x in a[:7])
+        return time.mktime((2000 + ano, mes, d, h, mi, s, 0, 0, -1)) + ms / 1000
+
+    t0, t1 = quando(achados[0]), quando(achados[-1])
+    if t1 <= t0 or time.time() - t1 > 30:
+        return None
+    return round((int(achados[-1][7]) - int(achados[0][7])) / (t1 - t0), 1)
+
+
+def jogadores_pz(arq):
+    try:
+        marca = (os.path.getmtime(arq), os.path.getsize(arq), arq)
+    except OSError:
+        return None
+    if cache_pz["con"][0] == marca:
+        return cache_pz["con"][1]
+    dentro = {}
+    for evento, msg, guid, usuario in RE_CONEXAO.findall(cauda(arq, 2 << 20)):
+        if evento == b"fully-connected":
+            dentro[guid] = usuario.decode(errors="replace")
+        elif evento == b"disconnect" or msg in (b"connection-lost", b"disconnection-notification"):
+            dentro.pop(guid, None)
+    nomes = sorted(dentro.values())
+    cache_pz["con"] = (marca, nomes)
+    return nomes
+
+
+def info_pz(pid, p, args):
+    # Only reads the end of the logs, nothing inside the save and no database opened.
+    if cache_pz["pid"] == pid and time.monotonic() - cache_pz["quando"] < 10 and cache_pz["dados"]:
+        return dict(cache_pz["dados"], kb=p["kb"])
+    nome, pasta = "servidor", os.path.expanduser("~/Zomboid")
+    for i, a in enumerate(args):
+        if a == b"-servername" and i + 1 < len(args):
+            nome = args[i + 1].decode(errors="replace")
+        elif a.startswith(b"-cachedir="):
+            pasta = a[10:].decode(errors="replace").rstrip("/") or pasta
+    desde = BOOT + p["inicio"] / HZ
+    d = {"nome": nome, "desde": desde, "kb": p["kb"], "ticks": None, "jogadores": None, "backup": None}
+    arq = mais_novo(glob.escape(pasta) + "/Logs/*_DebugLog-server.txt", desde)
+    if arq:
+        d["ticks"] = ticks_pz(arq)
+    arq = mais_novo(glob.escape(pasta) + "/Logs/*_connections.txt", desde)
+    if arq:
+        d["jogadores"] = jogadores_pz(arq)
+    zips = glob.glob("/mnt/*/backup-pz-%s/%s_*.zip" % (glob.escape(nome), glob.escape(nome)))
+    if zips:
+        d["backup"] = max(os.path.getmtime(z) for z in zips)
+    cache_pz.update(pid=pid, quando=time.monotonic(), dados=d)
+    return d
+
+
+def varredura():
+    procs = varrer_processos()
+    vram = dict(ult_vram)
+    filhos = collections.defaultdict(list)
+    for pid, p in procs.items():
+        filhos[p["ppid"]].append(pid)
+
+    def arvore(pid):
+        pilha, todos = [pid], []
+        while pilha:
+            x = pilha.pop()
+            todos.append(x)
+            pilha.extend(filhos.get(x, ()))
+        return todos
+
+    nomes, raizes, soltos, pz, obs = {}, [], [], None, False
+    for pid, p in procs.items():
+        comm = p["comm"]
+        nome = APELIDOS.get(comm) or (comm[:-4] if comm.lower().endswith(".exe") else comm)
+        if comm == "obs":
+            obs = cfg["modulos"]["live"]
+        elif comm == "reaper":
+            args = argumentos(pid)
+            for a in args[:4]:
+                if a.startswith(b"AppId="):
+                    raiz = os.path.dirname(os.path.dirname(args[0].decode(errors="replace")))
+                    raizes.append((pid, a[6:].decode(errors="replace"), raiz))
+        elif comm in ("java", "ProjectZomboid6"):
+            args = argumentos(pid)
+            if b"zombie.network.GameServer" in args:
+                nome = "Zomboid server"
+                pz = info_pz(pid, p, args) if cfg["modulos"]["zomboid"] else None
+            elif comm == "java" and any(b"minecraft" in a.lower() for a in args[:80]):
+                nome = "Minecraft"
+                soltos.append(pid)
+        nomes[pid] = nome
+
+    jogos, dentro_de_jogo = [], set()
+    for pid, appid, raiz in raizes:
+        membros = [x for x in arvore(pid) if x in procs]
+        dentro_de_jogo.update(membros)
+        kb = sum(procs[x]["kb"] for x in membros)
+        if kb < 51200:
+            continue                    # still starting, or only the launcher
+        maior = max(membros, key=lambda x: procs[x]["kb"])
+        jogos.append({"nome": nome_app(appid, raiz) or nomes[maior], "desde": BOOT + procs[pid]["inicio"] / HZ,
+                      "kb": kb, "vram": sum(vram.get(x, 0) for x in membros)})
+    for pid in soltos:
+        if pid not in dentro_de_jogo:
+            jogos.append({"nome": nomes[pid], "desde": BOOT + procs[pid]["inicio"] / HZ,
+                          "kb": procs[pid]["kb"], "vram": vram.get(pid, 0)})
+    jogos.sort(key=lambda j: -j["kb"])
+
+    agora = time.monotonic()
+    dt = agora - ant_cpu["t"]
+    ram, quantos, swap, uso = (collections.Counter() for _ in range(4))
+    for pid, p in procs.items():
+        if p["kb"]:
+            ram[nomes[pid]] += p["kb"]
+            swap[nomes[pid]] += p["swap"]
+            quantos[nomes[pid]] += 1
+        antes = ant_cpu["ticks"].get(pid)
+        if antes is not None and p["ticks"] > antes and 0 < dt < 120:
+            uso[nomes[pid]] += (p["ticks"] - antes) / HZ / dt * 100
+    ant_cpu.update(t=agora, ticks={pid: p["ticks"] for pid, p in procs.items()})
+    placa = collections.Counter()
+    for pid, mib in vram.items():
+        if mib > 0:
+            placa[nomes.get(pid) or "pid %d" % pid] += mib
+    extra.update(
+        progs={"ram": [{"nome": n, "kb": kb, "n": quantos[n], "swap": swap[n]} for n, kb in ram.most_common(16)],
+               "vram": [{"nome": n, "mib": m} for n, m in placa.most_common(16)],
+               "cpu": [{"nome": n, "pct": round(v, 1)} for n, v in uso.most_common(16) if v >= 0.5]},
+        jogos=jogos, pz=pz, obs=obs)
+
+
+def info_live():
+    try:
+        c = http.client.HTTPConnection("127.0.0.1", PORTA_ESPECTADORES, timeout=8)
+        c.request("GET", "/dados")
+        d = json.loads(c.getresponse().read())
+        c.close()
+        return {"obs": True, "ok": True, "twitch": d.get("twitch"), "youtube": d.get("youtube"),
+                "kick": d.get("kick"), "inicio": d.get("inicio"), "pico": d.get("pico", 0)}
+    except (OSError, ValueError, http.client.HTTPException):
+        return {"obs": True, "ok": False}
+
+
+# ---------------------------------------------------------------- fast samples
+
+class Medidor:
+    def __init__(self):
+        self.nv = Nvidia()
+        self.amd = None
+        self.ant = None
+        self.pings = collections.deque(maxlen=60)
+        self.ult_ping = 0.0
+        self.custo = collections.deque(maxlen=45)
+
+    def contadores(self):
+        c = {"t": time.monotonic(), "cpu": [], "rede": None, "disco": {}}
+        with open("/proc/stat") as f:
+            for linha in f:
+                if not linha.startswith("cpu"):
+                    break
+                v = [int(x) for x in linha.split()[1:9]]
+                c["cpu"].append((sum(v) - v[3] - v[4], sum(v)))
+        m = re.search(r"^pswpin (\d+)\npswpout (\d+)", ler("/proc/vmstat") or "", re.M)
+        c["swap"] = int(m.group(1)) + int(m.group(2)) if m else 0
+        if rota["iface"]:
+            for linha in (ler("/proc/net/dev") or "").splitlines():
+                nome, _, resto = linha.partition(":")
+                if nome.strip() == rota["iface"]:
+                    p = resto.split()
+                    c["rede"] = (rota["iface"], int(p[0]), int(p[8]))
+        nomes = {d["dev"] for d in discos}
+        for linha in (ler("/proc/diskstats") or "").splitlines():
+            p = linha.split()
+            if len(p) > 12 and p[2] in nomes:
+                # bytes read, bytes written, requests, ms waiting, ms busy, requests in flight
+                c["disco"][p[2]] = (int(p[5]) * 512, int(p[9]) * 512, int(p[3]) + int(p[7]),
+                                    int(p[6]) + int(p[10]), int(p[12]), int(p[11]))
+        return c
+
+    def medir(self):
+        c = self.contadores()
+        a, self.ant = self.ant, c
+        dt = c["t"] - a["t"] if a else 0.0
+        t = time.time()
+        avisos, nv = [], {}
+
+        def av(ident, cartao, n, pt, en):
+            if n != "bom":
+                avisos.append({"id": ident, "c": cartao, "nv": n, "pt": pt, "en": en})
+            return n
+
+        def psi(qual):
+            m = re.search(r"some avg10=([\d.]+)", ler("/proc/pressure/" + qual) or "")
+            return float(m.group(1)) if m else 0.0
+
+        # processor
+        usos = []
+        if a and len(a["cpu"]) == len(c["cpu"]):
+            for (o1, t1), (o2, t2) in zip(a["cpu"], c["cpu"]):
+                usos.append(round(100.0 * (o2 - o1) / (t2 - t1), 1) if t2 > t1 else 0.0)
+        mhz = [ler_int(x) or 0 for x in FREQS]
+        tcpu = grau(fontes["cpu"])
+        cpu = {"nome": NOME_CPU, "uso": usos[0] if usos else None, "nucleos": usos[1:], "temp": tcpu,
+               "ghz": round(max(mhz) / 1e6, 2) if mhz else None, "carga": round(os.getloadavg()[0], 1),
+               "psi": psi("cpu")}
+        nv["cpu"] = nivel(tcpu, LIM["cpu"])
+
+        # memory
+        mi = {}
+        with open("/proc/meminfo") as f:
+            for linha in f:
+                k, _, v = linha.partition(":")
+                mi[k] = int(v.split()[0])
+        ram = {"total": mi["MemTotal"], "disp": mi["MemAvailable"], "usada": mi["MemTotal"] - mi["MemAvailable"],
+               "left": max(0, mi["MemAvailable"] - cfg["ram_reserva"] * 1024), "reserva": cfg["ram_reserva"] * 1024,
+               "cache": max(0, mi.get("Cached", 0) + mi.get("Buffers", 0) + mi.get("SReclaimable", 0) - mi.get("Shmem", 0)),
+               "swap_total": mi["SwapTotal"], "swap": mi["SwapTotal"] - mi["SwapFree"],
+               "swap_mibs": round((c["swap"] - a["swap"]) * PAGINA_KB / 1024 / dt, 2) if dt > 0 else 0.0,
+               "psi": psi("memory")}
+        left = ram["left"] // 1024
+        nv["ram"] = nivel_min(left, (3072, 1024, 256))
+        if ram["swap_mibs"] > 0.5 and left < 512:
+            nv["ram"] = "critico"
+        av("ram", "ram", nv["ram"], "RAM livre em %d MiB" % left, "Free RAM at %d MiB" % left)
+        if ram["psi"] >= 10:
+            n2 = av("ram-psi", "ram", "serio", "PC engasgando por falta de RAM (pressão %d %%)" % ram["psi"],
+                    "PC stalling for lack of RAM (pressure %d %%)" % ram["psi"])
+            nv["ram"] = max(nv["ram"], n2, key=NIVEIS.index)
+
+        # graphics card
+        gpu, procs = self.nv.medir() if os.environ.get("PC_PANEL_GPU") != "amd" else ({"ok": False}, {})
+        if not gpu["ok"] and (self.nv.ausente or os.environ.get("PC_PANEL_GPU") == "amd"):
+            # no NVIDIA: try an AMD card; with none, the card tiles disappear instead of raising an alarm
+            self.amd = self.amd or Amd()
+            gpu, procs = self.amd.medir() if self.amd.dev else ({"ok": False, "ausente": True, "erro": ("", "")}, {})
+        ult_vram.clear()
+        ult_vram.update(procs)
+        if gpu["ok"]:
+            pct = 100.0 * gpu["vram"] / gpu["vram_total"]
+            nv["vram"] = av("vram", "vram", nivel(pct, (80, 90, 96)), "VRAM em %d %%" % pct, "VRAM at %d %%" % pct)
+            nv["gpu"] = nivel(gpu["temp"], LIM["gpu"])
+        elif gpu.get("ausente"):
+            nv["vram"] = nv["gpu"] = "bom"
+            gpu["erro"] = {"pt": "", "en": ""}
+        else:
+            pt, en = gpu["erro"]
+            nv["vram"] = nv["gpu"] = av("gpu", "gpu", "serio", "Placa de vídeo sem leitura, " + pt,
+                                        "Graphics card not readable, " + en)
+            gpu["erro"] = {"pt": pt, "en": en}
+
+        # network
+        rx = tx = None
+        if dt > 0 and a["rede"] and c["rede"] and a["rede"][0] == c["rede"][0]:
+            rx = max(0, c["rede"][1] - a["rede"][1]) / dt
+            tx = max(0, c["rede"][2] - a["rede"][2]) / dt
+        quando, ping = pings["net"]
+        if t - quando > 25:
+            ping = None
+        elif quando != self.ult_ping and ping is not None:
+            self.ult_ping = quando
+            self.pings.append(ping)
+        quando, gw = pings["gw"]
+        if t - quando > 25:
+            gw = None
+        bons = [x for x in self.pings if x >= 0]
+        perda = 100.0 * (len(self.pings) - len(bons)) / len(self.pings) if self.pings else 0.0
+        rec = sorted(bons[-8:])
+        med = rec[len(rec) // 2] if rec else None
+        osc = sum(abs(bons[i] - bons[i - 1]) for i in range(1, len(bons))) / (len(bons) - 1) if len(bons) > 2 else None
+        rede = {"iface": rota["iface"], "ip": rota["ip"], "rx": rx, "tx": tx, "ping": ping, "gw": gw,
+                "alvo": cfg["ping_alvo"], "perda": round(perda, 1), "osc": None if osc is None else round(osc, 1),
+                "link": rota["link"], "erros": rota["erros"], "descartes": rota["descartes"]}
+        if not rota["iface"]:
+            nv["rede"] = av("rede", "rede", "critico", "Sem rede", "No network")
+        else:
+            n1 = av("ping", "rede", nivel(med, (50, 90, 160)), "Ping em %d ms" % (med or 0), "Ping at %d ms" % (med or 0))
+            n2 = av("perda", "rede", nivel(perda if len(self.pings) >= 10 else None, (1.5, 6, 20)),
+                    "Perda de pacotes em %d %%" % round(perda), "Packet loss at %d %%" % round(perda))
+            nv["rede"] = max(n1, n2, key=NIVEIS.index)
+
+        # temperatures, fans and disks
+        temps = [{"id": "cpu", "nome": "", "c": tcpu}, {"id": "gpu", "nome": "", "c": gpu.get("temp")}]
+        lista_discos = []
+        for d in discos:
+            antes, depois = (a["disco"].get(d["dev"]) if a else None), c["disco"].get(d["dev"])
+            io = {"ler": None, "gravar": None, "espera": None, "ocupado": None}
+            nd = "bom"
+            nome_pt, nome_en = ("Sistema", "System") if d["nome"] == "/" else (d["nome"], d["nome"])
+            if antes and depois and dt > 0:
+                pedidos = depois[2] - antes[2]
+                espera = (depois[3] - antes[3]) / pedidos if pedidos > 0 else 0.0
+                io = {"ler": (depois[0] - antes[0]) / dt, "gravar": (depois[1] - antes[1]) / dt,
+                      "espera": round(espera, 1), "ocupado": round(min(100.0, (depois[4] - antes[4]) / (dt * 10)), 1)}
+                if pedidos == 0 and depois[5] > 0 and dt >= 0.9:
+                    nd = av("disco-preso-" + d["dev"], "disc", "critico", "Disco %s parado com pedidos na fila" % nome_pt,
+                            "Disk %s stuck with requests queued" % nome_en)
+                elif pedidos >= 3 and espera >= 250:
+                    nd = av("disco-lento-" + d["dev"], "disc", "serio", "Disco %s lento, espera de %d ms" % (nome_pt, espera),
+                            "Disk %s slow, %d ms wait" % (nome_en, espera))
+            tdisco = grau(d["temp_arq"])
+            if tdisco:
+                temps.append({"id": "ssd", "nome": d["nome"], "c": tdisco})
+            usado = round(100.0 * (1 - d["livre"] / d["total"]), 1) if d["total"] else 0.0
+            n2 = av("disco-" + d["dev"], "disc", nivel(usado, (85, 93, 97)), "Disco %s com %d %% ocupado" % (nome_pt, usado),
+                    "Disk %s %d %% full" % (nome_en, usado))
+            lista_discos.append(dict(io, nome=d["nome"], modelo=d["modelo"], total=d["total"], livre=d["livre"],
+                                     usado=usado, nv=max(nd, n2, key=NIVEIS.index)))
+        temps.append({"id": "placa", "nome": "", "c": grau(fontes["placa"])})
+        tmem = [x for x in (grau(m) for m in fontes["mem"]) if x]
+        temps.append({"id": "mem", "nome": "", "c": max(tmem) if tmem else None})
+        temps = [x for x in temps if x["c"]]
+        for x in temps:
+            if x["id"] == "ssd":
+                pt, en = ("SSD Sistema", "System SSD") if x["nome"] == "/" else ("SSD " + x["nome"], "SSD " + x["nome"])
+            else:
+                pt, en = NOME_TEMP[x["id"]]
+            x["lim"] = LIM[x["id"]][0]
+            x["nv"] = av("temp-" + x["id"] + x["nome"], "temp", nivel(x["c"], LIM[x["id"]]),
+                         "%s a %d °C" % (pt, round(x["c"])), "%s at %d °C" % (en, round(x["c"])))
+        canais = []
+        for n in cfg["canais"]:
+            base = "%s/pwm%s" % (fontes["chip"], n)
+            pwm = ler_int(base)
+            canais.append({"n": n, "rpm": ler_int("%s/fan%s_input" % (fontes["chip"], n)) or 0,
+                           "pct": None if pwm is None else round(pwm / 2.55), "modo": ler_int(base + "_enable")})
+        if fans["calibrando"] is None:
+            for x in canais:
+                if x["rpm"] == 0:
+                    av("fan-parada-" + x["n"], "temp", "serio", "Fan %s da placa-mãe parada" % x["n"],
+                       "Motherboard fan %s stopped" % x["n"])
+
+        # what is running
+        jogos, pz, sis, sd = extra["jogos"], extra["pz"], extra["sis"], extra["saude"]
+        jogo = jogos[0]["nome"] if jogos else None
+        if pz:
+            if pz["ticks"] is not None:
+                av("pz-ticks", "pz", nivel_min(pz["ticks"], (8.5, 6, 4)), "Servidor do Zomboid a %.1f ticks/s" % pz["ticks"],
+                   "Zomboid server at %.1f ticks/s" % pz["ticks"])
+            if pz["backup"] and t - pz["backup"] > 1500:
+                av("pz-backup", "pz", "aviso", "Último backup do servidor há %d min" % ((t - pz["backup"]) / 60),
+                   "Last server backup %d min ago" % ((t - pz["backup"]) / 60))
+        for unidade in sis["falhas"]:
+            av("falha-" + unidade, "saude", "aviso", "Serviço %s falhou" % unidade, "Service %s failed" % unidade)
+        bat = sis["bateria"]
+        if bat and bat["pct"] <= 15 and not bat["carregando"]:
+            av("bateria", "sis", "aviso", "%s com %d %% de bateria" % (bat["nome"], bat["pct"]),
+               "%s battery at %d %%" % (bat["nome"], bat["pct"]))
+        proteger_fans(gpu.get("temp"), tcpu)
+        guiar_gpu(gpu.get("temp"))
+        acompanhar(avisos, t, jogo)
+
+        self.custo.append((time.monotonic(), time.process_time()))
+        (m0, p0), (m1, p1) = self.custo[0], self.custo[-1]
+        proprio = {"cpu": round(100 * (p1 - p0) / (m1 - m0), 2) if m1 > m0 else None,
+                   "mib": int((ler("/proc/self/statm") or "0 0").split()[1]) * PAGINA_KB // 1024}
+        ligado = float((ler("/proc/uptime") or "0").split()[0])
+        lento = ritmo()
+        agora = {"t": round(t, 2), "cpu": cpu, "ram": ram, "gpu": gpu, "rede": rede, "temps": temps,
+                 "fans": {"canais": canais, "pode": fans["pode"], "escolha": cfg["fans"], "aplicado": fans["aplicado"],
+                          "alvo_gpu": curva_gpu["alvo"], "calibrando": fans["calibrando"], "velho": fans["velho"]},
+                 "discos": lista_discos, "psi_io": psi("io"),
+                 "progs": extra["progs"], "jogos": jogos, "live": extra["live"], "pz": pz,
+                 "sis": dict(sis, ligado=ligado, driver=gpu.get("driver"), painel=proprio),
+                 "saude": dict(sd, falhas=len(sis["falhas"]), npac=len(upd["pacotes"]),
+                               upd={k: upd[k] for k in ("quando", "flatpak", "erro", "rodando")}),
+                 "nv": nv, "avisos": [{"nv": x["nv"], "pt": x["pt"], "en": x["en"], "c": x["c"]} for x in avisos],
+                 "ev": ev_seq[0], "cfg": cfg_seq[0], "registro": cfg["registro"]["ligado"],
+                 "espaco": lento[0] or float(cfg["passo"])}
+        linha = [round(t, 1), round(ram["usada"] / 1048576, 2),
+                 round(gpu["vram"] / 1024, 2) if gpu["ok"] else None, gpu.get("uso"), cpu["uso"],
+                 ping, round(rx * 8 / 1e6, 3) if rx is not None else None,
+                 round(tx * 8 / 1e6, 3) if tx is not None else None, tcpu, gpu.get("temp")]
+        registro.medida(agora)
+        return linha, agora
+
+
+def laco_medir():
+    global seq, estado
+    m = Medidor()
+    dormindo = True
+    while True:
+        passo = ritmo()[0]
+        if passo is None:
+            dormindo = True
+            acordar.wait(5)
+            acordar.clear()
+            continue
+        try:
+            if dormindo:
+                m.ant = m.contadores()      # reset the rate counters
+                time.sleep(0.5)
+                dormindo = False
+            linha, agora = m.medir()
+            with trava:
+                hist.append(linha)
+                seq += 1
+                estado = agora
+            with novo:
+                novo.notify_all()
+        except Exception as e:              # never die because of one reading
+            avisar("medir", e)
+        ultima = time.monotonic()
+        while True:
+            # a page opening in the middle of a long wait wakes it up early
+            passo = ritmo()[0]
+            resto = ultima + (passo or 0) - time.monotonic()
+            if passo is None or resto <= 0:
+                break
+            if acordar.wait(resto):
+                acordar.clear()
+                if time.monotonic() - ultima < 0.5:
+                    time.sleep(0.5)
+
+
+def laco_lento():
+    venc = collections.defaultdict(float)
+
+    def vence(nome, cada):
+        agora = time.monotonic()
+        if agora >= venc[nome]:
+            venc[nome] = agora + cada
+            return True
+        return False
+
+    while True:
+        passo, aberta = ritmo()
+        if passo is None:
+            time.sleep(1)
+            continue
+        try:
+            if vence("fontes", 60):
+                achar_fontes()
+                preparar_fans()
+            if vence("rota", 30):
+                achar_rota()
+            if vence("discos", 30):
+                achar_discos()
+            if vence("fans", 3 if aberta else 30):
+                ler_fans()
+            if vence("procs", 4 if aberta else 30):
+                varredura()
+            if vence("sis", 60 if aberta else 300):
+                extra["sis"] = info_sistema()
+            if vence("saude", 120 if aberta else 900):
+                info_saude()
+        except Exception as e:
+            avisar("lento", e)
+        time.sleep(0.5)
+
+
+def um_ping(socks, ip, n, espera=1.0):
+    # ICMP echo without root (Linux "ping" socket); -1 = lost, None = no network
+    try:
+        s = socks.get(ip)
+        if s is None:
+            s = socks[ip] = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_ICMP)
+        num = n & 0xFFFF
+        inicio = time.perf_counter()
+        s.settimeout(espera)
+        s.sendto(struct.pack("!BBHHH", 8, 0, 0, 0, num) + b"pc-panel", (ip, 0))
+        while True:
+            resto = espera - (time.perf_counter() - inicio)
+            if resto <= 0:
+                return -1
+            s.settimeout(resto)
+            dados = s.recv(256)
+            if len(dados) >= 8 and dados[0] == 0 and struct.unpack("!H", dados[6:8])[0] == num:
+                return round((time.perf_counter() - inicio) * 1000, 2)
+    except TimeoutError:
+        return -1
+    except OSError:
+        velho = socks.pop(ip, None)
+        if velho:
+            velho.close()
+        return None
+
+
+def laco_ping():
+    socks, n = {}, 0
+    while True:
+        passo = ritmo()[0]
+        if passo is None:
+            time.sleep(1)
+            continue
+        passo = max(2.0, passo)             # ping at most every 2 s
+        inicio, n = time.monotonic(), n + 1
+        for chave, ip in (("gw", rota["gw"]), ("net", cfg["ping_alvo"])):
+            pings[chave] = (time.time(), um_ping(socks, ip, n) if ip else None)
+        fim = inicio + passo
+        while time.monotonic() < fim and ritmo()[0] is not None:
+            time.sleep(min(1.0, max(0.05, fim - time.monotonic())))
+
+
+def laco_live():
+    while True:
+        passo, aberta = ritmo()
+        if extra["obs"] and passo is not None:
+            extra["live"] = info_live()
+            time.sleep(10 if aberta else 30)
+        else:
+            if not extra["obs"]:
+                extra["live"] = {"obs": False}
+            time.sleep(1)
+
+
+# ---------------------------------------------------------------- web server
+
+pagina_cache = {"m": None, "b": b""}
+
+
+def pagina():
+    try:
+        m = os.path.getmtime(ARQ_PAGINA)
+        if m != pagina_cache["m"]:
+            with open(ARQ_PAGINA, "rb") as f:
+                pagina_cache.update(m=m, b=f.read())
+        return pagina_cache["b"]
+    except OSError:
+        return ("<h1>pc-panel</h1><p>Missing file %s</p>" % os.path.realpath(ARQ_PAGINA)).encode()
+
+
+def info_geral():
+    return {"cfg": cfg, "info": registro.info(), "upd": dict(upd), "curvas": CURVAS, "curva_gpu": CURVA_GPU,
+            "versao": VERSAO, "metodo": metodo_instalacao(), "novidade": {k: v for k, v in novidade.items() if k != "arquivos"}}
+
+
+class Pedido(BaseHTTPRequestHandler):
+    protocol_version = "HTTP/1.1"
+    timeout = 60
+
+    def do_GET(self):
+        # only answers this machine and only under the right name (an outside site
+        # cannot read the data through the browser)
+        if self.headers.get("Host") not in HOSTS:
+            self.send_error(403)
+            return
+        u = urlsplit(self.path)
+        if u.path == "/dados":
+            qs = parse_qs(u.query)
+            try:
+                desde = int(qs.get("desde", ["0"])[0])
+            except ValueError:
+                desde = 0
+            if qs.get("i", [""])[0] != INSTANCIA:
+                desde = 0
+            visto[0] = time.time()
+            acordar.set()
+            if time.time() - estado["t"] > cfg["passo"] * 2 + 1:
+                with novo:
+                    novo.wait(3.0)      # it was sleeping or slow, wait for a fresh sample
+            with trava:
+                faltam = seq - desde if desde else len(hist)
+                corpo = {"i": INSTANCIA, "seq": seq, "passo": cfg["passo"], "agora": estado,
+                         "hist": list(hist)[-faltam:] if faltam > 0 else []}
+            self.json(corpo)
+        elif u.path == "/config":
+            self.json(info_geral())
+        elif u.path == "/eventos":
+            self.json({"eventos": list(eventos)[-200:]})
+        elif u.path == "/sensores":
+            self.json({"grupos": todos_sensores()})
+        elif u.path == "/registro/hoje.csv":
+            nome = time.strftime("painel-%Y-%m-%d.csv")
+            try:
+                with open(os.path.join(registro.pasta(), nome), "rb") as f:
+                    self.responder(f.read(), "text/csv; charset=utf-8", nome)
+            except OSError:
+                self.send_error(404)
+        elif u.path in ("/", "/index.html"):
+            self.responder(pagina(), "text/html; charset=utf-8")
+        else:
+            self.send_error(404)
+
+    def do_POST(self):
+        # the custom header and the checked origin stop another site open in
+        # the browser from sending commands here
+        origem = self.headers.get("Origin")
+        if (self.headers.get("Host") not in HOSTS or self.headers.get("X-Painel") != "1"
+                or (origem and origem not in ORIGENS)):
+            self.send_error(403)
+            return
+        try:
+            tamanho = int(self.headers.get("Content-Length", "0"))
+            if not 0 < tamanho <= 32768:
+                raise ValueError
+            dados = json.loads(self.rfile.read(tamanho))
+        except ValueError:
+            self.send_error(400)
+            return
+        caminho = urlsplit(self.path).path
+        pt = cfg["idioma"] == "pt"
+
+        def erro(par):
+            self.json({"erro": par[0] if pt else par[1]})
+
+        sem_fans = ("O controle das fans não está instalado neste PC.", "Fan control is not installed on this PC.")
+        if caminho == "/config":
+            nova, falha = limpar_cfg(dados, cfg)
+            if not falha:
+                try:
+                    salvar_cfg(nova)
+                except OSError as e:
+                    falha = ("Não consegui salvar a configuração (%s)" % e.strerror,
+                             "Could not save the settings (%s)" % e.strerror)
+            acordar.set()
+            if falha:
+                erro(falha)
+            else:
+                self.json(info_geral())
+        elif caminho == "/fans":
+            ler_fans()
+            if not fans["pode"] or cfg["fans"] is None:
+                erro(sem_fans)
+                return
+            if fans["calibrando"] is not None:
+                erro(("Espere a medição das fans terminar.", "Wait for the fan measurement to finish."))
+                return
+            if fans["velho"]:
+                erro(VELHO)
+                return
+            if not isinstance(dados, dict):
+                dados = {}
+            for grupo, minimo in (("gpu", 30),) + tuple((c, 20) for c in cfg["canais"]):
+                x = dados.get("gpu") if grupo == "gpu" else (dados.get("placa") or {}).get(grupo)
+                if isinstance(x, dict) and x.get("modo") == "curva" and not pontos_validos(x.get("pontos"), minimo):
+                    erro(("Curva inválida: os graus precisam subir a cada ponto e a porcentagem não pode descer.",
+                          "Invalid curve: degrees must go up at each point and the percentage cannot go down."))
+                    return
+            nova = copia(cfg)
+            nova["fans"] = limpar_fans(dados, cfg["canais"])
+            if isinstance(dados.get("nomes"), dict):
+                nova["nomes_fans"] = {c: str(dados["nomes"].get(c, ""))[:24].strip() for c in cfg["canais"]}
+            antes = (fans["aplicado"] or {}).get("t")
+            try:
+                salvar_cfg(nova)
+                alvo = None
+                if nova["fans"]["gpu"]["modo"] == "curva":
+                    alvo = alvo_da_curva((estado.get("gpu") or {}).get("temp"))
+                curva_gpu.update(alvo=alvo, quando=time.monotonic())
+                gravar_comando(alvo)
+            except OSError as e:
+                erro(("Não consegui gravar a escolha (%s)" % e.strerror, "Could not save the choice (%s)" % e.strerror))
+                return
+            fim = time.monotonic() + 4      # wait for the root helper to apply
+            while time.monotonic() < fim:
+                time.sleep(0.15)
+                ler_fans()
+                if (fans["aplicado"] or {}).get("t") != antes:
+                    break
+            else:
+                erro(("A escolha foi gravada, mas o ajudante das fans não respondeu.",
+                      "The choice was saved, but the fan helper did not answer."))
+                return
+            acordar.set()
+            self.json({"escolha": cfg["fans"], "aplicado": fans["aplicado"], "nomes": cfg["nomes_fans"]})
+        elif caminho == "/fans/calibrar":
+            if not fans["pode"] or cfg["fans"] is None or not cfg["canais"]:
+                erro(sem_fans)
+                return
+            if fans["velho"]:
+                erro(VELHO)
+                return
+            threading.Thread(target=calibrar, daemon=True).start()
+            self.json({"ok": True})
+        elif caminho == "/atualizacoes":
+            threading.Thread(target=verificar_atualizacoes, daemon=True).start()
+            self.json({"ok": True})
+        elif caminho == "/versao":
+            procurar_versao()
+            self.json(info_geral())
+        elif caminho == "/atualizar":
+            falha = atualizar_painel()
+            if falha:
+                erro(falha)
+            else:
+                self.json({"ok": True})
+        else:
+            self.send_error(404)
+
+    def json(self, corpo):
+        self.responder(json.dumps(corpo, separators=(",", ":"), ensure_ascii=False).encode(), "application/json")
+
+    def responder(self, corpo, tipo, baixar=None):
+        self.send_response(200)
+        self.send_header("Content-Type", tipo)
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", str(len(corpo)))
+        if baixar:
+            self.send_header("Content-Disposition", 'attachment; filename="%s"' % baixar)
+        self.end_headers()
+        self.wfile.write(corpo)
+
+    def log_message(self, *args):
+        pass
+
+
+def sair(*_):
+    ao_parar()
+    os._exit(0)
+
+
+if __name__ == "__main__":
+    if "--version" in sys.argv:
+        print("pc-panel", VERSAO)
+        sys.exit(0)
+    if "--on-stop" in sys.argv:
+        ao_parar()
+        sys.exit(0)
+    carregar_cfg()
+    try:
+        upd.update(json.loads(ler(ARQ_UPD) or "{}"))
+    except ValueError:
+        pass
+    achar_fontes()
+    achar_rota()
+    achar_discos()
+    ler_fans()
+    preparar_fans()
+    if fans["pode"] and cfg["fans"]["gpu"]["modo"] != "curva":
+        try:
+            gravar_comando(so_se_mudou=True)    # keep the command file equal to the saved choice
+        except OSError as e:
+            avisar("fans", e)
+    signal.signal(signal.SIGTERM, sair)
+    for laco in (laco_medir, laco_lento, laco_ping, laco_live):
+        threading.Thread(target=laco, daemon=True).start()
+    ThreadingHTTPServer((ENDERECO, PORTA), Pedido).serve_forever()

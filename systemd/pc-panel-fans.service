@@ -1,0 +1,16 @@
+[Unit]
+Description=Apply the fan choice made in PC Panel
+After=nvidia-persistenced.service systemd-modules-load.service
+After=suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=oneshot
+ExecStart=@LIB@/pc-panel-fans
+NoNewPrivileges=yes
+ProtectHome=yes
+PrivateNetwork=yes
+ProtectSystem=full
+
+[Install]
+WantedBy=multi-user.target suspend.target hibernate.target hybrid-sleep.target suspend-then-hibernate.target

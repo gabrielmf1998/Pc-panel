@@ -1,0 +1,65 @@
+name: release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check and smoke test
+        run: |
+          make check
+          PC_PANEL_PORT=47999 python3 -I bin/pc-panel & sleep 3
+          curl -fsS -H 'Host: 127.0.0.1:47999' http://127.0.0.1:47999/config | head -c 200
+          curl -fsS -H 'Host: 127.0.0.1:47999' http://127.0.0.1:47999/dados | head -c 200
+      - name: Source tarball
+        run: make dist
+      - name: AppImage
+        run: |
+          curl -fsSL -o appimagetool https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool
+          APPIMAGETOOL="$PWD/appimagetool --appimage-extract-and-run" sh packaging/appimage/build.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: base
+          path: |
+            pc-panel-*.tar.gz
+            pc-panel-*.AppImage
+  rpm:
+    needs: build
+    runs-on: ubuntu-latest
+    container: fedora:latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: base
+      - name: Build and install the RPM
+        run: |
+          dnf -y install rpm-build make systemd-rpm-macros python3 tar gzip
+          mkdir -p ~/rpmbuild/SOURCES
+          cp pc-panel-*.tar.gz ~/rpmbuild/SOURCES/
+          tar -xzf pc-panel-*.tar.gz --strip-components=3 --wildcards '*/packaging/rpm/pc-panel.spec'
+          rpmbuild -bb pc-panel.spec
+          cp ~/rpmbuild/RPMS/noarch/*.rpm .
+          dnf -y install ./pc-panel-*.rpm
+          pc-panel --version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rpm
+          path: pc-panel-*.rpm
+  publish:
+    needs: [build, rpm]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+      - name: Checksums and release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha256sum pc-panel-* > SHA256SUMS
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --title "$GITHUB_REF_NAME" --generate-notes pc-panel-* SHA256SUMS

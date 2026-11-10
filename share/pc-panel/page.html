@@ -1,0 +1,1443 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PC Panel</title>
+<link rel="icon" id="icone" href="data:,">
+<style>
+:root{color-scheme:dark;--plano:#0d0d0d;--sup:#1a1a19;--sup2:#262624;--tinta:#f0efec;--tinta2:#c3c2b7;
+  --apagado:#898781;--grade:#2c2c2a;--eixo:#383835;--borda:rgba(255,255,255,.10);
+  --s1:#3987e5;--s2:#d95926;--bom:#0ca30c;--aviso:#fab219;--serio:#ec835a;--critico:#d03b3b;--lin:1.64rem;--topo-h:46px}
+body[data-tema="preto"]{--plano:#000;--sup:#0b0b0b;--sup2:#1a1a19;--grade:#222220;--borda:rgba(255,255,255,.14)}
+body[data-tema="noite"]{--plano:#090e1a;--sup:#111a2c;--sup2:#1b2740;--grade:#1f2b45;--eixo:#2f3d5e;--tinta2:#c2c9d8;--apagado:#8490a8}
+body[data-tema="contraste"]{--plano:#000;--sup:#000;--sup2:#1a1a19;--tinta:#fff;--tinta2:#fff;--apagado:#c3c2b7;
+  --grade:#52514e;--eixo:#898781;--borda:rgba(255,255,255,.6);--s1:#6da7ec}
+body[data-tema="claro"]{color-scheme:light;--plano:#f0efec;--sup:#fcfcfb;--sup2:#f0efec;--tinta:#0b0b0b;--tinta2:#52514e;
+  --apagado:#898781;--grade:#e1e0d9;--eixo:#c3c2b7;--borda:rgba(11,11,11,.12);--s1:#2a78d6;--s2:#eb6834}
+body[data-cor="agua"]{--s1:#199e70}body[data-cor="violeta"]{--s1:#9085e9}body[data-cor="magenta"]{--s1:#d55181}
+body[data-tema="claro"][data-cor="agua"]{--s1:#1baf7a}body[data-tema="claro"][data-cor="violeta"]{--s1:#6250d6}
+body[data-tema="claro"][data-cor="magenta"]{--s1:#e87ba4}
+*{box-sizing:border-box}
+html{font-size:14px}
+html,body{margin:0}
+body{background:var(--plano);color:var(--tinta);font:1rem/1.3 system-ui,-apple-system,"Segoe UI",sans-serif;
+  overflow-x:hidden;overflow-y:auto}
+button,input,select{font:inherit}
+button{color:var(--tinta2);background:var(--sup);border:1px solid var(--borda);border-radius:7px;padding:5px 12px;cursor:pointer;white-space:nowrap}
+button:hover,button:focus-visible{background:var(--sup2);color:var(--tinta)}
+button.principal{background:var(--s1);border-color:transparent;color:#fff;font-weight:600}
+button.principal:hover{filter:brightness(1.12);background:var(--s1);color:#fff}
+
+.topo{min-height:46px;display:flex;align-items:center;gap:12px;min-width:0;padding:10px 14px 0}
+.hora{font-size:1.57rem;font-weight:600;font-variant-numeric:tabular-nums}
+.data{color:var(--apagado);white-space:nowrap}
+.geral{flex:1;min-width:0;display:flex;align-items:center;gap:8px;background:none;border-color:transparent;padding:5px 10px;text-align:left}
+#geral-tx{overflow:hidden;white-space:nowrap;text-overflow:ellipsis;color:var(--tinta2)}
+.geral.al-aviso,.geral.al-serio,.geral.al-critico{background:color-mix(in srgb,var(--al) 16%,var(--sup));border-color:var(--al);font-size:1.14rem}
+.geral.al-aviso #geral-tx,.geral.al-serio #geral-tx,.geral.al-critico #geral-tx{color:var(--tinta);font-weight:600}
+.al-aviso{--al:var(--aviso)}.al-serio{--al:var(--serio)}.al-critico{--al:var(--critico)}
+.topo nav{display:flex;gap:8px}
+.chip{font-size:.86rem;padding:3px 9px;border-radius:999px}
+
+.app{display:grid;gap:10px;padding:10px 12px 12px;height:calc(100vh - var(--topo-h))}
+body.rolar .app{height:auto;min-height:calc(100vh - var(--topo-h))}
+.cartao{background:var(--sup);border:1px solid var(--borda);border-radius:10px;padding:11px 14px 12px;
+  min-width:0;min-height:0;display:flex;flex-direction:column;gap:6px;overflow:hidden;container-type:size;transition:opacity .3s}
+.cartao.fora{display:none}
+body.semdados .cartao{opacity:.45}
+.cartao.al-aviso,.cartao.al-serio,.cartao.al-critico{border-color:var(--al);border-width:2px;padding:10px 13px 11px;
+  background:color-mix(in srgb,var(--al) 9%,var(--sup))}
+.cartao.al-serio,.cartao.al-critico{background:color-mix(in srgb,var(--al) 15%,var(--sup))}
+.cartao.al-aviso .pilula,.cartao.al-serio .pilula,.cartao.al-critico .pilula{font-size:.93rem;font-weight:600;color:var(--tinta)}
+#c-chat{padding:0}
+
+.cartao>header{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:18px;flex:none}
+h2{margin:0;font-size:.93rem;font-weight:500;color:var(--tinta2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+h2 small,h3 small{color:var(--apagado);font-size:.86rem;font-weight:400;margin-left:6px}
+h3{margin:0;font-size:.86rem;font-weight:500;color:var(--apagado);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pilula{display:inline-flex;align-items:center;gap:5px;font-size:.86rem;color:var(--tinta2);white-space:nowrap}
+.pilula i,.g{font-style:normal;font-size:.71rem}
+.bom{color:var(--bom)}.aviso{color:var(--aviso)}.serio{color:var(--serio)}.critico{color:var(--critico)}
+.elo{background:none;border:0;padding:0;color:var(--apagado);font-size:.86rem;text-decoration:underline;text-underline-offset:2px}
+.elo:hover{background:none;color:var(--tinta)}
+
+.resumo{display:flex;align-items:baseline;gap:18px;flex:none;min-width:0}
+.num{display:flex;align-items:baseline;gap:6px;white-space:nowrap;flex:none}
+.num b{font-size:2.43rem;line-height:1;font-weight:600;letter-spacing:-.01em}
+.num span{color:var(--tinta2)}
+.sub{flex:1;min-width:0;display:flex;gap:2px 16px;flex-wrap:wrap;margin:0;max-height:1.36rem;overflow:hidden}
+.sub div{display:flex;gap:5px;align-items:baseline;white-space:nowrap}
+.sub dt{color:var(--apagado);font-size:.86rem}
+.sub dd{margin:0;font-variant-numeric:tabular-nums}
+@container (min-height:21.4rem){.sub{max-height:2.9rem}}
+
+.graf{flex:1 1 0;min-height:0;min-width:0;position:relative}
+.graf svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.grade{stroke:var(--grade);stroke-width:1}.eixo{stroke:var(--eixo);stroke-width:1}
+.rot{fill:var(--apagado);font-size:.75rem;font-variant-numeric:tabular-nums}
+.limite{stroke:var(--apagado);stroke-width:1;stroke-dasharray:4 4}
+.mira{stroke:var(--apagado);stroke-width:1}
+.linha{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+.dica{position:absolute;top:2px;pointer-events:none;background:var(--sup2);border:1px solid var(--borda);
+  border-radius:7px;padding:6px 9px;font-size:.86rem;white-space:nowrap;z-index:3;box-shadow:0 4px 14px rgba(0,0,0,.5)}
+.dica .h{color:var(--apagado);margin-bottom:2px;font-variant-numeric:tabular-nums}
+.dica .r{display:flex;align-items:center;gap:6px}
+.dica .r i{width:10px;height:2px;border-radius:1px}
+.dica .r b{font-weight:600;font-variant-numeric:tabular-nums}
+.dica .r span{color:var(--tinta2)}
+.legenda{display:flex;gap:14px;font-size:.86rem;color:var(--tinta2);white-space:nowrap}
+.legenda span{display:inline-flex;align-items:center;gap:6px}
+.legenda i{width:12px;height:2px;border-radius:1px}
+.legenda b{font-weight:500;color:var(--tinta);font-variant-numeric:tabular-nums}
+.redegraf{flex:1 1 0;min-height:0;display:flex;flex-direction:column;gap:8px}
+.redegraf>div{flex:1 1 0;min-height:0;min-width:0;display:flex;flex-direction:column;gap:3px}
+@container (max-height:21.4rem){.redegraf{flex-direction:row;gap:12px}.legenda b{display:none}}
+
+.nucleos{display:flex;gap:2px;height:2rem;align-items:flex-end;border-bottom:1px solid var(--eixo);flex:none}
+.nucleos i{flex:1 1 0;max-width:24px;background:var(--s1);border-radius:4px 4px 0 0;min-height:1px}
+.med{height:6px;border-radius:3px;background:color-mix(in srgb,var(--c,var(--s1)) 24%,transparent);overflow:hidden;flex:none}
+.med i{display:block;height:100%;background:var(--c,var(--s1));border-radius:3px;transition:width .5s}
+.fino{display:none}
+@container (max-height:14.3rem){.nucleos{display:none}}
+@container (max-height:9.2rem){.graf,.redegraf{display:none}.resumo{flex-direction:column;gap:4px}.sub div:not(:first-child){display:none}}
+@container (max-height:9.2rem) and (min-height:6.7rem){.fino{display:block}}
+
+.duas{flex:1 1 0;min-height:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}
+@container (max-width:720px){.duas{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.col.c3{display:none}}
+.col{min-width:0;min-height:0;display:flex;flex-direction:column;gap:4px}
+.lista{flex:1 1 0;min-height:0;overflow:hidden}
+.lin{display:grid;grid-template-columns:minmax(0,40%) minmax(10px,1fr) 4.6rem;align-items:center;gap:8px;height:var(--lin)}
+.lin .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lin .n small{color:var(--apagado);font-size:.82rem}
+.lin .v{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.lin.t2{grid-template-columns:minmax(0,38%) minmax(10px,1fr) 5.2rem}
+.lin.s{grid-template-columns:minmax(0,1fr) auto}
+.barra{height:6px}
+.barra i{display:block;height:100%;background:var(--s1);border-radius:0 4px 4px 0;min-width:2px}
+.vazio{color:var(--apagado);font-size:.89rem;padding-top:2px}
+
+.disco{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;align-items:baseline;padding:4px 0}
+.disco .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.disco .n small{color:var(--apagado);margin-left:6px}
+.disco .v{font-variant-numeric:tabular-nums;white-space:nowrap}
+.disco .med{grid-column:1/-1}
+.disco .io{grid-column:1/-1;color:var(--apagado);font-size:.86rem;display:flex;gap:12px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden}
+@container (max-height:15.4rem){.disco .io{display:none}.disco{padding:3px 0}}
+
+.mini{padding:6px 14px;gap:1px;justify-content:center}
+.mini.al-aviso,.mini.al-serio,.mini.al-critico{padding:5px 13px}
+.mini .l1{display:flex;align-items:baseline;gap:10px;min-width:0}
+.mini h2{flex:none;font-size:.86rem;color:var(--apagado)}
+.mini .p{font-size:1.07rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mini .d{font-size:.89rem;color:var(--tinta2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:1.2rem}
+@container (max-height:3.2rem){.mini .d{display:none}}
+.ev{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:baseline;height:var(--lin)}
+.ev .q,.ev .dur{color:var(--apagado);font-size:.86rem;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ev .x{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#c-chat iframe{flex:1;border:0;width:100%;border-radius:10px;background:var(--sup)}
+
+dialog{background:var(--sup);color:var(--tinta);border:1px solid var(--borda);border-radius:12px;padding:16px 18px;
+  width:min(680px,94vw);max-height:92vh;overflow:auto}
+dialog.largo{width:auto;max-width:94vw}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+dialog>header{display:flex;justify-content:space-between;align-items:center;gap:20px;margin-bottom:12px}
+dialog h2{font-size:1.14rem;font-weight:600;color:var(--tinta)}
+fieldset{border:1px solid var(--borda);border-radius:9px;margin:0 0 12px;padding:10px 14px 12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+legend{color:var(--tinta2);font-size:.93rem;padding:0 6px}
+legend span{color:var(--apagado);margin-left:8px;font-variant-numeric:tabular-nums}
+label{display:flex;align-items:center;gap:8px;color:var(--tinta2);flex-wrap:wrap}
+label.campo{justify-content:space-between;flex-wrap:nowrap}
+input[type=text],input[type=number],select{background:var(--plano);color:var(--tinta);border:1px solid var(--borda);border-radius:7px;padding:5px 9px;min-width:0}
+input[type=text]{flex:1;max-width:400px}
+input.curto{width:4.8rem;padding:4px 6px;text-align:right}
+input[type=range]{flex:1;accent-color:var(--s1);min-width:90px}
+input[type=checkbox],input[type=radio]{accent-color:var(--s1);width:16px;height:16px;flex:none;margin:0}
+.marcas{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px 14px}
+.dois{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:8px 18px}
+.nota{color:var(--apagado);font-size:.89rem;margin:0}
+.erro{color:var(--tinta);font-size:.93rem;margin:0 0 10px}
+.erro:empty{display:none}
+dialog footer{display:flex;justify-content:space-between;align-items:center;gap:14px}
+.rolagem{overflow:auto;max-height:70vh}
+table{border-collapse:collapse;font-variant-numeric:tabular-nums;font-size:.93rem}
+th,td{padding:4px 12px;text-align:right;border-bottom:1px solid var(--grade);white-space:nowrap}
+th{color:var(--apagado);font-weight:500;position:sticky;top:0;background:var(--sup)}
+td.e,th.e{text-align:left}
+.curva{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:6px 14px;align-items:start;padding-left:24px}
+.curva .prontas{grid-column:1/-1;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.curva .prontas button{padding:3px 10px;font-size:.89rem}
+.curva .pontos{display:flex;flex-direction:column;gap:5px}
+.previa{width:270px;height:124px;background:var(--plano);border-radius:8px;border:1px solid var(--borda)}
+@media (max-width:640px){.curva{grid-template-columns:minmax(0,1fr)}}
+.sens{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px 22px}
+.sens h3{margin-bottom:4px;color:var(--tinta2)}
+.sens div div{display:flex;justify-content:space-between;gap:10px;font-size:.93rem;padding:1px 0}
+.sens div div span:last-child{font-variant-numeric:tabular-nums;color:var(--tinta)}
+.sens div div span:first-child{color:var(--apagado);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+body[data-cols="2"]{--lin:1.43rem}
+body[data-cols="2"] .num b{font-size:2.14rem}
+body[data-estreito] .app{gap:8px;padding:8px}
+body[data-estreito] .cartao{padding:7px 12px;gap:4px}
+body[data-estreito] .num b{font-size:1.86rem}
+body[data-estreito] .data,body[data-estreito] nav .so-grande{display:none}
+body[data-estreito] .topo{padding:8px 10px 0;gap:8px;min-height:40px}
+body[data-estreito] .hora{font-size:1.29rem}
+</style>
+</head>
+<body data-tema="escuro" data-cor="azul" data-cols="4">
+<header class="topo" id="topo">
+  <span class="hora" id="hora"></span>
+  <span class="data" id="data"></span>
+  <button type="button" class="geral" id="btn-ev" data-it="geral_t">
+    <span class="pilula" id="geral-st"></span><span id="geral-tx" data-i="conectando"></span></button>
+  <button type="button" class="chip" id="btn-ocultos" hidden></button>
+  <nav>
+    <button type="button" id="btn-fans" class="so-grande" data-i="b_fans"></button>
+    <button type="button" id="btn-sens" class="so-grande" data-i="b_sens"></button>
+    <button type="button" id="btn-tab" class="so-grande" data-i="b_hist"></button>
+    <button type="button" id="btn-aj" data-i="b_aj"></button>
+  </nav>
+</header>
+
+<main class="app" id="app">
+  <section class="cartao" id="c-ram">
+    <header><h2 data-i="c_ram"></h2><span class="pilula" id="ram-st"></span></header>
+    <div class="resumo">
+      <div class="num"><b id="ram-v">0</b><span id="ram-de">GiB</span></div>
+      <dl class="sub">
+        <div data-it="left_t"><dt id="ram-left-r"></dt><dd id="ram-left"></dd></div>
+        <div><dt>Swap</dt><dd id="ram-swap"></dd></div>
+        <div><dt>Cache</dt><dd id="ram-cache"></dd></div>
+        <div data-it="psi_ram_t"><dt data-i="pressao"></dt><dd id="ram-psi"></dd></div>
+      </dl>
+    </div>
+    <div class="med fino" id="ram-m"><i></i></div>
+    <div class="graf" id="g-ram"></div>
+  </section>
+
+  <section class="cartao" id="c-vram">
+    <header><h2>VRAM<small id="gpu-nome"></small></h2><span class="pilula" id="vram-st"></span></header>
+    <div class="resumo">
+      <div class="num"><b id="vram-v">0</b><span id="vram-de">GiB</span></div>
+      <dl class="sub">
+        <div><dt data-i="livre"></dt><dd id="vram-livre"></dd></div>
+        <div><dt data-i="maior"></dt><dd id="vram-top"></dd></div>
+      </dl>
+    </div>
+    <div class="med fino" id="vram-m"><i></i></div>
+    <div class="graf" id="g-vram"></div>
+  </section>
+
+  <section class="cartao" id="c-gpu">
+    <header><h2 data-i="c_gpu"></h2><span class="pilula" id="gpu-st"></span></header>
+    <div class="resumo">
+      <div class="num"><b id="gpu-v">0</b><span data-i="uso_pct"></span></div>
+      <dl class="sub">
+        <div><dt data-i="temperatura"></dt><dd id="gpu-temp"></dd></div>
+        <div><dt data-i="consumo"></dt><dd id="gpu-w"></dd></div>
+        <div><dt>Fan</dt><dd id="gpu-fan"></dd></div>
+        <div><dt>Clock</dt><dd id="gpu-mhz"></dd></div>
+        <div data-it="enc_t"><dt>Encoder</dt><dd id="gpu-enc"></dd></div>
+      </dl>
+    </div>
+    <div class="med fino" id="gpu-m"><i></i></div>
+    <div class="graf" id="g-gpu"></div>
+  </section>
+
+  <section class="cartao" id="c-cpu">
+    <header><h2><span data-i="c_cpu"></span><small id="cpu-nome"></small></h2><span class="pilula" id="cpu-st"></span></header>
+    <div class="resumo">
+      <div class="num"><b id="cpu-v">0</b><span data-i="uso_pct"></span></div>
+      <dl class="sub">
+        <div><dt data-i="temperatura"></dt><dd id="cpu-temp"></dd></div>
+        <div><dt>Clock</dt><dd id="cpu-ghz"></dd></div>
+        <div data-it="carga_t"><dt data-i="carga"></dt><dd id="cpu-carga"></dd></div>
+        <div data-it="psi_cpu_t"><dt data-i="pressao"></dt><dd id="cpu-psi"></dd></div>
+      </dl>
+    </div>
+    <div class="med fino" id="cpu-m"><i></i></div>
+    <div class="nucleos" id="cpu-nuc" role="img"></div>
+    <div class="graf" id="g-cpu"></div>
+  </section>
+
+  <section class="cartao" id="c-rede">
+    <header><h2><span data-i="c_rede"></span><small id="rede-if"></small></h2><span class="pilula" id="rede-st"></span></header>
+    <div class="resumo">
+      <div class="num"><b id="ping-v">0</b><span data-i="ms_ping"></span></div>
+      <dl class="sub">
+        <div><dt data-i="perda"></dt><dd id="ping-perda"></dd></div>
+        <div><dt data-i="roteador"></dt><dd id="ping-gw"></dd></div>
+        <div data-it="osc_t"><dt data-i="oscilacao"></dt><dd id="ping-jit"></dd></div>
+        <div><dt>Link</dt><dd id="rede-link"></dd></div>
+        <div data-it="erros_t"><dt data-i="erros"></dt><dd id="rede-err"></dd></div>
+      </dl>
+    </div>
+    <div class="redegraf">
+      <div><h3><span data-i="ping_net"></span><small id="ping-alvo"></small></h3><div class="graf" id="g-ping"></div></div>
+      <div>
+        <div class="legenda">
+          <span><i style="background:var(--s1)"></i>Download <b id="net-rx"></b></span>
+          <span><i style="background:var(--s2)"></i>Upload <b id="net-tx"></b></span>
+        </div>
+        <div class="graf" id="g-net"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cartao" id="c-prog">
+    <header><h2 data-i="c_prog"></h2></header>
+    <div class="duas">
+      <div class="col"><h3 data-i="p_ram"></h3><div class="lista" id="l-ram"></div></div>
+      <div class="col"><h3 data-i="p_vram"></h3><div class="lista" id="l-vram"></div></div>
+      <div class="col c3"><h3 data-i="p_cpu" data-it="p_cpu_t"></h3><div class="lista" id="l-cpu"></div></div>
+    </div>
+  </section>
+
+  <section class="cartao" id="c-temp">
+    <header><h2 data-i="c_temp"></h2><button type="button" class="elo" id="btn-fans2" data-i="ajustar_fans"></button></header>
+    <div class="lista" id="l-temp"></div>
+  </section>
+
+  <section class="cartao" id="c-disc">
+    <header><h2 data-i="c_disc"></h2><span class="pilula" id="disc-psi" data-it="psi_io_t"></span></header>
+    <div class="lista" id="l-disc"></div>
+  </section>
+
+  <section class="cartao" id="c-saude">
+    <header><h2 data-i="c_saude"></h2><button type="button" class="elo" id="btn-upd" data-i="s_verificar"></button></header>
+    <div class="lista" id="l-saude"></div>
+  </section>
+
+  <section class="cartao" id="c-eventos">
+    <header><h2 data-i="c_eventos"></h2><button type="button" class="elo" id="btn-ev2" data-i="ver_todos"></button></header>
+    <div class="lista" id="l-ev"></div>
+  </section>
+
+  <section class="cartao mini" id="c-jogo"><div class="l1"><h2 data-i="c_jogo"></h2><div class="p" id="jogo-p"></div></div><div class="d" id="jogo-d"></div></section>
+  <section class="cartao mini" id="c-live"><div class="l1"><h2>Live</h2><div class="p" id="live-p"></div></div><div class="d" id="live-d"></div></section>
+  <section class="cartao mini" id="c-pz"><div class="l1"><h2 data-i="c_pz"></h2><div class="p" id="pz-p"></div></div><div class="d" id="pz-d"></div></section>
+  <section class="cartao mini" id="c-sis"><div class="l1"><h2 data-i="c_sis"></h2><div class="p" id="sis-p"></div></div><div class="d" id="sis-d"></div></section>
+
+  <section class="cartao fora" id="c-chat"><iframe id="chat-f" title="Chat" src="about:blank"></iframe></section>
+</main>
+
+<dialog id="tabela" class="largo">
+  <header><h2 data-i="h_titulo"></h2><button type="button" data-fechar data-i="fechar"></button></header>
+  <div class="rolagem"><table>
+    <thead><tr><th data-i="th_hora"></th><th>RAM GiB</th><th>VRAM GiB</th><th data-i="th_gpu_p"></th><th data-i="th_cpu_p"></th><th>Ping ms</th>
+      <th>Download Mbit/s</th><th>Upload Mbit/s</th><th data-i="th_cpu_t"></th><th data-i="th_gpu_t"></th></tr></thead>
+    <tbody id="tab-corpo"></tbody>
+  </table></div>
+</dialog>
+
+<dialog id="eventos" class="largo">
+  <header><h2 data-i="c_eventos"></h2><button type="button" data-fechar data-i="fechar"></button></header>
+  <p class="nota" id="ev-nota" style="margin-bottom:10px"></p>
+  <div class="rolagem"><table>
+    <thead><tr><th data-i="th_comecou"></th><th data-i="th_durou"></th><th class="e" data-i="th_nivel"></th><th class="e" data-i="th_oque"></th><th class="e" data-i="th_jogo"></th></tr></thead>
+    <tbody id="ev-corpo"></tbody>
+  </table></div>
+</dialog>
+
+<dialog id="sensores" class="largo">
+  <header><h2 data-i="sn_titulo"></h2><span><button type="button" id="sn-atualizar" data-i="atualizar"></button> <button type="button" data-fechar data-i="fechar"></button></span></header>
+  <p class="nota" data-i="sn_nota" style="margin-bottom:12px;max-width:900px"></p>
+  <div class="sens" id="sn-corpo" style="min-width:min(900px,88vw)"></div>
+</dialog>
+
+<dialog id="ajustes">
+  <header><h2 data-i="b_aj"></h2><button type="button" data-fechar data-i="fechar"></button></header>
+  <fieldset><legend data-i="a_aparencia"></legend><div class="dois">
+    <label class="campo"><span data-i="a_idioma"></span><select id="aj-idioma"><option value="pt">Português</option><option value="en">English</option></select></label>
+    <label class="campo"><span data-i="a_tema"></span><select id="aj-tema"><option value="escuro" data-i="tm_escuro"></option><option value="preto" data-i="tm_preto"></option><option value="noite" data-i="tm_noite"></option><option value="claro" data-i="tm_claro"></option><option value="contraste" data-i="tm_contraste"></option></select></label>
+    <label class="campo"><span data-i="a_cor"></span><select id="aj-cor"><option value="azul" data-i="cr_azul"></option><option value="agua" data-i="cr_agua"></option><option value="violeta" data-i="cr_violeta"></option><option value="magenta">Magenta</option></select></label>
+    <label class="campo"><span data-i="a_fonte"></span><select id="aj-fonte"><option value="1">Normal</option><option value="1.15" data-i="f_2"></option><option value="1.3" data-i="f_3"></option></select></label>
+  </div></fieldset>
+  <fieldset><legend data-i="a_mostrar"></legend>
+    <label class="campo"><span data-i="a_perfil"></span><select id="aj-perfil"><option value="tudo" data-i="pf_tudo"></option><option value="jogo" data-i="pf_jogo"></option><option value="live" data-i="pf_live"></option><option value="hardware">Hardware</option><option value="proprio" data-i="pf_proprio"></option></select></label>
+    <div class="marcas" id="aj-cartoes"></div>
+    <label><input type="checkbox" id="aj-encaixe"> <span data-i="a_encaixe"></span></label>
+    <p class="nota" data-i="a_mostrar_n"></p></fieldset>
+  <fieldset><legend data-i="a_medicao"></legend><div class="dois">
+    <label class="campo"><span data-i="a_passo"></span><select id="aj-passo"><option value="1" data-i="p_1"></option><option value="2" data-i="p_2"></option><option value="5" data-i="p_5"></option></select></label>
+    <label class="campo"><span data-i="a_ping"></span><input type="text" id="aj-ping" spellcheck="false" style="max-width:150px"></label>
+  </div></fieldset>
+  <fieldset><legend data-i="a_avisos"></legend>
+    <label><input type="checkbox" id="aj-desktop"> <span data-i="a_desktop"></span></label>
+    <label><input type="checkbox" id="aj-som"> <span data-i="a_som"></span></label></fieldset>
+  <fieldset><legend data-i="a_registro"></legend>
+    <label><input type="checkbox" id="aj-log"> <span data-i="a_log"></span></label>
+    <label class="campo"><span data-i="a_pasta"></span><input type="text" id="aj-pasta" spellcheck="false"></label>
+    <div class="dois">
+    <label class="campo"><span data-i="a_int"></span><select id="aj-int"><option value="5" data-i="i_5"></option><option value="10" data-i="i_10"></option><option value="30" data-i="i_30"></option><option value="60" data-i="i_60"></option></select></label>
+    <label class="campo"><span data-i="a_dias"></span><select id="aj-dias"><option value="7" data-i="d_7"></option><option value="30" data-i="d_30"></option><option value="90" data-i="d_90"></option><option value="365" data-i="d_365"></option><option value="0" data-i="d_0"></option></select></label>
+    </div>
+    <p class="nota" id="aj-info"></p>
+    <p class="nota" data-i="a_log_n"></p></fieldset>
+  <fieldset><legend data-i="a_sistema"></legend>
+    <label class="campo"><span id="aj-upd" class="nota"></span><button type="button" id="aj-upd-btn" data-i="a_upd_btn"></button></label>
+    <p class="nota" id="aj-upd-lista" style="max-height:6.5rem;overflow:auto"></p>
+    <p class="nota" data-i="a_upd_n"></p></fieldset>
+  <fieldset><legend data-i="a_modulos"></legend>
+    <label><input type="checkbox" id="aj-m-live"> <span data-i="a_m_live"></span></label>
+    <label><input type="checkbox" id="aj-m-zomboid"> <span data-i="a_m_zomboid"></span></label>
+    <label class="campo"><span data-i="a_reserva"></span><input type="number" id="aj-reserva" class="curto" min="0" max="16000" step="100"></label></fieldset>
+  <fieldset><legend data-i="a_sobre"></legend>
+    <label class="campo"><span id="aj-versao" class="nota"></span><span><button type="button" id="aj-ver-btn" data-i="a_ver_btn"></button>
+      <button type="button" class="principal" id="aj-atualizar" data-i="a_atualizar" hidden></button></span></label></fieldset>
+  <p class="erro" id="aj-erro"></p>
+  <footer><span class="nota" id="aj-custo"></span><button type="button" class="principal" id="aj-salvar" data-i="salvar"></button></footer>
+</dialog>
+
+<dialog id="fans" style="width:min(760px,94vw)">
+  <header><h2>Fans</h2><button type="button" data-fechar data-i="fechar"></button></header>
+  <div id="fa-dentro">
+    <div id="fa-corpo"></div>
+    <p class="nota" data-i="f_nota_placa" style="margin-bottom:6px"></p>
+    <p class="nota" data-i="f_nota_gpu" style="margin-bottom:6px"></p>
+    <p class="nota" data-i="f_nota_fixo" style="margin-bottom:10px"></p>
+    <p class="erro" id="fa-erro"></p>
+    <footer><span class="nota" id="fa-estado"></span>
+      <span><button type="button" id="fa-medir" data-i="f_medir" data-it="f_medir_t"></button> <button type="button" class="principal" id="fa-aplicar" data-i="aplicar"></button></span></footer>
+  </div>
+  <p class="nota" id="fa-falta" data-i="f_falta" hidden></p>
+</dialog>
+
+<script>
+'use strict';
+const TX = {
+pt: {conectando: 'conectando', nv_bom: 'ok', nv_aviso: 'atenção', nv_serio: 'alto', nv_critico: 'crítico', sem_leitura: 'sem leitura',
+  tudo_certo: 'Tudo certo', n_aviso: '1 aviso', n_avisos: '{0} avisos', sem_resp: 'Sem resposta',
+  sem_resp2: 'o serviço pc-panel não respondeu, tentando de novo',
+  ocultos: '+{0} ocultos', ocultos_t: 'Não couberam nesta janela: {0}. Clique para mostrar tudo com rolagem.', encaixar: 'encaixar na janela',
+  b_fans: 'Fans', b_sens: 'Sensores', b_hist: 'Histórico', b_aj: 'Ajustes', fechar: 'Fechar', salvar: 'Salvar', aplicar: 'Aplicar', atualizar: 'Atualizar',
+  geral_t: 'Ver os avisos e o que já aconteceu',
+  c_ram: 'Memória RAM', c_vram: 'VRAM', c_gpu: 'Placa de vídeo', c_cpu: 'Processador', c_rede: 'Rede', c_prog: 'Programas',
+  c_temp: 'Temperaturas e fans', c_disc: 'Discos', c_saude: 'Saúde do sistema', c_jogo: 'Jogo', c_live: 'Live', c_pz: 'Servidor do Zomboid',
+  c_sis: 'Sistema', c_eventos: 'Eventos',
+  gib_de: 'GiB de {0}', parado: 'parado', em_uso: 'em uso agora', pressao: 'Pressão',
+  left_t: 'Memória que ainda dá para usar antes do swap, já com o desconto escolhido nos Ajustes', disponivel: 'Disponível',
+  a_modulos: 'Módulos extras e ajuste fino',
+  a_m_live: 'Live, o cartão do OBS com contador de espectadores (usa o serviço espectadores na porta 47821)',
+  a_m_zomboid: 'Servidor do Project Zomboid hospedado neste PC, com jogadores, ticks e backup',
+  a_reserva: 'Descontar da memória disponível, em MiB (3500 imita o RAM LEFT do MangoHud)',
+  a_sobre: 'Sobre o PC Panel', a_versao: 'Versão {0}.', a_ver_btn: 'Procurar versão nova', a_atualizar: 'Atualizar agora',
+  a_ver_nova: ' Saiu a versão {0}.', a_ver_ok: ' Esta é a mais nova.', a_ver_pacote: ' Atualize pelo gerenciador de pacotes.',
+  a_ver_erro: ' Não consegui consultar, {0}.', a_ver_feito: 'Atualizado, recarregando a página.',
+  psi_ram_t: 'Parte dos últimos 10 segundos em que algum programa ficou parado esperando memória',
+  livre: 'Livre', maior: 'Maior uso', uso_pct: '% de uso', temperatura: 'Temperatura', consumo: 'Consumo', w_de: '{0} W de {1}',
+  enc_t: 'Uso do codificador de vídeo, o que a live e a gravação usam',
+  carga: 'Carga', carga_t: 'Média de programas na fila do processador no último minuto',
+  psi_cpu_t: 'Parte dos últimos 10 segundos em que algum programa ficou esperando um núcleo livre', nucleo: 'Núcleo {0}, {1} %',
+  ms_ping: 'ms de ping', perda: 'Perda', roteador: 'Roteador', oscilacao: 'Oscilação', osc_t: 'Variação média entre um ping e o seguinte',
+  ping_net: 'Ping até a internet', perdido: 'perdido', sem_rota: 'sem rota para a internet', erros: 'Erros',
+  erros_t: 'Erros e pacotes descartados pela placa de rede desde que o PC ligou', err_v: '{0} e {1} descartados',
+  p_ram: 'RAM por programa', p_vram: 'VRAM por programa', p_cpu: 'Processador por programa', p_cpu_t: '100 % é o processador inteiro, todos os núcleos juntos',
+  medindo: 'medindo', p_sem_vram: 'nenhum programa usando a placa', p_parado: 'tudo parado',
+  tip_ram: '{0}, {1} processos, {2} na RAM', no_swap: ', {0} no swap', tip_vram: '{0}, {1} de VRAM', tip_cpu: '{0}, {1} % do processador inteiro, o mesmo que {2} % de um núcleo',
+  ajustar_fans: 'ajustar fans', t_cpu: 'Processador', t_gpu: 'Placa de vídeo', t_placa: 'Placa-mãe', t_mem: 'Memória', ssd_sis: 'SSD Sistema',
+  tip_temp: '{0}, {1} °C, {2} (atenção a partir de {3} °C)', fan_gpu: 'Fans da placa', fan_n: 'Fan {0}', canal: 'canal {0}',
+  m_max: 'no máximo', m_auto: 'automática', m_curva: 'em curva', m_fixo: 'fixa em {0} %',
+  d_sistema: 'Sistema', livres_de: '{0} livres de {1}', leitura: 'leitura', gravacao: 'gravação', espera: 'espera {0} ms',
+  ocupado_d: 'ocupado {0} %', espera_disco: 'espera de disco {0} %',
+  psi_io_t: 'Parte dos últimos 10 segundos em que algum programa ficou esperando o disco', tip_disco: '{0} ({1}), {2} % ocupado',
+  s_kerr: 'Erros do kernel desde o boot', s_trav: 'Programas que travaram hoje', s_reinicio: 'Reinício pendente', sim: 'sim', nao: 'não',
+  s_atualizado: 'Última atualização completa', ha: 'há {0}', s_upd: 'Atualizações pendentes', s_nao_verif: 'não verificado',
+  s_verificando: 'verificando', s_verificar: 'verificar atualizações', s_falhas: 'Serviços com falha', s_ultimo: 'O último foi {0}',
+  s_reinicio_t: 'Um kernel novo foi instalado e o PC ainda não reiniciou',
+  j_nenhum: 'Nenhum jogo aberto', j_aberto: 'aberto há {0}', j_mais: ' e mais {0}', l_fechado: 'OBS fechado', l_aberto: 'OBS aberto',
+  l_semresp: 'o contador de espectadores não respondeu', l_fora: 'OBS aberto, fora do ar', l_erro: 'alguma plataforma não respondeu',
+  l_vivo: 'AO VIVO', l_ha: ' há {0}', l_assist: '{0} assistindo', l_pico: 'pico {0}', z_desl: 'Desligado', z_jog1: '1 jogador',
+  z_jogn: '{0} jogadores', z_backup: 'backup há {0}', z_noar: 'no ar há {0}', s_ligado: 'Ligado há {0}', s_registro: 'registro ligado',
+  carregando: 'carregando', ver_todos: 'ver todos', e_nada: 'nada aconteceu desde que o painel abriu', agora: 'agora', e_com: ', com {0} aberto',
+  g_10: '10 min atrás', g_5: '5 min', g_ram: 'RAM usada', g_vram: 'VRAM usada', g_gpu: 'Uso da placa', g_cpu: 'Uso do processador',
+  left_zero: 'RAM LEFT zero', sem_medida: 'sem medida',
+  h_titulo: 'Últimos 10 minutos, uma linha a cada 30 segundos', th_hora: 'Hora', th_gpu_p: 'Placa %', th_cpu_p: 'Processador %',
+  th_cpu_t: 'Processador °C', th_gpu_t: 'Placa °C',
+  ev_nota1: 'Os mais novos primeiro. A lista zera quando o serviço reinicia, o arquivo eventos.csv guarda tudo se o registro estiver ligado.',
+  ev_nota0: 'Nada aconteceu desde que o painel abriu. Um aviso entra aqui quando dura mais de uma medida.',
+  th_comecou: 'Começou', th_durou: 'Durou', th_nivel: 'Nível', th_oque: 'O que foi', th_jogo: 'Jogo aberto', ainda: 'ainda acontecendo',
+  sn_titulo: 'Todos os sensores',
+  sn_nota: 'Leitura crua de todos os chips, feita agora. Alguns valores da placa-mãe são entradas sem nada ligado e mostram números sem sentido.',
+  a_aparencia: 'Aparência', a_idioma: 'Idioma', a_tema: 'Tema', tm_escuro: 'Escuro', tm_preto: 'Preto', tm_noite: 'Azul noite', tm_claro: 'Claro',
+  tm_contraste: 'Alto contraste', a_cor: 'Cor dos gráficos', cr_azul: 'Azul', cr_agua: 'Verde água', cr_violeta: 'Violeta',
+  a_fonte: 'Tamanho do texto', f_2: 'Grande', f_3: 'Enorme',
+  a_mostrar: 'O que mostrar', a_perfil: 'Perfil', pf_tudo: 'Tudo', pf_jogo: 'Jogando', pf_live: 'Fazendo live', pf_proprio: 'Escolha minha',
+  a_encaixe: 'Esconder o que não couber na janela, sem barra de rolagem',
+  a_mostrar_n: 'Quando falta espaço ficam primeiro a RAM, a VRAM, a placa, o processador e a rede, e qualquer cartão com problema passa na frente.',
+  a_medicao: 'Medição', a_passo: 'Atualizar a página a cada', p_1: '1 segundo (gasta o dobro)', p_2: '2 segundos', p_5: '5 segundos (mais leve)',
+  a_ping: 'Endereço que recebe o ping', a_avisos: 'Avisos', a_desktop: 'Mostrar um aviso do KDE quando um problema começar',
+  a_som: 'Tocar um som nesta página quando um problema começar',
+  a_registro: 'Registro em arquivo', a_log: 'Guardar as medidas e os eventos em arquivos CSV', a_pasta: 'Pasta', a_int: 'Gravar uma linha a cada',
+  i_5: '5 segundos', i_10: '10 segundos', i_30: '30 segundos', i_60: '1 minuto', a_dias: 'Apagar arquivos com mais de', d_7: '7 dias',
+  d_30: '30 dias', d_90: '90 dias', d_365: '1 ano', d_0: 'nunca apagar',
+  a_log_n: 'Com o registro ligado o serviço mede também com a página fechada, no intervalo escolhido.',
+  a_arqs: '{0} arquivos, {1} em {2} ', a_sem_arqs: 'Ainda não há arquivos em {0} ', a_baixar: 'baixar o de hoje',
+  a_ult_erro: ' O último erro ao gravar foi {0}',
+  a_sistema: 'Atualizações do sistema', a_upd_btn: 'Verificar agora',
+  a_upd_n: 'A verificação baixa a lista de pacotes para uma pasta temporária e compara. Não instala nada e não mexe no pacman.',
+  a_upd_nunca: 'Nunca verificado.', a_upd_res: '{0} pacotes do sistema e {1} Flatpak com atualização, verificado há {2}.',
+  a_upd_erro: 'A verificação falhou, {0}.', a_custo: 'O serviço está usando {0} % de um núcleo e {1} MiB de RAM',
+  a_nao_salvou: 'Não consegui salvar, o serviço não respondeu.',
+  f_gpu: 'Placa de vídeo', f_agora: 'agora em {0}', f_nome: 'Nome', fm_max: 'Máximo, sempre em 100 %',
+  fm_auto: 'Automático, a curva de fábrica da placa', fm_fixo: 'Fixo em', fm_curva: 'Curva própria por temperatura', f_prontas: 'Curvas prontas',
+  cv_silenciosa: 'Silenciosa', cv_equilibrada: 'Equilibrada', cv_desempenho: 'Desempenho', cv_padrao: 'Padrão', f_ponto: 'Ponto {0}',
+  f_aprox: 'perto de {0} rpm', f_alvo: 'alvo {0} %', f_medido: 'Medido neste PC, {0}',
+  f_nota_placa: 'As fans da placa-mãe seguem a temperatura do processador e a curva fica gravada no chip da placa, funciona mesmo com o painel fechado.',
+  f_nota_gpu: 'A curva própria da placa de vídeo é guiada pelo serviço do painel. Se ele parar, a placa volta sozinha para a curva de fábrica.',
+  f_nota_fixo: 'No modo fixo a fan não acelera sozinha. Por segurança o painel volta para 100 % se a placa de vídeo passar de 86 °C ou o processador de 93 °C.',
+  f_aplicado: 'Aplicado às {0}', f_problema: 'Problema ao aplicar, {0}', f_medir: 'Medir minhas fans',
+  f_medir_t: 'Passa as fans da placa-mãe por 7 velocidades e anota os rpm de cada uma. Leva 42 segundos.',
+  f_medindo: 'Medindo as fans, passo {0} de 7', f_nao_aplicou: 'Não consegui aplicar, o serviço não respondeu.',
+  f_velho: 'Falta atualizar a parte de administrador das fans, reinstale o pc-panel-fans.',
+  f_falta: 'O controle das fans não está ativo. Ele precisa de um chip de fans suportado e de um passo com senha de administrador, veja o README.'},
+en: {conectando: 'connecting', nv_bom: 'ok', nv_aviso: 'warning', nv_serio: 'high', nv_critico: 'critical', sem_leitura: 'no reading',
+  tudo_certo: 'All good', n_aviso: '1 warning', n_avisos: '{0} warnings', sem_resp: 'No response',
+  sem_resp2: 'the pc-panel service did not answer, retrying',
+  ocultos: '+{0} hidden', ocultos_t: 'Did not fit in this window: {0}. Click to show everything with scrolling.', encaixar: 'fit to window',
+  b_fans: 'Fans', b_sens: 'Sensors', b_hist: 'History', b_aj: 'Settings', fechar: 'Close', salvar: 'Save', aplicar: 'Apply', atualizar: 'Refresh',
+  geral_t: 'See the warnings and what already happened',
+  c_ram: 'RAM', c_vram: 'VRAM', c_gpu: 'Graphics card', c_cpu: 'Processor', c_rede: 'Network', c_prog: 'Programs',
+  c_temp: 'Temperatures and fans', c_disc: 'Disks', c_saude: 'System health', c_jogo: 'Game', c_live: 'Live', c_pz: 'Zomboid server',
+  c_sis: 'System', c_eventos: 'Events',
+  gib_de: 'GiB of {0}', parado: 'idle', em_uso: 'in use now', pressao: 'Pressure',
+  left_t: 'Memory still usable before swapping, already minus the amount chosen in Settings', disponivel: 'Available',
+  a_modulos: 'Extra modules and fine tuning',
+  a_m_live: 'Live, the OBS card with a viewer counter (uses the espectadores service on port 47821)',
+  a_m_zomboid: 'Project Zomboid server hosted on this PC, with players, ticks and backup',
+  a_reserva: 'Subtract from available memory, in MiB (3500 mimics MangoHud RAM LEFT)',
+  a_sobre: 'About PC Panel', a_versao: 'Version {0}.', a_ver_btn: 'Check for a new version', a_atualizar: 'Update now',
+  a_ver_nova: ' Version {0} is out.', a_ver_ok: ' This is the latest.', a_ver_pacote: ' Update with your package manager.',
+  a_ver_erro: ' Could not check, {0}.', a_ver_feito: 'Updated, reloading the page.',
+  psi_ram_t: 'Share of the last 10 seconds in which some program was stalled waiting for memory',
+  livre: 'Free', maior: 'Top user', uso_pct: '% usage', temperatura: 'Temperature', consumo: 'Power', w_de: '{0} W of {1}',
+  enc_t: 'Video encoder usage, what streaming and recording use',
+  carga: 'Load', carga_t: 'Average number of programs queued for the processor in the last minute',
+  psi_cpu_t: 'Share of the last 10 seconds in which some program waited for a free core', nucleo: 'Core {0}, {1} %',
+  ms_ping: 'ms ping', perda: 'Loss', roteador: 'Router', oscilacao: 'Jitter', osc_t: 'Average change from one ping to the next',
+  ping_net: 'Ping to the internet', perdido: 'lost', sem_rota: 'no route to the internet', erros: 'Errors',
+  erros_t: 'Errors and packets dropped by the network card since boot', err_v: '{0} and {1} dropped',
+  p_ram: 'RAM by program', p_vram: 'VRAM by program', p_cpu: 'CPU by program', p_cpu_t: '100 % is the whole processor, all cores together',
+  medindo: 'measuring', p_sem_vram: 'no program using the card', p_parado: 'all idle',
+  tip_ram: '{0}, {1} processes, {2} of RAM', no_swap: ', {0} in swap', tip_vram: '{0}, {1} of VRAM', tip_cpu: '{0}, {1} % of the whole processor, the same as {2} % of one core',
+  ajustar_fans: 'adjust fans', t_cpu: 'Processor', t_gpu: 'Graphics card', t_placa: 'Motherboard', t_mem: 'Memory', ssd_sis: 'System SSD',
+  tip_temp: '{0}, {1} °C, {2} (warning from {3} °C)', fan_gpu: 'Card fans', fan_n: 'Fan {0}', canal: 'channel {0}',
+  m_max: 'at maximum', m_auto: 'automatic', m_curva: 'on a curve', m_fixo: 'fixed at {0} %',
+  d_sistema: 'System', livres_de: '{0} free of {1}', leitura: 'read', gravacao: 'write', espera: 'wait {0} ms',
+  ocupado_d: 'busy {0} %', espera_disco: 'disk wait {0} %',
+  psi_io_t: 'Share of the last 10 seconds in which some program waited for the disk', tip_disco: '{0} ({1}), {2} % full',
+  s_kerr: 'Kernel errors since boot', s_trav: 'Programs that crashed today', s_reinicio: 'Reboot pending', sim: 'yes', nao: 'no',
+  s_atualizado: 'Last full update', ha: '{0} ago', s_upd: 'Pending updates', s_nao_verif: 'not checked',
+  s_verificando: 'checking', s_verificar: 'check updates', s_falhas: 'Failed services', s_ultimo: 'The last one was {0}',
+  s_reinicio_t: 'A new kernel was installed and the PC has not rebooted yet',
+  j_nenhum: 'No game running', j_aberto: 'open for {0}', j_mais: ' and {0} more', l_fechado: 'OBS closed', l_aberto: 'OBS open',
+  l_semresp: 'the viewer counter did not answer', l_fora: 'OBS open, offline', l_erro: 'some platform did not answer',
+  l_vivo: 'LIVE', l_ha: ' for {0}', l_assist: '{0} watching', l_pico: 'peak {0}', z_desl: 'Off', z_jog1: '1 player',
+  z_jogn: '{0} players', z_backup: 'backup {0} ago', z_noar: 'up for {0}', s_ligado: 'Up for {0}', s_registro: 'logging on',
+  carregando: 'charging', ver_todos: 'see all', e_nada: 'nothing happened since the panel started', agora: 'now', e_com: ', with {0} running',
+  g_10: '10 min ago', g_5: '5 min', g_ram: 'RAM used', g_vram: 'VRAM used', g_gpu: 'GPU usage', g_cpu: 'CPU usage',
+  left_zero: 'RAM LEFT zero', sem_medida: 'no sample',
+  h_titulo: 'Last 10 minutes, one row every 30 seconds', th_hora: 'Time', th_gpu_p: 'GPU %', th_cpu_p: 'CPU %',
+  th_cpu_t: 'CPU °C', th_gpu_t: 'GPU °C',
+  ev_nota1: 'Newest first. The list resets when the service restarts, the eventos.csv file keeps everything if logging is on.',
+  ev_nota0: 'Nothing happened since the panel started. A warning lands here when it lasts more than one sample.',
+  th_comecou: 'Started', th_durou: 'Lasted', th_nivel: 'Level', th_oque: 'What', th_jogo: 'Game running', ainda: 'still happening',
+  sn_titulo: 'All sensors',
+  sn_nota: 'Raw reading of every chip, taken now. Some motherboard values are inputs with nothing connected and show meaningless numbers.',
+  a_aparencia: 'Appearance', a_idioma: 'Language', a_tema: 'Theme', tm_escuro: 'Dark', tm_preto: 'Black', tm_noite: 'Midnight blue', tm_claro: 'Light',
+  tm_contraste: 'High contrast', a_cor: 'Chart color', cr_azul: 'Blue', cr_agua: 'Aqua', cr_violeta: 'Violet',
+  a_fonte: 'Text size', f_2: 'Large', f_3: 'Huge',
+  a_mostrar: 'What to show', a_perfil: 'Profile', pf_tudo: 'Everything', pf_jogo: 'Gaming', pf_live: 'Streaming', pf_proprio: 'My choice',
+  a_encaixe: 'Hide what does not fit in the window, no scroll bar',
+  a_mostrar_n: 'When space is short RAM, VRAM, graphics card, processor and network stay first, and any card with a problem jumps ahead.',
+  a_medicao: 'Measuring', a_passo: 'Refresh the page every', p_1: '1 second (costs twice as much)', p_2: '2 seconds', p_5: '5 seconds (lighter)',
+  a_ping: 'Address that receives the ping', a_avisos: 'Alerts', a_desktop: 'Show a KDE notification when a problem starts',
+  a_som: 'Play a sound on this page when a problem starts',
+  a_registro: 'Logging to file', a_log: 'Save the samples and the events to CSV files', a_pasta: 'Folder', a_int: 'Write one row every',
+  i_5: '5 seconds', i_10: '10 seconds', i_30: '30 seconds', i_60: '1 minute', a_dias: 'Delete files older than', d_7: '7 days',
+  d_30: '30 days', d_90: '90 days', d_365: '1 year', d_0: 'never delete',
+  a_log_n: 'With logging on the service also measures with the page closed, at the chosen interval.',
+  a_arqs: '{0} files, {1} in {2} ', a_sem_arqs: 'No files yet in {0} ', a_baixar: 'download today\'s file',
+  a_ult_erro: ' The last write error was {0}',
+  a_sistema: 'System updates', a_upd_btn: 'Check now',
+  a_upd_n: 'The check downloads the package list to a temporary folder and compares. It installs nothing and does not touch pacman.',
+  a_upd_nunca: 'Never checked.', a_upd_res: '{0} system packages and {1} Flatpak with updates, checked {2} ago.',
+  a_upd_erro: 'The check failed, {0}.', a_custo: 'The service is using {0} % of one core and {1} MiB of RAM',
+  a_nao_salvou: 'Could not save, the service did not answer.',
+  f_gpu: 'Graphics card', f_agora: 'now at {0}', f_nome: 'Name', fm_max: 'Maximum, always 100 %',
+  fm_auto: 'Automatic, the factory curve of the card', fm_fixo: 'Fixed at', fm_curva: 'Custom curve by temperature', f_prontas: 'Presets',
+  cv_silenciosa: 'Quiet', cv_equilibrada: 'Balanced', cv_desempenho: 'Performance', cv_padrao: 'Default', f_ponto: 'Point {0}',
+  f_aprox: 'about {0} rpm', f_alvo: 'target {0} %', f_medido: 'Measured on this PC, {0}',
+  f_nota_placa: 'The motherboard fans follow the processor temperature and the curve is stored in the board chip, it works even with the panel closed.',
+  f_nota_gpu: 'The custom graphics card curve is driven by the panel service. If it stops, the card goes back to its factory curve by itself.',
+  f_nota_fixo: 'In fixed mode the fan does not speed up by itself. For safety the panel goes back to 100 % if the graphics card passes 86 °C or the processor 93 °C.',
+  f_aplicado: 'Applied at {0}', f_problema: 'Problem applying, {0}', f_medir: 'Measure my fans',
+  f_medir_t: 'Runs the motherboard fans through 7 speeds and records the rpm of each one. Takes 42 seconds.',
+  f_medindo: 'Measuring the fans, step {0} of 7', f_nao_aplicou: 'Could not apply, the service did not answer.',
+  f_velho: 'The administrator part of the fan control needs an update, reinstall pc-panel-fans.',
+  f_falta: 'Fan control is not active. It needs a supported fan chip and one step with the administrator password, see the README.'}};
+
+const $ = id => document.getElementById(id);
+const NS = 'http://www.w3.org/2000/svg';
+const JANELA = 600;
+const GL = {bom: '●', aviso: '▲', serio: '◆', critico: '■'};
+const ORD = ['bom', 'aviso', 'serio', 'critico'];
+const COR = {bom: 'var(--s1)', aviso: 'var(--aviso)', serio: 'var(--serio)', critico: 'var(--critico)'};
+const CARTOES = ['ram', 'vram', 'gpu', 'cpu', 'rede', 'prog', 'temp', 'disc', 'saude', 'eventos', 'jogo', 'live', 'pz', 'sis'];
+const PERFIS = {tudo: CARTOES, jogo: ['ram', 'vram', 'gpu', 'cpu', 'rede', 'temp', 'prog', 'jogo'],
+  live: ['ram', 'vram', 'gpu', 'cpu', 'rede', 'live', 'jogo', 'eventos', 'temp'],
+  hardware: ['ram', 'vram', 'gpu', 'cpu', 'temp', 'disc', 'saude', 'sis']};
+// size of each card in columns x rows: l = wide screen (4 columns), m = half screen (2), c = compact
+const TAM = {ram: {l: [1, 5], m: [1, 3], c: [1, 2]}, vram: {l: [1, 5], m: [1, 3], c: [1, 2]}, gpu: {l: [1, 5], m: [1, 3], c: [1, 2]},
+  cpu: {l: [1, 5], m: [1, 3], c: [1, 2]}, rede: {l: [1, 6], m: [1, 4], c: [1, 2]}, prog: {l: [2, 6], m: [1, 4]},
+  temp: {l: [1, 4], m: [1, 5]}, disc: {l: [1, 3], m: [1, 3]}, saude: {l: [1, 3], m: [1, 3]}, eventos: {l: [1, 3], m: [1, 3]},
+  jogo: {l: [1, 1], m: [1, 1], c: [1, 1]}, live: {l: [1, 1], m: [1, 1], c: [1, 1]}, pz: {l: [1, 1], m: [1, 1], c: [1, 1]},
+  sis: {l: [1, 1], m: [1, 1]}, chat: {l: [1, 1], m: [2, 6]}};
+const PRIO = {ram: 1, vram: 2, gpu: 3, cpu: 4, rede: 5, chat: 6, temp: 30, prog: 31, disc: 32, saude: 33, eventos: 34, sis: 35, jogo: 40, live: 41, pz: 42};
+const ESSENCIAIS = ['ram', 'vram', 'gpu', 'cpu', 'rede'];
+
+let H = [], A = null, CFG = null, EV = [], seq = 0, inst = '', passo = 2, falhas = 0, L = 'pt', LOC = 'pt-BR', FONTE = 1;
+let chatLigado = false, cfgSeq = -1, evSeq = -1, rolar = false, assinatura = '', avisosAntes = new Set(), blocos = null, calAntes = null, som = null;
+
+function T(k, ...a) {
+  let s = TX[L][k] ?? TX.pt[k] ?? k;
+  a.forEach((v, i) => { s = s.replace('{' + i + '}', v); });
+  return s;
+}
+const nf = (v, d = 1) => v.toLocaleString(LOC, {minimumFractionDigits: d, maximumFractionDigits: d});
+const int = v => Math.round(v).toLocaleString(LOC);
+const tam = kb => kb >= 1048576 ? nf(kb / 1048576) + ' GiB' : int(kb / 1024) + ' MiB';
+const tamMib = m => m >= 1024 ? nf(m / 1024) + ' GiB' : int(m) + ' MiB';
+const tamB = b => b >= 1073741824 ? tam(b / 1024) : b >= 1048576 ? nf(b / 1048576) + ' MiB' : int(b / 1024) + ' KiB';
+const mbit = v => v == null ? '' : v < 0.1 ? int(v * 1000) + ' kbit/s' : nf(v, v < 10 ? 1 : 0) + ' Mbit/s';
+const hora = t => new Date(t * 1000).toLocaleTimeString(LOC);
+function dur(s) {
+  s = Math.max(0, Math.floor(s));
+  const d = Math.floor(s / 86400), h = Math.floor(s % 86400 / 3600), m = Math.floor(s % 3600 / 60);
+  if (d) return d + ' d ' + h + ' h';
+  if (h) return h + ' h ' + String(m).padStart(2, '0') + ' min';
+  return m ? m + ' min' : s + ' s';
+}
+function cron(s) {
+  s = Math.max(0, Math.floor(s));
+  return Math.floor(s / 3600) + ':' + String(Math.floor(s % 3600 / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+}
+function el(tag, cls, txt) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (txt != null) e.textContent = txt;
+  return e;
+}
+function sv(tag, at, pai) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in at) e.setAttribute(k, at[k]);
+  if (pai) pai.appendChild(e);
+  return e;
+}
+function pilula(e, nv, texto) { e.replaceChildren(el('i', nv, GL[nv]), document.createTextNode(texto || T('nv_' + nv))); }
+function medidor(e, pct, nv) {
+  e.style.setProperty('--c', COR[nv || 'bom']);
+  e.firstElementChild.style.width = Math.max(2, Math.min(100, pct)) + '%';
+}
+function bonito(m) {
+  for (const p of [1, 2, 4, 10, 20, 40, 100, 200, 400, 1000, 2000, 4000, 10000]) if (m <= p) return p;
+  return m;
+}
+async function pedir(caminho, corpo) {
+  const r = await fetch(caminho, corpo === undefined ? {cache: 'no-store'} :
+    {method: 'POST', headers: {'Content-Type': 'application/json', 'X-Painel': '1'}, body: JSON.stringify(corpo)});
+  if (!r.ok) throw new Error('http ' + r.status);
+  return r.json();
+}
+function traduzir() {
+  LOC = L === 'en' ? 'en-US' : 'pt-BR';
+  document.documentElement.lang = L === 'en' ? 'en' : 'pt-BR';
+  for (const e of document.querySelectorAll('[data-i]')) e.textContent = T(e.dataset.i);
+  for (const e of document.querySelectorAll('[data-it]')) e.title = T(e.dataset.it);
+}
+const rem = () => parseFloat(getComputedStyle(document.documentElement).fontSize) || 14;
+function visivel(id) {
+  if (!CFG) return true;
+  if ((id === 'pz' && !CFG.modulos.zomboid) || (id === 'live' && !CFG.modulos.live)) return false;
+  if ((id === 'vram' || id === 'gpu') && A && A.gpu.ausente) return false;     // PC without a supported graphics card
+  return CFG.perfil === 'proprio' ? CFG.cartoes[id] !== false : (PERFIS[CFG.perfil] || CARTOES).includes(id);
+}
+const nomeDisco = n => n === '/' ? T('d_sistema') : n;
+const nomeTemp = t => t.id === 'ssd' ? (t.nome === '/' ? T('ssd_sis') : 'SSD ' + t.nome) : T('t_' + t.id);
+const nomeFan = (n, i) => (CFG && CFG.nomes_fans[n]) || T('fan_n', i + 1);
+
+class Grafico {
+  constructor(alvo, o) {
+    this.el = alvo; this.o = o; this.mx = null;
+    this.svg = sv('svg', {role: 'img'}, alvo);
+    this.dica = el('div', 'dica'); this.dica.hidden = true; alvo.appendChild(this.dica);
+    new ResizeObserver(() => this.desenhar()).observe(alvo);
+    alvo.addEventListener('pointermove', e => { this.mx = e.clientX - alvo.getBoundingClientRect().left; this.mira(); });
+    alvo.addEventListener('pointerleave', () => { this.mx = null; this.mira(); });
+  }
+  desenhar() {
+    const o = this.o, W = this.el.clientWidth, Ht = this.el.clientHeight, svg = this.svg, f = FONTE;
+    if (!A || W < 60 || Ht < 34) return;
+    const esq = 32 * f, dir = 8, topo = 7, baixo = Ht >= 84 * f ? 16 * f : 3;
+    const pw = W - esq - dir, ph = Ht - topo - baixo, t1 = A.t, t0 = t1 - JANELA;
+    const buraco = Math.max(passo * 3.5, (A.espaco || passo) * 1.7);
+    let max = o.max ? o.max() : 0;
+    if (!o.max) {
+      let m = 0;
+      for (const l of H) for (const s of o.series) if (l[s.i] != null && l[s.i] > m) m = l[s.i];
+      max = bonito(Math.max(m, o.piso || 1));
+    }
+    const X = t => esq + (t - t0) / JANELA * pw;
+    const Y = v => topo + ph - Math.max(0, Math.min(v, max)) / max * ph;
+    const y0 = (topo + ph).toFixed(1);
+    this.esc = {X, Y, t0, esq, pw, W, topo, ph};
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + Ht);
+    svg.setAttribute('aria-label', o.series.map(s => T(s.nome)).join(', '));
+    svg.replaceChildren();
+    for (const v of ph >= 90 ? [0, max / 2, max] : [0, max]) {
+      sv('line', {x1: esq, x2: W - dir, y1: Y(v), y2: Y(v), class: v ? 'grade' : 'eixo'}, svg);
+      sv('text', {x: esq - 6, y: Y(v) + 3.5, class: 'rot', 'text-anchor': 'end'}, svg).textContent =
+        Number.isInteger(v) ? String(v) : nf(v);
+    }
+    if (baixo > 3) {
+      sv('text', {x: esq, y: Ht - 2, class: 'rot'}, svg).textContent = T('g_10');
+      sv('text', {x: esq + pw / 2, y: Ht - 2, class: 'rot', 'text-anchor': 'middle'}, svg).textContent = T('g_5');
+      sv('text', {x: W - dir, y: Ht - 2, class: 'rot', 'text-anchor': 'end'}, svg).textContent = T('agora');
+    }
+    const pontas = [];
+    for (const s of o.series) {
+      const cor = s.cor || 'var(--s1)', segs = [];
+      let seg = null, tant = 0;
+      for (const l of H) {
+        const t = l[0], v = l[s.i];
+        if (t < t0) continue;
+        const ruim = v == null || v < 0;
+        if (ruim || (seg && t - tant > buraco)) seg = null;
+        if (ruim) continue;
+        if (!seg) { seg = []; segs.push(seg); }
+        seg.push([X(t), Y(v), t]);
+        tant = t;
+      }
+      for (const p of segs) {
+        if (p.length < 2) { sv('circle', {cx: p[0][0], cy: p[0][1], r: 1.5, style: 'fill:' + cor}, svg); continue; }
+        const d = 'M' + p.map(q => q[0].toFixed(1) + ',' + q[1].toFixed(1)).join('L');
+        sv('path', {d: d + 'L' + p[p.length - 1][0].toFixed(1) + ',' + y0 + 'L' + p[0][0].toFixed(1) + ',' + y0 + 'Z',
+          style: 'fill:' + cor + ';opacity:.1'}, svg);
+        sv('path', {d, class: 'linha', style: 'stroke:' + cor}, svg);
+      }
+      const us = segs[segs.length - 1];
+      if (us && us[us.length - 1][2] > t1 - buraco) pontas.push([us[us.length - 1], cor]);
+    }
+    if (o.perdas) for (const l of H) if (l[5] === -1 && l[0] >= t0)
+      sv('line', {x1: X(l[0]), x2: X(l[0]), y1: topo, y2: topo + 8, style: 'stroke:var(--critico);stroke-width:2'}, svg);
+    const lim = o.limite && o.limite();
+    if (lim && lim.v < max) {
+      sv('line', {x1: esq, x2: W - dir, y1: Y(lim.v), y2: Y(lim.v), class: 'limite'}, svg);
+      sv('text', {x: W - dir, y: Y(lim.v) - 4, class: 'rot', 'text-anchor': 'end'}, svg).textContent = lim.rotulo;
+    }
+    for (const [q, cor] of pontas)
+      sv('circle', {cx: q[0], cy: q[1], r: 4, style: 'fill:' + cor + ';stroke:var(--sup);stroke-width:2'}, svg);
+    this.gm = sv('g', {}, svg);
+    this.mira();
+  }
+  mira() {
+    const g = this.gm, d = this.dica;
+    if (!g) return;
+    g.replaceChildren();
+    if (this.mx == null || !this.esc) { d.hidden = true; return; }
+    const {X, Y, t0, esq, pw, W, topo, ph} = this.esc;
+    const alvo = t0 + (this.mx - esq) / pw * JANELA;
+    let perto = null, dist = 1e9;
+    for (const l of H) { const x = Math.abs(l[0] - alvo); if (x < dist) { dist = x; perto = l; } }
+    if (!perto || dist > Math.max(8, (A.espaco || 2) * 2) || perto[0] < t0) { d.hidden = true; return; }
+    const x = X(perto[0]);
+    sv('line', {x1: x, x2: x, y1: topo, y2: topo + ph, class: 'mira'}, g);
+    d.replaceChildren(el('div', 'h', hora(perto[0])));
+    for (const s of this.o.series) {
+      const v = perto[s.i], cor = s.cor || 'var(--s1)', r = el('div', 'r'), k = el('i');
+      k.style.background = cor;
+      r.append(k, el('b', '', v == null ? T('sem_medida') : v < 0 ? T('perdido') : this.o.fmt(v)), el('span', '', T(s.nome)));
+      d.append(r);
+      if (v != null && v >= 0)
+        sv('circle', {cx: x, cy: Y(v), r: 4, style: 'fill:' + cor + ';stroke:var(--sup);stroke-width:2'}, g);
+    }
+    d.hidden = false;
+    const lw = d.offsetWidth;
+    d.style.left = Math.max(0, Math.min(W - lw, x + 12 + lw > W ? x - 12 - lw : x + 12)) + 'px';
+  }
+}
+
+const graficos = [
+  new Grafico($('g-ram'), {series: [{i: 1, nome: 'g_ram'}], max: () => Math.ceil(A.ram.total / 1048576 / 8) * 8,
+    fmt: v => nf(v) + ' GiB', limite: () => A.ram.reserva ? {v: (A.ram.total - A.ram.reserva) / 1048576, rotulo: T('left_zero')} : null}),
+  new Grafico($('g-vram'), {series: [{i: 2, nome: 'g_vram'}], max: () => A.gpu.ok ? Math.ceil(A.gpu.vram_total / 1024) : 8,
+    fmt: v => nf(v) + ' GiB'}),
+  new Grafico($('g-gpu'), {series: [{i: 3, nome: 'g_gpu'}], max: () => 100, fmt: v => int(v) + ' %'}),
+  new Grafico($('g-cpu'), {series: [{i: 4, nome: 'g_cpu'}], max: () => 100, fmt: v => int(v) + ' %'}),
+  new Grafico($('g-ping'), {series: [{i: 5, nome: 'Ping'}], piso: 40, fmt: v => nf(v) + ' ms', perdas: true}),
+  new Grafico($('g-net'), {series: [{i: 6, nome: 'Download'}, {i: 7, nome: 'Upload', cor: 'var(--s2)'}], piso: 1,
+    fmt: v => nf(v, v < 10 ? 2 : 1) + ' Mbit/s'}),
+];
+
+function cRam() {
+  const r = A.ram, usando = r.swap_mibs > 0.5;
+  $('ram-v').textContent = nf(r.usada / 1048576);
+  $('ram-de').textContent = T('gib_de', nf(r.total / 1048576));
+  $('ram-left-r').textContent = r.reserva ? 'RAM LEFT' : T('disponivel');
+  $('ram-left').textContent = r.left >= 4194304 && !r.reserva ? tam(r.left) : int(r.left / 1024) + ' MiB';
+  $('ram-swap').textContent = tam(r.swap) + ', ' + (usando ? T('em_uso') : T('parado'));
+  $('ram-cache').textContent = tam(r.cache);
+  $('ram-psi').textContent = nf(r.psi, r.psi < 10 ? 1 : 0) + ' %';
+  pilula($('ram-st'), A.nv.ram);
+  medidor($('ram-m'), 100 * r.usada / r.total, A.nv.ram);
+}
+function cPlaca() {
+  const g = A.gpu;
+  pilula($('vram-st'), A.nv.vram, g.ok ? null : T('sem_leitura'));
+  pilula($('gpu-st'), A.nv.gpu, g.ok ? null : T('sem_leitura'));
+  if (!g.ok) {
+    for (const id of ['vram-v', 'gpu-v']) $(id).textContent = '?';
+    for (const id of ['vram-livre', 'vram-top', 'gpu-temp', 'gpu-w', 'gpu-fan', 'gpu-mhz', 'gpu-enc']) $(id).textContent = '';
+    return;
+  }
+  const top = A.progs && A.progs.vram[0];
+  $('gpu-nome').textContent = g.nome;
+  $('vram-v').textContent = nf(g.vram / 1024);
+  $('vram-de').textContent = T('gib_de', nf(g.vram_total / 1024));
+  $('vram-livre').textContent = tamMib(g.vram_total - g.vram);
+  $('vram-top').textContent = top ? top.nome + ' ' + tamMib(top.mib) : '';
+  medidor($('vram-m'), 100 * g.vram / g.vram_total, A.nv.vram);
+  $('gpu-v').textContent = int(g.uso);
+  $('gpu-temp').textContent = g.temp == null ? '' : g.temp + ' °C';
+  $('gpu-w').textContent = g.watts == null ? '' : g.watts_max ? T('w_de', g.watts, g.watts_max) : g.watts + ' W';
+  $('gpu-fan').textContent = (g.fan == null ? '' : g.fan + ' %') + (g.rpm.length ? (g.fan == null ? '' : ', ') + int(Math.max(...g.rpm)) + ' rpm' : '');
+  $('gpu-mhz').textContent = g.mhz == null ? '' : g.mhz + ' MHz';
+  $('gpu-enc').textContent = g.enc == null ? '' : g.enc + ' %';
+  medidor($('gpu-m'), g.uso, A.nv.gpu);
+}
+function cCpu() {
+  const c = A.cpu;
+  $('cpu-nome').textContent = c.nome;
+  $('cpu-v').textContent = c.uso == null ? '?' : int(c.uso);
+  $('cpu-temp').textContent = c.temp == null ? '' : nf(c.temp, 0) + ' °C';
+  $('cpu-ghz').textContent = c.ghz == null ? '' : nf(c.ghz, 2) + ' GHz';
+  $('cpu-carga').textContent = nf(c.carga);
+  $('cpu-psi').textContent = nf(c.psi, c.psi < 10 ? 1 : 0) + ' %';
+  pilula($('cpu-st'), A.nv.cpu);
+  medidor($('cpu-m'), c.uso || 0, A.nv.cpu);
+  const alvo = $('cpu-nuc');
+  if (alvo.children.length !== c.nucleos.length) alvo.replaceChildren(...c.nucleos.map(() => el('i')));
+  c.nucleos.forEach((v, i) => {
+    alvo.children[i].style.height = Math.max(4, v) + '%';
+    alvo.children[i].title = T('nucleo', i + 1, int(v));
+  });
+}
+function cRede() {
+  const r = A.rede;
+  $('rede-if').textContent = r.iface ? r.iface + (r.ip ? ', ' + r.ip : '') : T('sem_rota');
+  $('ping-v').textContent = r.ping == null ? '?' : r.ping < 0 ? T('perdido') : r.ping < 10 ? nf(r.ping) : int(r.ping);
+  $('ping-gw').textContent = r.gw == null ? '?' : r.gw < 0 ? T('perdido') : nf(r.gw) + ' ms';
+  $('ping-perda').textContent = nf(r.perda, r.perda && r.perda < 10 ? 1 : 0) + ' %';
+  $('ping-jit').textContent = r.osc == null ? '' : nf(r.osc) + ' ms';
+  $('rede-link').textContent = r.link ? (r.link >= 1000 ? nf(r.link / 1000, r.link % 1000 ? 1 : 0) + ' Gbit/s' : r.link + ' Mbit/s') : '?';
+  $('rede-err').textContent = r.erros == null ? '' : T('err_v', int(r.erros), int(r.descartes));
+  $('ping-alvo').textContent = r.alvo;
+  $('net-rx').textContent = mbit(r.rx == null ? null : r.rx * 8 / 1e6);
+  $('net-tx').textContent = mbit(r.tx == null ? null : r.tx * 8 / 1e6);
+  pilula($('rede-st'), A.nv.rede);
+}
+function cabem(alvo) {
+  const lh = parseFloat(getComputedStyle(document.body).getPropertyValue('--lin')) * rem() || 23;
+  return Math.max(1, Math.floor(alvo.clientHeight / lh));
+}
+function lista(alvo, itens, valor, rotulo, dica) {
+  const ver = itens.slice(0, cabem(alvo)), max = ver.length ? valor(ver[0]) : 1;
+  alvo.replaceChildren(...ver.map(it => {
+    const lin = el('div', 'lin'), n = el('span', 'n', it.nome), b = el('div', 'barra'), f = el('i');
+    if (it.n > 1) n.append(' ', el('small', '', '×' + it.n));
+    f.style.width = Math.max(1, 100 * valor(it) / max) + '%';
+    b.append(f);
+    lin.title = dica(it);
+    lin.append(n, b, el('span', 'v', rotulo(it)));
+    return lin;
+  }));
+}
+function cProg() {
+  const p = A.progs;
+  if (!p) { $('l-ram').replaceChildren(el('div', 'vazio', T('medindo'))); return; }
+  lista($('l-ram'), p.ram, it => it.kb, it => tam(it.kb), it => T('tip_ram', it.nome, it.n, tam(it.kb)) + (it.swap > 10240 ? T('no_swap', tam(it.swap)) : ''));
+  if (p.vram.length) lista($('l-vram'), p.vram, it => it.mib, it => tamMib(it.mib), it => T('tip_vram', it.nome, tamMib(it.mib)));
+  else $('l-vram').replaceChildren(el('div', 'vazio', T('p_sem_vram')));
+  // the service sends % of one core; here it becomes % of the whole processor, like the big number on the card
+  const nt = A.cpu.nucleos.length || 1, tot = it => it.pct / nt, usando = p.cpu.filter(it => tot(it) >= 0.05);
+  if (usando.length) lista($('l-cpu'), usando, tot, it => nf(tot(it), 1) + ' %', it => T('tip_cpu', it.nome, nf(tot(it)), nf(it.pct, 0)));
+  else $('l-cpu').replaceChildren(el('div', 'vazio', T('p_parado')));
+}
+function modoFan(x) {
+  return !x ? '' : x.modo === 'max' ? T('m_max') : x.modo === 'auto' ? T('m_auto') : x.modo === 'curva' ? T('m_curva') : T('m_fixo', x.pct);
+}
+function linhaMed(nome, pct, nv, valor, dica) {
+  const lin = el('div', 'lin t2'), m = el('div', 'med'), v = el('span', 'v');
+  m.append(el('i'));
+  medidor(m, pct, nv);
+  if (nv && nv !== 'bom') v.append(el('i', 'g ' + nv, GL[nv]), ' ');
+  v.append(valor);
+  if (dica) lin.title = dica;
+  lin.append(el('span', 'n', nome), m, v);
+  return lin;
+}
+function cTemp() {
+  const linhas = [], f = A.fans, e = f.escolha;
+  for (const t of A.temps)
+    linhas.push(linhaMed(nomeTemp(t), (t.c - 20) / 80 * 100, t.nv, nf(t.c, 0) + ' °C', T('tip_temp', nomeTemp(t), nf(t.c), T('nv_' + t.nv), t.lim)));
+  if (A.gpu.ok && A.gpu.fan != null)
+    linhas.push(linhaMed(T('fan_gpu'), A.gpu.fan, 'bom', A.gpu.rpm.length ? int(Math.max(...A.gpu.rpm)) + ' rpm' : A.gpu.fan + ' %',
+      T('fan_gpu') + ', ' + A.gpu.fan + ' %' + (A.gpu.rpm.length ? ', ' + A.gpu.rpm.map(int).join(' / ') + ' rpm' : '') + (e ? ', ' + modoFan(e.gpu) : '')));
+  f.canais.forEach((c, i) => linhas.push(linhaMed(nomeFan(c.n, i), c.pct == null ? 0 : c.pct, c.rpm ? 'bom' : 'serio', int(c.rpm) + ' rpm',
+    nomeFan(c.n, i) + ' (' + T('canal', c.n) + '), ' + int(c.rpm) + ' rpm, ' + (c.pct == null ? '?' : c.pct) + ' %' + (e && e.placa[c.n] ? ', ' + modoFan(e.placa[c.n]) : ''))));
+  $('l-temp').replaceChildren(...linhas);
+}
+function cDisc() {
+  $('disc-psi').textContent = A.psi_io >= 1 ? T('espera_disco', nf(A.psi_io, 0)) : '';
+  $('l-disc').replaceChildren(...A.discos.map(d => {
+    const caixa = el('div', 'disco'), n = el('span', 'n', nomeDisco(d.nome)), m = el('div', 'med'), io = el('div', 'io'), v = el('span', 'v');
+    n.append(el('small', '', d.modelo));
+    m.append(el('i'));
+    medidor(m, d.usado, d.nv);
+    if (d.nv !== 'bom') v.append(el('i', 'g ' + d.nv, GL[d.nv]), ' ');
+    v.append(T('livres_de', tamB(d.livre), tamB(d.total)));
+    if (d.ler != null) io.append(el('span', '', T('leitura') + ' ' + nf(d.ler / 1048576) + ' MiB/s'), el('span', '', T('gravacao') + ' ' + nf(d.gravar / 1048576) + ' MiB/s'),
+      el('span', '', T('espera', nf(d.espera, d.espera < 10 ? 1 : 0))), el('span', '', T('ocupado_d', nf(d.ocupado, 0))));
+    caixa.title = T('tip_disco', nomeDisco(d.nome), d.modelo, int(d.usado)) + (d.espera != null ? ', ' + T('espera', nf(d.espera)) + ', ' + T('ocupado_d', nf(d.ocupado, 0)) : '');
+    caixa.append(n, v, m, io);
+    return caixa;
+  }));
+}
+function cSaude() {
+  const s = A.saude, u = s.upd, linhas = [];
+  const lin = (rot, val, nv, dica) => {
+    const l = el('div', 'lin s'), v = el('span', 'v');
+    if (nv) v.append(el('i', 'g ' + nv, GL[nv]), ' ');
+    v.append(val);
+    if (dica) l.title = dica;
+    l.append(el('span', 'n', rot), v);
+    linhas.push(l);
+  };
+  lin(T('s_kerr'), s.kerr == null ? '?' : int(s.kerr), null, s.kult);
+  lin(T('s_trav'), s.trav == null ? '?' : int(s.trav), s.trav ? 'aviso' : null, s.tult ? T('s_ultimo', s.tult) : '');
+  lin(T('s_reinicio'), s.reinicio ? T('sim') : T('nao'), s.reinicio ? 'aviso' : null, T('s_reinicio_t'));
+  lin(T('s_atualizado'), s.atualizado ? T('ha', dur(A.t - s.atualizado)) : '?');
+  lin(T('s_upd'), u.rodando ? T('s_verificando') : u.quando == null ? T('s_nao_verif') : u.erro ? '?' : int(s.npac) + (u.flatpak ? ' + ' + u.flatpak + ' Flatpak' : ''),
+    null, u.quando ? T('ha', dur(A.t - u.quando)) : '');
+  lin(T('s_falhas'), int(s.falhas), s.falhas ? 'aviso' : null);
+  $('l-saude').replaceChildren(...linhas);
+}
+function por(id, p, d, ativo) {
+  $(id + '-p').textContent = p; $(id + '-p').title = p;
+  $(id + '-d').textContent = d; $(id + '-d').title = d;
+  $('c-' + id).dataset.ativo = ativo ? '1' : '';
+}
+function chat(ligar) {
+  if (ligar === chatLigado) return;
+  chatLigado = ligar;
+  $('chat-f').src = ligar ? 'http://' + location.hostname + ':47821/chat' : 'about:blank';
+}
+function cFaixa() {
+  const j = A.jogos || [];
+  if (!j.length) por('jogo', T('j_nenhum'), '');
+  else por('jogo', j[0].nome + (j.length > 1 ? T('j_mais', j.length - 1) : ''),
+    [T('j_aberto', dur(A.t - j[0].desde)), 'RAM ' + tam(j[0].kb), j[0].vram ? 'VRAM ' + tamMib(j[0].vram) : null].filter(Boolean).join(', '), true);
+
+  const lv = A.live || {obs: false};
+  if (!lv.obs) por('live', T('l_fechado'), '');
+  else if (!lv.ok) por('live', T('l_aberto'), T('l_semresp'), true);
+  else {
+    const fontes = [['Twitch', lv.twitch], ['YouTube', lv.youtube], ['Kick', lv.kick]];
+    const vivas = fontes.filter(f => typeof f[1] === 'number');
+    if (!vivas.length) por('live', T('l_fora'), fontes.some(f => f[1] === 'erro') ? T('l_erro') : '', true);
+    else por('live', T('l_vivo') + (lv.inicio ? T('l_ha', cron(A.t - lv.inicio)) : ''),
+      [T('l_assist', vivas.reduce((s, f) => s + f[1], 0)), ...vivas.map(f => f[0] + ' ' + f[1]), T('l_pico', lv.pico)].join(', '), true);
+  }
+  chat(!!(lv.obs && lv.ok) && visivel('live'));
+
+  const z = A.pz;
+  if (!z) por('pz', T('z_desl'), '');
+  else {
+    const n = z.jogadores ? z.jogadores.length : null;
+    por('pz', z.nome + (n == null ? '' : ', ' + (n === 1 ? T('z_jog1') : T('z_jogn', n))),
+      [z.ticks == null ? null : nf(z.ticks) + ' ticks/s', z.backup ? T('z_backup', dur(A.t - z.backup)) : null,
+        'RAM ' + tam(z.kb), T('z_noar', dur(A.t - z.desde))].filter(Boolean).join(', '), true);
+    if (n) $('pz-p').title = z.jogadores.join(', ');
+  }
+
+  const s = A.sis, b = s.bateria;
+  por('sis', T('s_ligado', dur(s.ligado)), ['kernel ' + s.kernel, s.driver ? 'NVIDIA ' + s.driver : null,
+    b ? b.nome + ' ' + b.pct + ' %' + (b.carregando ? ' ' + T('carregando') : '') : null,
+    A.registro ? T('s_registro') : null].filter(Boolean).join(', '));
+}
+function icone(nv) {
+  const cor = {bom: '#3987e5', aviso: '#fab219', serio: '#ec835a', critico: '#d03b3b'}[nv];
+  $('icone').href = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="' +
+    (nv === 'bom' ? '#1a1a19' : cor) + '"/><path d="M5 21l6-7 5 4 6-9 5 5" fill="none" stroke="' + (nv === 'bom' ? cor : '#0b0b0b') +
+    '" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+}
+function bip() {
+  try {
+    som = som || new AudioContext();
+    for (const quando of [0, 0.22]) {
+      const o = som.createOscillator(), g = som.createGain();
+      o.frequency.value = 880; g.gain.value = 0.08;
+      o.connect(g).connect(som.destination);
+      o.start(som.currentTime + quando); o.stop(som.currentTime + quando + 0.14);
+    }
+  } catch (e) { /* the browser only allows sound after a click on the page */ }
+}
+function cTopo() {
+  const a = A.avisos.slice().sort((x, y) => ORD.indexOf(y.nv) - ORD.indexOf(x.nv)), g = $('btn-ev');
+  const pior = a.length ? a[0].nv : 'bom';
+  g.classList.remove('al-aviso', 'al-serio', 'al-critico');
+  for (const c of document.querySelectorAll('.cartao')) c.classList.remove('al-aviso', 'al-serio', 'al-critico');
+  for (const x of a.slice().reverse()) { const c = $('c-' + x.c); if (c) { c.classList.remove('al-aviso', 'al-serio', 'al-critico'); c.classList.add('al-' + x.nv); } }
+  if (!a.length) { pilula($('geral-st'), 'bom', T('tudo_certo')); $('geral-tx').textContent = ''; }
+  else {
+    g.classList.add('al-' + pior);
+    pilula($('geral-st'), pior, a.length === 1 ? T('n_aviso') : T('n_avisos', a.length));
+    $('geral-tx').textContent = a.map(x => x[L]).join(', ');
+  }
+  document.title = (a.length ? '(' + a.length + ') ' : '') + 'PC Panel';
+  icone(pior);
+  const agora = new Set(a.map(x => x.c + x.nv));
+  if (CFG && CFG.avisar.som && [...agora].some(x => !avisosAntes.has(x))) bip();
+  avisosAntes = agora;
+}
+function cEventos() {
+  const alvo = $('l-ev');
+  if ($('c-eventos').classList.contains('fora')) return;
+  if (!EV.length) { alvo.replaceChildren(el('div', 'vazio', T('e_nada'))); return; }
+  alvo.replaceChildren(...EV.slice(-cabem(alvo)).reverse().map(e => {
+    const lin = el('div', 'ev'), x = el('span', 'x');
+    x.append(el('i', 'g ' + e.nv, GL[e.nv]), ' ' + e[L]);
+    x.title = e[L] + (e.jogo ? T('e_com', e.jogo) : '');
+    lin.append(el('span', 'q', hora(e.t).slice(0, 5)), x, el('span', 'dur', e.fim ? dur(e.fim - e.t) : T('agora')));
+    return lin;
+  }));
+}
+
+// ---- fit: decides what fits in the window and where each card goes
+function encaixar(ids, cols, N, tamDe) {
+  const grade = [], pos = {}, fora = [];
+  let linhas = 0;
+  const livre = (r, c, w, h) => { for (let i = r; i < r + h; i++) for (let j = c; j < c + w; j++) if (grade[i] && grade[i][j]) return false; return true; };
+  for (const id of ids) {
+    let [w, h] = tamDe(id), achou = false;
+    w = Math.min(w, cols);
+    for (let r = 0; r + h <= N && !achou; r++) for (let c = 0; c + w <= cols; c++) if (livre(r, c, w, h)) {
+      for (let i = r; i < r + h; i++) { grade[i] = grade[i] || []; for (let j = c; j < c + w; j++) grade[i][j] = true; }
+      pos[id] = [r, c, w, h]; linhas = Math.max(linhas, r + h); achou = true; break;
+    }
+    if (!achou) fora.push(id);
+  }
+  return {pos, fora, linhas};
+}
+function arranjar(forcar) {
+  const W = innerWidth, Hh = innerHeight, b = document.body, app = $('app');
+  const estreito = W < 700, cols = W >= 1500 ? 4 : estreito ? Math.max(1, Math.min(3, Math.floor((W - 8) / 208))) : 2;
+  const chave = cols === 4 ? 'l' : 'm', vivo = chatLigado, encaixe = !rolar && (!CFG || CFG.encaixe);
+  const alerta = new Set(A ? A.avisos.map(a => a.c) : []);
+  const ativo = id => $('c-' + id).dataset.ativo === '1';
+  const sig = [W, Hh, FONTE, vivo, encaixe, CFG ? CFG.perfil + JSON.stringify(CFG.cartoes) : '', [...alerta].sort(), ativo('jogo'), ativo('live'), ativo('pz')].join('|');
+  if (sig === assinatura && !forcar) return;
+  assinatura = sig;
+  b.dataset.cols = cols === 4 ? 4 : 2;
+  if (estreito) b.dataset.estreito = '1'; else delete b.dataset.estreito;
+  b.classList.toggle('rolar', !encaixe);
+  document.documentElement.style.setProperty('--topo-h', $('topo').offsetHeight + 'px');
+  const candidatos = [...CARTOES, 'chat'].filter(id => id === 'chat' ? vivo && cols === 2 && !estreito : visivel(id));
+  const prio = id => alerta.has(id) ? PRIO[id] / 100 : ['jogo', 'live', 'pz'].includes(id) ? (ativo(id) ? 10 : 50) + PRIO[id] / 100 : PRIO[id];
+  const porPrio = candidatos.slice().sort((x, y) => prio(x) - prio(y));
+  const gap = estreito ? 8 : 10, padV = estreito ? 16 : 22;
+  let res, un, compacto = estreito;
+  for (;;) {
+    un = Math.round((estreito ? 38 : 46) * FONTE);
+    const N = encaixe ? Math.max(3, Math.floor((Hh - $('topo').offsetHeight - padV + gap) / (un + gap))) : 999;
+    const tamDe = id => (compacto && TAM[id].c) || TAM[id][chave] || TAM[id].m;
+    // in narrow mode only cards with a compact form get in, plus any card with a problem
+    let dentro = porPrio.filter(id => !estreito || alerta.has(id) || (TAM[id].c && (!['jogo', 'live', 'pz'].includes(id) || ativo(id))));
+    const cabe = encaixar(dentro, cols, N, tamDe);
+    dentro = dentro.filter(id => !cabe.fora.includes(id));
+    for (;;) {                       // final position in the usual order
+      res = encaixar(candidatos.filter(id => dentro.includes(id)), cols, N, tamDe);
+      if (!res.fora.length || !dentro.length) break;
+      dentro.pop();
+    }
+    if (compacto || ESSENCIAIS.every(id => !candidatos.includes(id) || res.pos[id])) break;
+    compacto = true;
+  }
+  const lateral = vivo && cols === 4;
+  app.style.gridTemplateColumns = lateral ? 'repeat(4,minmax(0,1fr)) minmax(280px,.85fr)' : 'repeat(' + cols + ',minmax(0,1fr))';
+  app.style.gridTemplateRows = 'repeat(' + Math.max(1, res.linhas) + ',minmax(' + un + 'px,1fr))';
+  const ocultos = [];
+  for (const id of [...CARTOES, 'chat']) {
+    const c = $('c-' + id), p = res.pos[id];
+    c.classList.toggle('fora', !p);
+    if (p) { c.style.gridRow = (p[0] + 1) + ' / span ' + p[3]; c.style.gridColumn = (p[1] + 1) + ' / span ' + p[2]; }
+    else if (candidatos.includes(id) && id !== 'chat' && !(estreito && !TAM[id].c)) ocultos.push(T('c_' + id));
+  }
+  if (lateral) { const c = $('c-chat'); c.classList.remove('fora'); c.style.gridColumn = '5'; c.style.gridRow = '1 / span ' + Math.max(1, res.linhas); }
+  const chip = $('btn-ocultos');
+  chip.hidden = !(ocultos.length || rolar);
+  chip.textContent = rolar ? T('encaixar') : T('ocultos', ocultos.length);
+  chip.title = rolar ? '' : T('ocultos_t', ocultos.join(', '));
+}
+
+function desenhar() {
+  if (!A) return;
+  cRam(); cPlaca(); cCpu(); cRede(); cFaixa(); cTopo();
+  arranjar();
+  cProg(); cTemp(); cDisc(); cSaude(); cEventos();
+  for (const g of graficos) g.desenhar();
+  if ($('fans').open) {
+    if (calAntes != null && A.fans.calibrando == null) abrirFans(); else fansAgora();
+  }
+  calAntes = A.fans.calibrando;
+  if ($('ajustes').open) $('aj-custo').textContent = custo();
+}
+function aplicarCfg() {
+  L = CFG.idioma; FONTE = CFG.fonte;
+  document.body.dataset.tema = CFG.tema; document.body.dataset.cor = CFG.cor;
+  document.documentElement.style.fontSize = (14 * FONTE) + 'px';
+  traduzir();
+  arranjar(true);
+}
+async function puxarCfg() {
+  const d = await pedir('/config');
+  CFG = d.cfg;
+  aplicarCfg();
+  return d;
+}
+async function puxarEventos() {
+  EV = (await pedir('/eventos')).eventos;
+  cEventos();
+  if ($('eventos').open) tabelaEventos();
+}
+async function puxar() {
+  if (document.hidden) return;
+  try {
+    const d = await pedir('/dados?desde=' + seq + '&i=' + inst);
+    if (!d.agora || !d.agora.ram) throw new Error('sem medida');
+    if (d.i !== inst) { H = []; inst = d.i; cfgSeq = evSeq = -1; }
+    for (const l of d.hist) H.push(l);
+    let k = 0;
+    while (k < H.length && H[k][0] < d.agora.t - JANELA - 6) k++;
+    if (k) H.splice(0, k);
+    seq = d.seq; A = d.agora; falhas = 0;
+    if (d.passo !== passo) { passo = d.passo; clearInterval(relogioDados); relogioDados = setInterval(ciclo, passo * 1000); }
+    document.body.classList.remove('semdados');
+    if (A.cfg !== cfgSeq) { cfgSeq = A.cfg; await puxarCfg(); }
+    if (A.ev !== evSeq) { evSeq = A.ev; puxarEventos().catch(() => {}); }
+    desenhar();
+  } catch (e) {
+    if (++falhas >= 2) {
+      document.body.classList.add('semdados');
+      pilula($('geral-st'), 'critico', T('sem_resp'));
+      $('geral-tx').textContent = T('sem_resp2');
+    }
+  }
+}
+let ocupado = false, relogioDados = null;
+async function ciclo() { if (ocupado) return; ocupado = true; try { await puxar(); } finally { ocupado = false; } }
+function relogio() {
+  const d = new Date();
+  $('hora').textContent = d.toLocaleTimeString(LOC);
+  $('data').textContent = d.toLocaleDateString(LOC, {weekday: 'long', day: 'numeric', month: 'long'});
+}
+
+// ---- dialogs
+function abrirTabela() {
+  const q = (v, f) => v == null ? '' : v < 0 ? T('perdido') : f(v), corpo = $('tab-corpo');
+  corpo.replaceChildren();
+  let ultimo = Infinity;
+  for (let i = H.length - 1; i >= 0; i--) {
+    const l = H[i], tr = el('tr');
+    if (ultimo - l[0] < 29.5) continue;
+    ultimo = l[0];
+    for (const c of [hora(l[0]), q(l[1], nf), q(l[2], nf), q(l[3], int), q(l[4], int), q(l[5], nf),
+      q(l[6], v => nf(v, 2)), q(l[7], v => nf(v, 2)), q(l[8], int), q(l[9], int)]) tr.append(el('td', '', c));
+    corpo.append(tr);
+  }
+  $('tabela').showModal();
+}
+function tabelaEventos() {
+  $('ev-nota').textContent = T(EV.length ? 'ev_nota1' : 'ev_nota0');
+  $('ev-corpo').replaceChildren(...EV.slice().reverse().map(e => {
+    const tr = el('tr'), nv = el('td', 'e');
+    nv.append(el('i', 'g ' + e.nv, GL[e.nv]), ' ' + T('nv_' + e.nv));
+    tr.append(el('td', '', new Date(e.t * 1000).toLocaleString(LOC)), el('td', '', e.fim ? dur(e.fim - e.t) : T('ainda')),
+      nv, el('td', 'e', e[L]), el('td', 'e', e.jogo || ''));
+    return tr;
+  }));
+}
+async function abrirEventos() { tabelaEventos(); if (!$('eventos').open) $('eventos').showModal(); puxarEventos().catch(() => {}); }
+async function abrirSensores() {
+  let d;
+  try { d = await pedir('/sensores'); } catch (e) { return; }
+  $('sn-corpo').replaceChildren(...d.grupos.map(g => {
+    const caixa = el('div');
+    caixa.append(el('h3', '', g.chip));
+    for (const it of g.itens) { const l = el('div'); l.append(el('span', '', it.nome), el('span', '', it.v)); caixa.append(l); }
+    return caixa;
+  }));
+  if (!$('sensores').open) $('sensores').showModal();
+}
+const custo = () => { const p = A && A.sis.painel; return p && p.cpu != null ? T('a_custo', nf(p.cpu, 2), p.mib) : ''; };
+function marcarPerfil() {
+  const perfil = $('aj-perfil').value;
+  for (const i of $('aj-cartoes').querySelectorAll('input')) {
+    i.disabled = perfil !== 'proprio';
+    if (perfil !== 'proprio') i.checked = PERFIS[perfil].includes(i.dataset.cartao);
+  }
+}
+function infoAjustes(d) {
+  const r = d.info, alvo = $('aj-info'), u = d.upd;
+  alvo.replaceChildren(r.arquivos ? T('a_arqs', r.arquivos, tamB(r.bytes), r.pasta) : T('a_sem_arqs', r.pasta));
+  if (r.hoje) { const a = el('a', '', T('a_baixar')); a.href = '/registro/hoje.csv'; a.style.color = 'var(--tinta2)'; alvo.append(a); }
+  if (r.erro) alvo.append(T('a_ult_erro', r.erro));
+  $('aj-upd').textContent = u.rodando ? T('s_verificando') : u.quando == null ? T('a_upd_nunca') :
+    u.erro ? T('a_upd_erro', u.erro[L === 'en' ? 1 : 0]) : T('a_upd_res', u.pacotes.length, u.flatpak == null ? '?' : u.flatpak, dur(Date.now() / 1000 - u.quando));
+  $('aj-upd-lista').textContent = u.pacotes.join(', ');
+  const n = d.novidade;
+  $('aj-versao').textContent = T('a_versao', d.versao) + (n.rodando ? ' ' + T('s_verificando') : n.erro ? T('a_ver_erro', n.erro[L === 'en' ? 1 : 0]) :
+    n.nova ? T('a_ver_nova', n.versao) + (d.metodo === 'pacote' ? T('a_ver_pacote') : '') : n.quando ? T('a_ver_ok') : '');
+  $('aj-atualizar').hidden = !(n.nova && d.metodo !== 'pacote');
+  $('aj-custo').textContent = custo();
+}
+async function abrirAjustes() {
+  let d;
+  try { d = await puxarCfg(); } catch (e) { return; }
+  const c = d.cfg;
+  $('aj-cartoes').replaceChildren(...CARTOES.map(id => {
+    const l = el('label'), i = el('input');
+    i.type = 'checkbox'; i.dataset.cartao = id; i.checked = c.cartoes[id] !== false;
+    l.append(i, T('c_' + id));
+    return l;
+  }));
+  $('aj-idioma').value = c.idioma; $('aj-tema').value = c.tema; $('aj-cor').value = c.cor; $('aj-fonte').value = c.fonte;
+  $('aj-perfil').value = c.perfil; $('aj-encaixe').checked = c.encaixe; $('aj-passo').value = c.passo; $('aj-ping').value = c.ping_alvo;
+  $('aj-desktop').checked = c.avisar.desktop; $('aj-som').checked = c.avisar.som;
+  $('aj-log').checked = c.registro.ligado; $('aj-pasta').value = c.registro.pasta;
+  $('aj-int').value = c.registro.intervalo; $('aj-dias').value = c.registro.dias;
+  $('aj-m-live').checked = c.modulos.live; $('aj-m-zomboid').checked = c.modulos.zomboid; $('aj-reserva').value = c.ram_reserva;
+  marcarPerfil();
+  infoAjustes(d);
+  $('aj-erro').textContent = '';
+  if (!$('ajustes').open) $('ajustes').showModal();
+}
+async function salvarAjustes() {
+  const cartoes = {}, proprio = $('aj-perfil').value === 'proprio';
+  for (const i of $('aj-cartoes').querySelectorAll('input')) cartoes[i.dataset.cartao] = i.checked;
+  const corpo = {idioma: $('aj-idioma').value, tema: $('aj-tema').value, cor: $('aj-cor').value, fonte: +$('aj-fonte').value,
+    perfil: $('aj-perfil').value, encaixe: $('aj-encaixe').checked, passo: +$('aj-passo').value, ping_alvo: $('aj-ping').value,
+    avisar: {desktop: $('aj-desktop').checked, som: $('aj-som').checked},
+    modulos: {live: $('aj-m-live').checked, zomboid: $('aj-m-zomboid').checked}, ram_reserva: +$('aj-reserva').value || 0,
+    registro: {ligado: $('aj-log').checked, pasta: $('aj-pasta').value, intervalo: +$('aj-int').value, dias: +$('aj-dias').value}};
+  if (proprio) corpo.cartoes = cartoes;
+  try {
+    const d = await pedir('/config', corpo);
+    if (d.erro) { $('aj-erro').textContent = d.erro; return; }
+    CFG = d.cfg; rolar = false;
+    if (CFG.avisar.som) bip();
+    aplicarCfg(); desenhar();
+    $('ajustes').close();
+  } catch (e) { $('aj-erro').textContent = T('a_nao_salvou'); }
+}
+async function verificar() {
+  try { await pedir('/atualizacoes', {}); } catch (e) { return; }
+  $('aj-upd').textContent = T('s_verificando');
+  const espera = setInterval(async () => {
+    try {
+      const d = await pedir('/config');
+      if (!d.upd.rodando) { clearInterval(espera); if ($('ajustes').open) infoAjustes(d); }
+    } catch (e) { clearInterval(espera); }
+  }, 3000);
+}
+
+async function procurarVersao() {
+  $('aj-versao').textContent = T('s_verificando');
+  try { infoAjustes(await pedir('/versao', {})); } catch (e) { $('aj-erro').textContent = T('a_nao_salvou'); }
+}
+async function atualizarPainel() {
+  try {
+    const d = await pedir('/atualizar', {});
+    if (d.erro) { $('aj-erro').textContent = d.erro; return; }
+    $('aj-versao').textContent = T('a_ver_feito');
+    setTimeout(() => location.reload(), 7000);
+  } catch (e) { $('aj-erro').textContent = T('a_nao_salvou'); }
+}
+
+// ---- fans
+function rpmDe(tab, pct) {
+  const t = tab.slice().sort((a, b) => a[0] - b[0]);
+  if (pct <= t[0][0]) return t[0][1];
+  for (let i = 1; i < t.length; i++) if (pct <= t[i][0]) return t[i - 1][1] + (t[i][1] - t[i - 1][1]) * (pct - t[i - 1][0]) / (t[i][0] - t[i - 1][0]);
+  return t[t.length - 1][1];
+}
+function valeNaCurva(p, temp, crit) {
+  if (temp >= crit) return 100;
+  if (temp <= p[0][0]) return p[0][1];
+  for (let i = 1; i < p.length; i++) if (temp <= p[i][0]) return p[i - 1][1] + (p[i][1] - p[i - 1][1]) * (temp - p[i - 1][0]) / (p[i][0] - p[i - 1][0]);
+  return p[p.length - 1][1];
+}
+function blocoFan(id, titulo, e, o) {
+  const fs = el('fieldset'), lg = el('legend', '', titulo), ag = el('span'), radios = {};
+  lg.append(ag); fs.append(lg);
+  let nomeIn = null;
+  if (o.nome !== undefined) {
+    const l = el('label', 'campo');
+    nomeIn = el('input'); nomeIn.type = 'text'; nomeIn.maxLength = 24; nomeIn.value = o.nome; nomeIn.placeholder = titulo; nomeIn.style.maxWidth = '220px';
+    l.append(T('f_nome') + ' (' + T('canal', o.canal) + ')', nomeIn); fs.append(l);
+  }
+  const linha = (modo, txt) => {
+    const l = el('label'), r = el('input');
+    r.type = 'radio'; r.name = 'fan-' + id; r.value = modo; r.checked = e.modo === modo;
+    l.append(r, txt); radios[modo] = r;
+    return l;
+  };
+  fs.append(linha('max', T('fm_max')));
+  if (o.auto) fs.append(linha('auto', T('fm_auto')));
+  const lf = linha('fixo', T('fm_fixo')), num = el('input', 'curto'), rg = el('input'), est = el('span', 'nota');
+  num.type = 'number'; rg.type = 'range';
+  for (const x of [num, rg]) { x.min = o.min; x.max = 100; x.step = 1; x.value = e.pct; }
+  const estimar = () => { est.textContent = o.calib ? T('f_aprox', int(rpmDe(o.calib, +num.value))) : ''; };
+  const sinc = v => { v = Math.max(o.min, Math.min(100, Math.round(+v || 0))); num.value = v; rg.value = v; radios.fixo.checked = true; estimar(); };
+  rg.addEventListener('input', () => sinc(rg.value));
+  num.addEventListener('change', () => sinc(num.value));
+  lf.append(num, '%', rg, est); fs.append(lf);
+  fs.append(linha('curva', T('fm_curva')));
+  const caixa = el('div', 'curva'), tab = el('div', 'pontos'), prontas = el('div', 'prontas'), campos = [];
+  const svg = sv('svg', {class: 'previa', viewBox: '0 0 270 124'});
+  const pontos = () => campos.map(c => [+c[0].value, +c[1].value]);
+  const valida = p => p.every((q, i) => q[0] >= 20 && q[0] <= 90 && q[1] >= o.min && q[1] <= 100 && (!i || (q[0] > p[i - 1][0] && q[1] >= p[i - 1][1])));
+  function previa() {
+    const p = pontos(), ok = valida(p), X = t => 30 + (t - 20) / 75 * 232, Y = v => 8 + (100 - v) / 100 * 96;
+    svg.replaceChildren();
+    for (const v of [0, 50, 100]) {
+      sv('line', {x1: 30, x2: 262, y1: Y(v), y2: Y(v), class: v ? 'grade' : 'eixo'}, svg);
+      sv('text', {x: 25, y: Y(v) + 3.5, class: 'rot', 'text-anchor': 'end'}, svg).textContent = v;
+    }
+    for (const t of [20, 40, 60, 80]) sv('text', {x: X(t), y: 120, class: 'rot', 'text-anchor': 'middle'}, svg).textContent = t + '°';
+    const cor = ok ? 'var(--s1)' : 'var(--apagado)';
+    const caminho = [[20, p[0][1]], ...p, [o.crit, p[3][1]], [o.crit, 100], [95, 100]].filter(q => q[0] >= 20 && q[0] <= 95);
+    sv('path', {d: 'M' + caminho.map(q => X(q[0]).toFixed(1) + ',' + Y(q[1]).toFixed(1)).join('L'), class: 'linha', style: 'stroke:' + cor}, svg);
+    for (const q of p) sv('circle', {cx: X(q[0]), cy: Y(q[1]), r: 4, style: 'fill:' + cor + ';stroke:var(--plano);stroke-width:2'}, svg);
+    const temp = o.temp();
+    if (ok && temp != null && temp >= 20 && temp <= 95) {
+      sv('line', {x1: X(temp), x2: X(temp), y1: 8, y2: 104, class: 'limite'}, svg);
+      sv('text', {x: Math.min(236, X(temp) + 4), y: 17, class: 'rot'}, svg).textContent = nf(temp, 0) + ' °C, ' + int(valeNaCurva(p, temp, o.crit)) + ' %';
+    }
+  }
+  for (let i = 0; i < 4; i++) {
+    const t = el('input', 'curto'), p = el('input', 'curto'), l = el('label');
+    t.type = p.type = 'number'; t.min = 20; t.max = 90; p.min = o.min; p.max = 100; t.value = e.pontos[i][0]; p.value = e.pontos[i][1];
+    for (const x of [t, p]) x.addEventListener('input', () => { radios.curva.checked = true; previa(); });
+    l.append(T('f_ponto', i + 1), t, '°C', p, '%');
+    tab.append(l); campos.push([t, p]);
+  }
+  prontas.append(el('span', 'nota', T('f_prontas')));
+  for (const [nome, pts] of Object.entries(o.prontas)) {
+    const b = el('button', '', T('cv_' + nome));
+    b.type = 'button';
+    b.addEventListener('click', () => { pts.forEach((q, i) => { campos[i][0].value = q[0]; campos[i][1].value = q[1]; }); radios.curva.checked = true; previa(); });
+    prontas.append(b);
+  }
+  caixa.append(prontas, tab, svg); fs.append(caixa);
+  if (o.calib) fs.append(el('p', 'nota', T('f_medido', o.calib.slice().sort((a, b) => a[0] - b[0]).map(q => q[0] + ' % ' + int(q[1]) + ' rpm').join(', '))));
+  estimar();
+  return {el: fs, nome: () => nomeIn ? nomeIn.value : '',
+    ler: () => ({modo: Object.keys(radios).find(m => radios[m].checked) || 'max', pct: +num.value, pontos: pontos()}),
+    vivo: () => { ag.textContent = o.agora(); previa(); }};
+}
+function fansAgora() {
+  if (!blocos) return;
+  const f = A.fans, a = f.aplicado;
+  if (blocos.gpu) blocos.gpu.vivo();
+  for (const n in blocos.placa) blocos.placa[n].vivo();
+  $('fa-medir').disabled = f.calibrando != null;
+  $('fa-aplicar').disabled = f.calibrando != null;
+  $('fa-estado').textContent = f.calibrando != null ? T('f_medindo', Math.min(7, f.calibrando + 1)) :
+    a ? (a.erros && a.erros.length ? T('f_problema', a.erros.join(', ')) : T('f_aplicado', hora(a.t))) : '';
+  if (f.velho) $('fa-erro').textContent = T('f_velho');
+}
+async function abrirFans() {
+  if (!A) return;
+  let d;
+  try { d = await puxarCfg(); } catch (e) { return; }
+  const f = A.fans;
+  $('fa-dentro').hidden = !f.pode; $('fa-falta').hidden = f.pode;
+  if (f.pode && d.cfg.fans) {
+    const e = d.cfg.fans;
+    const nvidia = A.gpu.ok && A.gpu.driver;
+    blocos = {gpu: !nvidia ? null : blocoFan('gpu', T('f_gpu'), e.gpu, {min: 30, auto: true, crit: 86, temp: () => A.gpu.temp, prontas: {padrao: d.curva_gpu},
+      agora: () => A.gpu.ok ? T('f_agora', A.gpu.fan + ' %') + (A.gpu.rpm.length ? ', ' + A.gpu.rpm.map(int).join(' / ') + ' rpm' : '') +
+        (A.fans.alvo_gpu && e.gpu.modo === 'curva' ? ', ' + T('f_alvo', A.fans.alvo_gpu) : '') : ''}), placa: {}};
+    const partes = blocos.gpu ? [blocos.gpu.el] : [];
+    f.canais.forEach((c, i) => {
+      if (!e.placa[c.n]) return;
+      const b = blocoFan('p' + c.n, nomeFan(c.n, i), e.placa[c.n], {min: 20, crit: 90, temp: () => A.cpu.temp, prontas: d.curvas, canal: c.n,
+        calib: d.cfg.calib[c.n], nome: d.cfg.nomes_fans[c.n] || '',
+        agora: () => { const x = A.fans.canais.find(y => y.n === c.n); return x ? T('f_agora', int(x.rpm) + ' rpm') + (x.pct == null ? '' : ', ' + x.pct + ' %') : ''; }});
+      blocos.placa[c.n] = b; partes.push(b.el);
+    });
+    $('fa-corpo').replaceChildren(...partes);
+    $('fa-erro').textContent = '';
+    fansAgora();
+  }
+  if (!$('fans').open) $('fans').showModal();
+}
+async function aplicarFans() {
+  if (!blocos) return;
+  const corpo = {gpu: blocos.gpu ? blocos.gpu.ler() : {modo: 'auto'}, placa: {}, nomes: {}};
+  for (const n in blocos.placa) { corpo.placa[n] = blocos.placa[n].ler(); corpo.nomes[n] = blocos.placa[n].nome(); }
+  try {
+    const d = await pedir('/fans', corpo);
+    $('fa-erro').textContent = d.erro || '';
+    if (!d.erro) { A.fans.escolha = d.escolha; A.fans.aplicado = d.aplicado; CFG.nomes_fans = d.nomes; fansAgora(); }
+  } catch (e) { $('fa-erro').textContent = T('f_nao_aplicou'); }
+}
+async function medirFans() {
+  try { const d = await pedir('/fans/calibrar', {}); $('fa-erro').textContent = d.erro || ''; } catch (e) { $('fa-erro').textContent = T('f_nao_aplicou'); }
+}
+
+$('btn-tab').addEventListener('click', abrirTabela);
+$('btn-ev').addEventListener('click', abrirEventos);
+$('btn-ev2').addEventListener('click', abrirEventos);
+$('btn-aj').addEventListener('click', abrirAjustes);
+$('btn-fans').addEventListener('click', abrirFans);
+$('btn-fans2').addEventListener('click', abrirFans);
+$('btn-sens').addEventListener('click', abrirSensores);
+$('sn-atualizar').addEventListener('click', abrirSensores);
+$('btn-upd').addEventListener('click', verificar);
+$('aj-upd-btn').addEventListener('click', verificar);
+$('aj-perfil').addEventListener('change', marcarPerfil);
+$('aj-ver-btn').addEventListener('click', procurarVersao);
+$('aj-atualizar').addEventListener('click', atualizarPainel);
+$('aj-salvar').addEventListener('click', salvarAjustes);
+$('fa-aplicar').addEventListener('click', aplicarFans);
+$('fa-medir').addEventListener('click', medirFans);
+$('btn-ocultos').addEventListener('click', () => { rolar = !rolar; arranjar(true); desenhar(); });
+for (const b of document.querySelectorAll('[data-fechar]')) b.addEventListener('click', () => b.closest('dialog').close());
+document.addEventListener('visibilitychange', () => { if (!document.hidden) ciclo(); });
+window.addEventListener('resize', () => { arranjar(true); desenhar(); });
+traduzir();
+arranjar(true);
+relogioDados = setInterval(ciclo, 2000);
+setInterval(relogio, 1000);
+relogio();
+ciclo().then(() => {
+  const abrir = {'#ajustes': abrirAjustes, '#fans': abrirFans, '#eventos': abrirEventos, '#historico': abrirTabela, '#sensores': abrirSensores}[location.hash];
+  if (abrir) abrir();
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=PC Panel
+Comment=Local web dashboard to monitor and control this PC
+Exec=pc-panel
+Icon=pc-panel
+Terminal=true
+Categories=System;Monitor;
