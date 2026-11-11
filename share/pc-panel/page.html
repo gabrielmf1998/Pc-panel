@@ -151,6 +151,8 @@ label.campo{justify-content:space-between;flex-wrap:nowrap}
 input[type=text],input[type=number],select{background:var(--plano);color:var(--tinta);border:1px solid var(--borda);border-radius:7px;padding:5px 9px;min-width:0}
 input[type=text]{flex:1;max-width:400px}
 input.curto{width:4.8rem;padding:4px 6px;text-align:right}
+#lim-tab td,#lim-tab th{padding:3px 6px}#lim-tab td:first-child,#lim-tab th:first-child{text-align:left;white-space:normal;min-width:11rem}
+#lim-tab input[type=number]{width:4.6rem;padding:3px 5px;text-align:right}#lim-tab input:disabled{opacity:.6}
 input[type=range]{flex:1;accent-color:var(--s1);min-width:90px}
 input[type=checkbox],input[type=radio]{accent-color:var(--s1);width:16px;height:16px;flex:none;margin:0}
 .marcas{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px 14px}
@@ -365,8 +367,18 @@ body[data-estreito] .hora{font-size:1.29rem}
     <label class="campo"><span data-i="a_ping"></span><input type="text" id="aj-ping" spellcheck="false" style="max-width:150px"></label>
   </div></fieldset>
   <fieldset><legend data-i="a_avisos"></legend>
+    <label><input type="checkbox" id="aj-fundo"> <span data-i="a_fundo"></span></label>
+    <div class="dois">
+    <label class="campo"><span data-i="a_cada"></span><select id="aj-cada"><option value="5" data-i="i_5"></option><option value="10" data-i="i_10"></option><option value="30" data-i="i_30"></option><option value="60" data-i="i_60"></option></select></label>
+    <label class="campo"><span data-i="a_nivel"></span><select id="aj-nivel"><option value="aviso" data-i="nv_aviso"></option><option value="serio" data-i="nv_serio"></option><option value="critico" data-i="nv_critico"></option></select></label>
+    </div>
     <label><input type="checkbox" id="aj-desktop"> <span data-i="a_desktop"></span></label>
-    <label><input type="checkbox" id="aj-som"> <span data-i="a_som"></span></label></fieldset>
+    <label><input type="checkbox" id="aj-som"> <span data-i="a_som"></span></label>
+    <p class="nota" data-i="a_lim_n"></p>
+    <div class="rolagem"><table id="lim-tab"><thead><tr><th data-i="l_alerta"></th><th data-i="l_ligado"></th><th data-i="l_rec"></th>
+      <th data-i="nv_aviso"></th><th data-i="nv_serio"></th><th data-i="nv_critico"></th></tr></thead><tbody id="lim-corpo"></tbody></table></div>
+    <p class="nota" id="lim-fonte"></p>
+    <label class="campo"><span></span><button type="button" id="lim-rec" data-i="l_tudo_rec"></button></label></fieldset>
   <fieldset><legend data-i="a_registro"></legend>
     <label><input type="checkbox" id="aj-log"> <span data-i="a_log"></span></label>
     <label class="campo"><span data-i="a_pasta"></span><input type="text" id="aj-pasta" spellcheck="false"></label>
@@ -409,7 +421,7 @@ body[data-estreito] .hora{font-size:1.29rem}
 'use strict';
 const TX = {
 pt: {conectando: 'conectando', nv_bom: 'ok', nv_aviso: 'atenção', nv_serio: 'alto', nv_critico: 'crítico', sem_leitura: 'sem leitura',
-  tudo_certo: 'Tudo certo', n_aviso: '1 aviso', n_avisos: '{0} avisos', sem_resp: 'Sem resposta',
+  tudo_certo: 'Tudo certo', n_aviso: '1 alerta', n_avisos: '{0} alertas', sem_resp: 'Sem resposta',
   sem_resp2: 'o serviço pc-panel não respondeu, tentando de novo',
   ocultos: '+{0} ocultos', ocultos_t: 'Não couberam nesta janela: {0}. Clique para mostrar tudo com rolagem.', encaixar: 'encaixar na janela',
   b_fans: 'Fans', b_sens: 'Sensores', b_hist: 'Histórico', b_aj: 'Ajustes', fechar: 'Fechar', salvar: 'Salvar', aplicar: 'Aplicar', atualizar: 'Atualizar',
@@ -470,6 +482,16 @@ pt: {conectando: 'conectando', nv_bom: 'ok', nv_aviso: 'atenção', nv_serio: 'a
   a_medicao: 'Medição', a_passo: 'Atualizar a página a cada', p_1: '1 segundo (gasta o dobro)', p_2: '2 segundos', p_5: '5 segundos (mais leve)',
   a_ping: 'Endereço que recebe o ping', a_avisos: 'Avisos', a_desktop: 'Mostrar um aviso do KDE quando um problema começar',
   a_som: 'Tocar um som nesta página quando um problema começar',
+  a_fundo: 'Vigiar com a página fechada (ícone da bandeja e avisos do KDE)',
+  a_cada: 'Medir a cada', a_nivel: 'Aviso do KDE a partir de',
+  a_lim_n: 'Recomendado usa os limites do seu hardware (o que o driver e os sensores informam) e, sem essa informação, valores seguros. Desmarque para digitar os seus. Um campo vazio desliga aquele nível. Um aviso só começa depois de duas medidas seguidas.',
+  l_alerta: 'Alerta', l_ligado: 'Ligado', l_rec: 'Recomendado', l_tudo_rec: 'Voltar tudo para o recomendado', l_nivel_ev: 'nível',
+  lm_ram: 'RAM livre baixa (MiB)', lm_vram: 'VRAM em uso (%)', lm_cpu_uso: 'Processador em uso, média de 30 s (%)',
+  lm_prog_cpu: 'Um programa usando o processador (% do total)', lm_temp_cpu: 'Temperatura do processador (°C)',
+  lm_temp_gpu: 'Temperatura da placa de vídeo (°C)', lm_temp_ssd: 'Temperatura dos SSDs (°C)', lm_temp_mem: 'Temperatura da memória (°C)',
+  lm_temp_placa: 'Temperatura da placa-mãe (°C)', lm_disco: 'Disco cheio (% usado)', lm_ping: 'Ping (ms)', lm_perda: 'Perda de pacotes (%)',
+  lm_kernel: 'Erros do kernel', lm_travou: 'Programa travou (crash)',
+  l_fonte: 'De onde vem o recomendado: {0}.', l_ssd: 'SSDs: {0}', l_padrao: 'outros',
   a_registro: 'Registro em arquivo', a_log: 'Guardar as medidas e os eventos em arquivos CSV', a_pasta: 'Pasta', a_int: 'Gravar uma linha a cada',
   i_5: '5 segundos', i_10: '10 segundos', i_30: '30 segundos', i_60: '1 minuto', a_dias: 'Apagar arquivos com mais de', d_7: '7 dias',
   d_30: '30 dias', d_90: '90 dias', d_365: '1 ano', d_0: 'nunca apagar',
@@ -494,7 +516,7 @@ pt: {conectando: 'conectando', nv_bom: 'ok', nv_aviso: 'atenção', nv_serio: 'a
   f_velho: 'Falta atualizar a parte de administrador das fans, reinstale o pc-panel-fans.',
   f_falta: 'O controle das fans não está ativo. Ele precisa de um chip de fans suportado e de um passo com senha de administrador, veja o README.'},
 en: {conectando: 'connecting', nv_bom: 'ok', nv_aviso: 'warning', nv_serio: 'high', nv_critico: 'critical', sem_leitura: 'no reading',
-  tudo_certo: 'All good', n_aviso: '1 warning', n_avisos: '{0} warnings', sem_resp: 'No response',
+  tudo_certo: 'All good', n_aviso: '1 alert', n_avisos: '{0} alerts', sem_resp: 'No response',
   sem_resp2: 'the pc-panel service did not answer, retrying',
   ocultos: '+{0} hidden', ocultos_t: 'Did not fit in this window: {0}. Click to show everything with scrolling.', encaixar: 'fit to window',
   b_fans: 'Fans', b_sens: 'Sensors', b_hist: 'History', b_aj: 'Settings', fechar: 'Close', salvar: 'Save', aplicar: 'Apply', atualizar: 'Refresh',
@@ -555,6 +577,16 @@ en: {conectando: 'connecting', nv_bom: 'ok', nv_aviso: 'warning', nv_serio: 'hig
   a_medicao: 'Measuring', a_passo: 'Refresh the page every', p_1: '1 second (costs twice as much)', p_2: '2 seconds', p_5: '5 seconds (lighter)',
   a_ping: 'Address that receives the ping', a_avisos: 'Alerts', a_desktop: 'Show a KDE notification when a problem starts',
   a_som: 'Play a sound on this page when a problem starts',
+  a_fundo: 'Keep watching with the page closed (tray icon and KDE notifications)',
+  a_cada: 'Check every', a_nivel: 'KDE notification from',
+  a_lim_n: 'Recommended uses the limits of your hardware (what the driver and the sensors report) and safe values when that is missing. Untick it to type your own. An empty box turns that level off. An alert only starts after two samples in a row.',
+  l_alerta: 'Alert', l_ligado: 'On', l_rec: 'Recommended', l_tudo_rec: 'Reset everything to recommended', l_nivel_ev: 'level',
+  lm_ram: 'Low free RAM (MiB)', lm_vram: 'VRAM in use (%)', lm_cpu_uso: 'Processor in use, 30 s average (%)',
+  lm_prog_cpu: 'One program using the processor (% of total)', lm_temp_cpu: 'Processor temperature (°C)',
+  lm_temp_gpu: 'Graphics card temperature (°C)', lm_temp_ssd: 'SSD temperature (°C)', lm_temp_mem: 'Memory temperature (°C)',
+  lm_temp_placa: 'Motherboard temperature (°C)', lm_disco: 'Disk full (% used)', lm_ping: 'Ping (ms)', lm_perda: 'Packet loss (%)',
+  lm_kernel: 'Kernel errors', lm_travou: 'Program crashed',
+  l_fonte: 'Where recommended comes from: {0}.', l_ssd: 'SSDs: {0}', l_padrao: 'others',
   a_registro: 'Logging to file', a_log: 'Save the samples and the events to CSV files', a_pasta: 'Folder', a_int: 'Write one row every',
   i_5: '5 seconds', i_10: '10 seconds', i_30: '30 seconds', i_60: '1 minute', a_dias: 'Delete files older than', d_7: '7 days',
   d_30: '30 days', d_90: '90 days', d_365: '1 year', d_0: 'never delete',
@@ -1227,6 +1259,8 @@ async function abrirAjustes() {
   $('aj-idioma').value = c.idioma; $('aj-tema').value = c.tema; $('aj-cor').value = c.cor; $('aj-fonte').value = c.fonte;
   $('aj-perfil').value = c.perfil; $('aj-encaixe').checked = c.encaixe; $('aj-passo').value = c.passo; $('aj-ping').value = c.ping_alvo;
   $('aj-desktop').checked = c.avisar.desktop; $('aj-som').checked = c.avisar.som;
+  $('aj-fundo').checked = c.alertas.fundo; $('aj-cada').value = c.alertas.cada; $('aj-nivel').value = c.avisar.nivel;
+  montarLimites(c.limites, d.recomendados, d.metricas);
   $('aj-log').checked = c.registro.ligado; $('aj-pasta').value = c.registro.pasta;
   $('aj-int').value = c.registro.intervalo; $('aj-dias').value = c.registro.dias;
   $('aj-m-live').checked = c.modulos.live; $('aj-m-zomboid').checked = c.modulos.zomboid; $('aj-reserva').value = c.ram_reserva;
@@ -1235,12 +1269,78 @@ async function abrirAjustes() {
   $('aj-erro').textContent = '';
   if (!$('ajustes').open) $('ajustes').showModal();
 }
+// thresholds table: one row per alert, three levels each
+const recDe = (r, m) => m === 'temp_ssd' ? r[m]._ : r[m];
+function montarLimites(lim, rec, tipos) {
+  const corpo = $('lim-corpo');
+  corpo.replaceChildren();
+  for (const m in tipos) {
+    const x = lim[m], tr = el('tr'), on = el('input');
+    tr.dataset.m = m; tr.dataset.tipo = tipos[m];
+    on.type = 'checkbox'; on.className = 'lim-on'; on.checked = x.on;
+    const c1 = el('td', '', T('lm_' + m)), c2 = el('td');
+    c2.append(on);
+    tr.append(c1, c2);
+    if (tipos[m] === 'evento') {
+      const td = el('td'), sel = el('select');
+      td.colSpan = 4; td.style.textAlign = 'left';
+      sel.className = 'lim-nv';
+      for (const n of ['aviso', 'serio', 'critico']) { const o = el('option', '', T('nv_' + n)); o.value = n; sel.append(o); }
+      sel.value = x.nv;
+      td.append(sel);
+      tr.append(td);
+    } else {
+      const r = el('input'), tr3 = el('td');
+      r.type = 'checkbox'; r.className = 'lim-rec'; r.checked = x.rec;
+      tr3.append(r); tr.append(tr3);
+      const caixas = [0, 1, 2].map(i => {
+        const td = el('td'), inp = el('input');
+        inp.type = 'number'; inp.step = 'any';
+        inp.className = 'lim-v';
+        td.append(inp); tr.append(td);
+        return inp;
+      });
+      const mostrar = () => {
+        const usar = r.checked || !x.v ? recDe(rec, m) : x.v;
+        caixas.forEach((inp, i) => { inp.value = usar[i] ?? ''; inp.disabled = r.checked || !on.checked; });
+      };
+      r.addEventListener('change', () => { if (!r.checked) x.v = caixas.map(c => c.value === '' ? null : +c.value); mostrar(); });
+      on.addEventListener('change', mostrar);
+      mostrar();
+    }
+    corpo.append(tr);
+  }
+  const f = Object.entries(rec.fonte || {}).map(([m, v]) => T('lm_' + m).replace(/ \(.*\)$/, '') + ' ' + v);
+  const ssd = Object.entries(rec.temp_ssd).map(([k, v]) => (k === '_' ? T('l_padrao') : k) + ' ' + v.filter(y => y != null).join('/'));
+  $('lim-fonte').textContent = (f.length ? T('l_fonte', f.join(', ')) + ' ' : '') + T('l_ssd', ssd.join(', '));
+  $('lim-rec').onclick = () => {
+    for (const tr of corpo.children) {
+      tr.querySelector('.lim-on').checked = true;
+      const r = tr.querySelector('.lim-rec');
+      if (r) { r.checked = true; r.dispatchEvent(new Event('change')); }
+    }
+  };
+}
+function lerLimites() {
+  const out = {};
+  for (const tr of $('lim-corpo').children) {
+    const m = tr.dataset.m, x = {on: tr.querySelector('.lim-on').checked};
+    if (tr.dataset.tipo === 'evento') x.nv = tr.querySelector('.lim-nv').value;
+    else {
+      x.rec = tr.querySelector('.lim-rec').checked;
+      if (!x.rec) x.v = [...tr.querySelectorAll('.lim-v')].map(c => c.value === '' ? null : +c.value);
+    }
+    out[m] = x;
+  }
+  return out;
+}
 async function salvarAjustes() {
   const cartoes = {}, proprio = $('aj-perfil').value === 'proprio';
   for (const i of $('aj-cartoes').querySelectorAll('input')) cartoes[i.dataset.cartao] = i.checked;
   const corpo = {idioma: $('aj-idioma').value, tema: $('aj-tema').value, cor: $('aj-cor').value, fonte: +$('aj-fonte').value,
     perfil: $('aj-perfil').value, encaixe: $('aj-encaixe').checked, passo: +$('aj-passo').value, ping_alvo: $('aj-ping').value,
-    avisar: {desktop: $('aj-desktop').checked, som: $('aj-som').checked},
+    avisar: {desktop: $('aj-desktop').checked, som: $('aj-som').checked, nivel: $('aj-nivel').value},
+    alertas: {fundo: $('aj-fundo').checked, cada: +$('aj-cada').value}, limites: lerLimites(),
     modulos: {live: $('aj-m-live').checked, zomboid: $('aj-m-zomboid').checked}, ram_reserva: +$('aj-reserva').value || 0,
     registro: {ligado: $('aj-log').checked, pasta: $('aj-pasta').value, intervalo: +$('aj-int').value, dias: +$('aj-dias').value}};
   if (proprio) corpo.cartoes = cartoes;

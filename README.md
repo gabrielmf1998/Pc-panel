@@ -1,8 +1,9 @@
 # PC Panel
 
 A local web dashboard to **monitor and control a Linux PC**, made to live on a second screen.
-It runs as one small user service, opens at `http://127.0.0.1:47822`, and sleeps when the page is closed.
-A tiny tray icon starts it, stops it and changes its port.
+It runs as one small user service and opens at `http://127.0.0.1:47822`. With the page closed it only
+takes a light sample every 10 seconds to watch for problems. A tiny tray icon starts it, stops it,
+changes its port and turns yellow, orange or red when something needs attention.
 
 The interface is available in English and Portuguese.
 
@@ -25,6 +26,31 @@ four point temperature curve stored in the fan chip itself. NVIDIA graphics card
 automatic, fixed, or follow a custom curve.
 
 Fan control needs one step with the administrator password and is **off until you enable it**.
+
+## Alerts
+
+When something crosses a threshold you see it: the tray icon turns **yellow** (warning), **orange**
+(serious) or **red** (critical) and lists the problems in its tooltip, the page shows a banner, and
+optionally a desktop notification appears and the page plays a sound. Nothing blinks.
+
+Watched: low free RAM, VRAM use, processor use (30 s average), one program using the processor,
+processor, graphics card, SSD, memory and motherboard temperatures, disk space, ping, packet loss,
+kernel errors and crashed programs.
+
+Every threshold is configurable in Settings, Alerts, with three levels each, and every one has a
+**Recommended** option that follows your hardware:
+
+| Alert | Recommended comes from |
+|---|---|
+| Graphics card temperature | NVIDIA driver (NVML): max operating and slowdown temperatures; AMD: hwmon critical |
+| Processor temperature | AMD Tjmax per model (89 to 95 °C), Intel coretemp critical |
+| SSD temperature | each NVMe drive's own warning and critical temperatures, per drive |
+| Memory temperature | the DDR5 SPD sensor's critical temperature |
+| Low free RAM | scaled to the installed RAM |
+| Everything else | safe fixed values |
+
+The settings page shows where each recommended value came from. An alert starts after two samples
+in a row, so a one second spike does not fire it.
 
 ## Tray icon
 

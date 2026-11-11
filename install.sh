@@ -28,7 +28,7 @@ if [ "$ACTION" = uninstall ]; then
     pkill -x -u "$(id -u)" pc-panel-tray 2>/dev/null || true
     systemctl --user disable --now pc-panel.service 2>/dev/null || true
     rm -f "$PREFIX/bin/pc-panel" "$PREFIX/bin/pc-panel-tray" "$UNIT" "$AUTOSTART" \
-          "$PREFIX/share/applications/pc-panel.desktop" "$PREFIX/share/icons/hicolor/scalable/apps/pc-panel.svg"
+          "$PREFIX/share/applications/pc-panel.desktop" "$PREFIX"/share/icons/hicolor/scalable/apps/pc-panel*.svg
     rm -rf "$PREFIX/share/pc-panel" "$PREFIX/lib/pc-panel"
     systemctl --user daemon-reload 2>/dev/null || true
     if [ -e "$ROOT_LIB/pc-panel-fans" ]; then
@@ -89,7 +89,9 @@ FRESH=no
 put() { mkdir -p "$(dirname "$3")"; install -m "$1" "$2" "$3.new"; mv -f "$3.new" "$3"; }
 put 644 "$SRC/share/pc-panel/page.html" "$PREFIX/share/pc-panel/page.html"
 put 755 "$SRC/lib/pc-panel/pc-panel-fans" "$PREFIX/lib/pc-panel/pc-panel-fans"
-put 644 "$SRC/share/icons/hicolor/scalable/apps/pc-panel.svg" "$PREFIX/share/icons/hicolor/scalable/apps/pc-panel.svg"
+for i in "$SRC"/share/icons/hicolor/scalable/apps/pc-panel*.svg; do
+    put 644 "$i" "$PREFIX/share/icons/hicolor/scalable/apps/${i##*/}"
+done
 put 755 "$SRC/bin/pc-panel" "$PREFIX/bin/pc-panel"
 mkdir -p "$(dirname "$UNIT")"
 sed "s|@BIN@|$PREFIX/bin/pc-panel|" "$SRC/systemd/pc-panel.service" > "$UNIT.new" && mv -f "$UNIT.new" "$UNIT"

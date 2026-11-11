@@ -10,6 +10,12 @@
  * process sleeps in the kernel and uses no CPU. The only other thing that wakes it
  * is a change to its own files on disk (an update), seen through inotify.
  *
+ * Alerts: the dashboard writes the worst level of its current problems to
+ * $XDG_RUNTIME_DIR/pc-panel/alert (also watched with inotify). The icon then turns
+ * yellow (warning), orange (serious) or red (critical), lists the problems in its
+ * tooltip, and from serious up asks the tray to keep it visible (NeedsAttention).
+ * Nothing blinks.
+ *
  * The dashboard runs as the systemd user service pc-panel.service, or as a child
  * process of this icon when that service does not exist (AppImage, source folder).
  *
@@ -62,6 +68,9 @@ static uint32_t revision = 1;
 static struct stat st_self, st_server;
 static sd_event_source *settle_timer;
 static char dialog_buf[64];
+static char alert_dir[PATH_MAX], alert_file[PATH_MAX], alert_text[1024];
+static int alert_level;
+static const char *const LEVEL_ICON[] = {"pc-panel", "pc-panel-warning", "pc-panel-serious", "pc-panel-critical"};
 static size_t dialog_len;
 
 /* ------------------------------------------------------------------ small helpers */
@@ -509,10 +518,11 @@ static int sni_prop(sd_bus *b, const char *path, const char *iface, const char *
     if (!strcmp(prop, "Category")) return sd_bus_message_append(reply, "s", "SystemServices");
     if (!strcmp(prop, "Id")) return sd_bus_message_append(reply, "s", "pc-panel");
     if (!strcmp(prop, "Title")) return sd_bus_message_append(reply, "s", "PC Panel");
-    if (!strcmp(prop, "Status")) return sd_bus_message_append(reply, "s", "Active");
-    if (!strcmp(prop, "IconName")) return sd_bus_message_append(reply, "s", "pc-panel");
+    if (!strcmp(prop, "Status")) return sd_bus_message_append(reply, "s", alert_level >= 2 ? "NeedsAttention" : "Active");
+    if (!strcmp(prop, "IconName") || !strcmp(prop, "AttentionIconName"))
+        return sd_bus_message_append(reply, "s", LEVEL_ICON[alert_level]);
     if (!strcmp(prop, "IconThemePath")) return sd_bus_message_append(reply, "s", icons_dir);
-    if (!strcmp(prop, "OverlayIconName") || !strcmp(prop, "AttentionIconName"))
+    if (!strcmp(prop, "OverlayIconName"))
         return sd_bus_message_append(reply, "s", "");
     if (!strcmp(prop, "IconPixmap") || !strcmp(prop, "OverlayIconPixmap") || !strcmp(prop, "AttentionIconPixmap"))
         return sd_bus_message_append(reply, "a(iiay)", 0);
@@ -520,8 +530,13 @@ static int sni_prop(sd_bus *b, const char *path, const char *iface, const char *
     if (!strcmp(prop, "Menu")) return sd_bus_message_append(reply, "o", MENU_PATH);
     if (!strcmp(prop, "WindowId")) return sd_bus_message_append(reply, "i", 0);
     if (!strcmp(prop, "ToolTip")) {
+        char body[sizeof alert_text + 80];
         url(tip, sizeof tip);
-        return sd_bus_message_append(reply, "(sa(iiay)ss)", "pc-panel", 0, "PC Panel", tip);
+        if (alert_level)
+            snprintf(body, sizeof body, "%s\n%s", alert_text, tip);
+        else
+            snprintf(body, sizeof body, "%s", tip);
+        return sd_bus_message_append(reply, "(sa(iiay)ss)", LEVEL_ICON[alert_level], 0, "PC Panel", body);
     }
     return -ENOENT;
 }
@@ -544,14 +559,14 @@ static const sd_bus_vtable sni_vtable[] = {
     SD_BUS_PROPERTY("Category", "s", sni_prop, 0, SD_BUS_VTABLE_PROPERTY_CONST),
     SD_BUS_PROPERTY("Id", "s", sni_prop, 0, SD_BUS_VTABLE_PROPERTY_CONST),
     SD_BUS_PROPERTY("Title", "s", sni_prop, 0, SD_BUS_VTABLE_PROPERTY_CONST),
-    SD_BUS_PROPERTY("Status", "s", sni_prop, 0, SD_BUS_VTABLE_PROPERTY_CONST),
+    SD_BUS_PROPERTY("Status", "s", sni_prop, 0, SD_BUS_VTABLE_PROPERTY_EMITS_INVALIDATION),
     SD_BUS_PROPERTY("WindowId", "i", sni_prop, 0, SD_BUS_VTABLE_PROPERTY_CONST),
-    SD_BUS_PROPERTY("IconName", "s", sni_prop, 0, SD_BUS_VTABLE_PROPERTY_CONST),
+    SD_BUS_PROPERTY("IconName", "s", sni_prop, 0, SD_BUS_VTABLE_PROPERTY_EMITS_INVALIDATION),
     SD_BUS_PROPERTY("IconThemePath", "s", sni_prop, 0, SD_BUS_VTABLE_PROPERTY_CONST),
     SD_BUS_PROPERTY("IconPixmap", "a(iiay)", sni_prop, 0, SD_BUS_VTABLE_PROPERTY_CONST),
     SD_BUS_PROPERTY("OverlayIconName", "s", sni_prop, 0, SD_BUS_VTABLE_PROPERTY_CONST),
     SD_BUS_PROPERTY("OverlayIconPixmap", "a(iiay)", sni_prop, 0, SD_BUS_VTABLE_PROPERTY_CONST),
-    SD_BUS_PROPERTY("AttentionIconName", "s", sni_prop, 0, SD_BUS_VTABLE_PROPERTY_CONST),
+    SD_BUS_PROPERTY("AttentionIconName", "s", sni_prop, 0, SD_BUS_VTABLE_PROPERTY_EMITS_INVALIDATION),
     SD_BUS_PROPERTY("AttentionIconPixmap", "a(iiay)", sni_prop, 0, SD_BUS_VTABLE_PROPERTY_CONST),
     SD_BUS_PROPERTY("ToolTip", "(sa(iiay)ss)", sni_prop, 0, SD_BUS_VTABLE_PROPERTY_EMITS_INVALIDATION),
     SD_BUS_PROPERTY("ItemIsMenu", "b", sni_prop, 0, SD_BUS_VTABLE_PROPERTY_CONST),
@@ -562,6 +577,7 @@ static const sd_bus_vtable sni_vtable[] = {
     SD_BUS_METHOD("Scroll", "is", "", sni_ignore, 0),
     SD_BUS_SIGNAL("NewTitle", "", 0),
     SD_BUS_SIGNAL("NewIcon", "", 0),
+    SD_BUS_SIGNAL("NewAttentionIcon", "", 0),
     SD_BUS_SIGNAL("NewToolTip", "", 0),
     SD_BUS_SIGNAL("NewStatus", "s", 0),
     SD_BUS_VTABLE_END
@@ -867,6 +883,66 @@ static void watch_files(void)
     sd_event_add_io(ev, NULL, fd, EPOLLIN, inotify_ready, NULL);
 }
 
+/* ------------------------------------------------------------------ alerts from the dashboard */
+
+static void read_alert(void)
+{
+    char buf[sizeof alert_text + 4] = "";
+    int level = 0;
+    FILE *f = fopen(alert_file, "r");
+    if (f) {
+        size_t n = fread(buf, 1, sizeof buf - 1, f);
+        fclose(f);
+        buf[n] = 0;
+        if (buf[0] >= '0' && buf[0] <= '3')
+            level = buf[0] - '0';
+    }
+    const char *text = strchr(buf, '\n');
+    text = text ? text + 1 : "";
+    size_t len = strlen(text);
+    while (len && text[len - 1] == '\n')
+        len--;
+    if (level == alert_level && strlen(alert_text) == len && !strncmp(alert_text, text, len))
+        return;
+    snprintf(alert_text, sizeof alert_text, "%.*s", (int)len, text);
+    alert_level = level;
+    sd_bus_emit_signal(bus, SNI_PATH, SNI_IFACE, "NewIcon", "");
+    sd_bus_emit_signal(bus, SNI_PATH, SNI_IFACE, "NewAttentionIcon", "");
+    sd_bus_emit_signal(bus, SNI_PATH, SNI_IFACE, "NewStatus", "s", level >= 2 ? "NeedsAttention" : "Active");
+    sd_bus_emit_signal(bus, SNI_PATH, SNI_IFACE, "NewToolTip", "");
+}
+
+static int alert_ready(sd_event_source *s, int fd, uint32_t revents, void *u)
+{
+    (void)s; (void)revents; (void)u;
+    char buf[2048] __attribute__((aligned(__alignof__(struct inotify_event))));
+    int hit = 0;
+    ssize_t n;
+    while ((n = read(fd, buf, sizeof buf)) > 0)
+        for (char *p = buf; p < buf + n; p += sizeof(struct inotify_event) + ((struct inotify_event *)p)->len) {
+            struct inotify_event *e = (struct inotify_event *)p;
+            if (e->len && !strcmp(e->name, "alert"))
+                hit = 1;
+        }
+    if (hit)
+        read_alert();
+    return 0;
+}
+
+static void watch_alert(void)
+{
+    int fd = inotify_init1(IN_NONBLOCK | IN_CLOEXEC);
+    if (fd < 0)
+        return;
+    mkdir(alert_dir, 0700);
+    if (inotify_add_watch(fd, alert_dir, IN_CLOSE_WRITE | IN_MOVED_TO | IN_DELETE | IN_MOVED_FROM) < 0 ||
+        sd_event_add_io(ev, NULL, fd, EPOLLIN, alert_ready, NULL) < 0) {
+        close(fd);
+        return;
+    }
+    read_alert();
+}
+
 /* ------------------------------------------------------------------ main */
 
 static int on_signal(sd_event_source *s, const struct signalfd_siginfo *si, void *u)
@@ -898,6 +974,9 @@ static void setup_paths(void)
     snprintf(cfg_dir, sizeof cfg_dir, "%s/pc-panel", base);
     snprintf(port_file, sizeof port_file, "%s/port", cfg_dir);
     snprintf(autostart_file, sizeof autostart_file, "%s/autostart/pc-panel.desktop", base);
+    const char *run = getenv("XDG_RUNTIME_DIR");
+    snprintf(alert_dir, sizeof alert_dir, "%s/pc-panel", run && *run == '/' ? run : "/tmp");
+    snprintf(alert_file, sizeof alert_file, "%s/alert", alert_dir);
     appimage = getenv("APPIMAGE");
     if (appimage && !*appimage)
         appimage = NULL;
@@ -951,6 +1030,7 @@ int main(int argc, char **argv)
     register_item();
     start_dashboard();
     watch_files();
+    watch_alert();
 
     sd_event_loop(ev);
 

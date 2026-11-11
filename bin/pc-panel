@@ -32,7 +32,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 
-VERSAO = "0.2.0"
+VERSAO = "0.3.0"
 REPO = "gabrielmf1998/pc-panel"         # owner/repository on GitHub, used only to look for a new version
 PASTA_CFG = os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"), "pc-panel")
 
@@ -69,7 +69,19 @@ CORES = ("azul", "agua", "violeta", "magenta")
 PERFIS = ("tudo", "jogo", "live", "hardware", "proprio")
 NIVEIS = ("bom", "aviso", "serio", "critico")
 # degrees at which a reading becomes warning, high and critical
-LIM = {"cpu": (85, 90, 94), "gpu": (80, 85, 90), "ssd": (65, 72, 80), "placa": (55, 65, 75), "mem": (60, 70, 80)}
+# Alert thresholds. Each one is on or off, and either "recommended" (worked out from
+# the limits this hardware reports, see recomendados()) or three values of the user's own
+# for warning, serious and critical. A level left empty (None) is skipped.
+# id -> (direction: "alto" = higher is worse, "baixo" = lower is worse, "evento" = no number; lowest; highest)
+METRICAS = {
+    "ram": ("baixo", 0, 1048576), "vram": ("alto", 1, 100), "cpu_uso": ("alto", 1, 100), "prog_cpu": ("alto", 1, 100),
+    "temp_cpu": ("alto", 20, 130), "temp_gpu": ("alto", 20, 130), "temp_ssd": ("alto", 20, 130),
+    "temp_mem": ("alto", 20, 130), "temp_placa": ("alto", 20, 130), "disco": ("alto", 1, 100),
+    "ping": ("alto", 1, 10000), "perda": ("alto", 0.1, 100), "kernel": ("evento", 0, 0), "travou": ("evento", 0, 0),
+}
+TEMP_METRICA = {"cpu": "temp_cpu", "gpu": "temp_gpu", "ssd": "temp_ssd", "placa": "temp_placa", "mem": "temp_mem"}
+NCPU = os.cpu_count() or 1
+hw_lim = {"gpu": None}           # graphics card limits read from the driver (NVML or amdgpu)
 NOME_TEMP = {"cpu": ("Processador", "Processor"), "gpu": ("Placa de vídeo", "Graphics card"),
              "placa": ("Placa-mãe", "Motherboard"), "mem": ("Memória", "Memory")}
 # ready-made curves: (degrees, fan %)
@@ -126,12 +138,99 @@ def numero(v):
     return isinstance(v, (int, float)) and not isinstance(v, bool)
 
 
-def nivel(v, lim):          # the higher, the worse
-    return "bom" if v is None else NIVEIS[sum(v >= x for x in lim)]
+def nivel(v, lim):          # the higher, the worse; lim is (warning, serious, critical), any may be None
+    if v is None or not lim:
+        return "bom"
+    return NIVEIS[max([i + 1 for i, x in enumerate(lim) if x is not None and v >= x] or [0])]
 
 
 def nivel_min(v, lim):      # the lower, the worse
-    return "bom" if v is None else NIVEIS[sum(v <= x for x in lim)]
+    if v is None or not lim:
+        return "bom"
+    return NIVEIS[max([i + 1 for i, x in enumerate(lim) if x is not None and v <= x] or [0])]
+
+
+def limite_do_sensor(arq):
+    # (max, crit) in degrees that the chip itself reports next to a temperature input, when sane
+    if not arq or not arq.endswith("_input"):
+        return None, None
+    base = arq[:-6]
+
+    def v(sufixo):
+        x = ler_int(base + sufixo)
+        return x / 1000 if x and 30000 <= x <= 150000 else None
+    return v("_max"), v("_crit")
+
+
+def tjmax_amd(nome):
+    # AMD publishes Tjmax per model; the k10temp driver does not report it
+    if re.search(r"\b7\d00X3D", nome):
+        return 89
+    if re.search(r"\b5\d00X3D|\b5[89]\d0X\b|\b5[89]\d0\b", nome):
+        return 90
+    return 95
+
+
+rec_cache = {"t": 0.0, "v": None}
+
+
+def recomendados():
+    # recommended thresholds for this PC, from what the hardware says about itself
+    if rec_cache["v"] and time.monotonic() - rec_cache["t"] < 60:
+        return rec_cache["v"]
+    total = ler_int_meminfo("MemTotal") // 1024
+    r = {"ram": [max(256, round(total * f / 64) * 64) for f in (0.10, 0.04, 0.015)],
+         "vram": [85, 93, 97], "cpu_uso": [90, 97, None], "prog_cpu": [80, 95, None],
+         "disco": [85, 93, 97], "ping": [60, 100, 180], "perda": [2, 6, 20], "temp_placa": [55, 65, 75]}
+    fonte = {"temp_cpu": "", "temp_gpu": "", "temp_mem": ""}
+    mx, crit = limite_do_sensor(fontes["cpu"])
+    if crit and "coretemp" in (ler(os.path.dirname(fontes["cpu"] or "") + "/name") or ""):
+        r["temp_cpu"], fonte["temp_cpu"] = [round(crit) - 15, round(crit) - 8, round(crit) - 3], "Tjmax %d" % crit
+    else:
+        tj = tjmax_amd(NOME_CPU)
+        r["temp_cpu"], fonte["temp_cpu"] = [tj - 10, tj - 5, tj - 1], "Tjmax %d" % tj
+    g = hw_lim["gpu"] or {}
+    if g.get("max") and g.get("lento") and g["lento"] > g["max"]:
+        r["temp_gpu"], fonte["temp_gpu"] = [g["max"] - 8, g["max"], g["lento"]], "max %d, slowdown %d" % (g["max"], g["lento"])
+    elif g.get("crit"):
+        r["temp_gpu"], fonte["temp_gpu"] = [g["crit"] - 20, g["crit"] - 10, g["crit"] - 3], "crit %d" % g["crit"]
+    else:
+        r["temp_gpu"] = [80, 85, 90]
+    crits = [c for c in (limite_do_sensor(m)[1] for m in fontes["mem"]) if c]
+    if crits:
+        c = round(min(crits))
+        r["temp_mem"], fonte["temp_mem"] = [c - 20, c - 10, c - 3], "crit %d" % c
+    else:
+        r["temp_mem"] = [60, 70, 80]
+    ssd = {"_": [65, 72, 80]}
+    for d in discos:
+        mx, crit = limite_do_sensor(d.get("temp_arq"))
+        if mx and crit and crit > mx:
+            ssd[d["nome"]] = [round(mx) - 8, round(mx), round(crit)]
+        elif mx:
+            ssd[d["nome"]] = [round(mx) - 8, round(mx) - 3, round(mx)]
+        elif crit:
+            ssd[d["nome"]] = [round(crit) - 15, round(crit) - 8, round(crit) - 2]
+    r["temp_ssd"] = ssd
+    r["fonte"] = fonte
+    rec_cache.update(t=time.monotonic(), v=r)
+    return r
+
+
+def ler_int_meminfo(chave):
+    m = re.search(r"^%s:\s+(\d+)" % chave, ler("/proc/meminfo") or "", re.M)
+    return int(m.group(1)) if m else 0
+
+
+def limite(mid, disco=None):
+    # the thresholds in force for one alert, or None when that alert is off
+    c = cfg["limites"][mid]
+    if not c["on"]:
+        return None
+    if c["rec"] or not c.get("v"):
+        r = recomendados()[mid]
+        return (r.get(disco) or r["_"]) if mid == "temp_ssd" else r
+    return c["v"]
 
 
 def rodar(args, espera=10):
@@ -183,6 +282,8 @@ def ritmo():
     if assistindo():
         return float(cfg["passo"]), True
     lento = []
+    if cfg["alertas"]["fundo"]:
+        lento.append(cfg["alertas"]["cada"])
     if cfg["registro"]["ligado"]:
         lento.append(cfg["registro"]["intervalo"])
     f = cfg["fans"]
@@ -199,7 +300,11 @@ def ritmo():
 def cfg_padrao():
     return {"idioma": "pt" if os.environ.get("LANG", "").startswith("pt") else "en", "tema": "escuro", "cor": "azul", "fonte": 1, "passo": 2, "perfil": "tudo",
             "cartoes": {c: True for c in CARTOES}, "encaixe": True, "ping_alvo": "1.1.1.1",
-            "avisar": {"desktop": False, "som": False},
+            "avisar": {"desktop": True, "som": False, "nivel": "serio"},
+            # keep measuring with the page closed so the tray icon and notifications can warn
+            "alertas": {"fundo": True, "cada": 10},
+            "limites": {m: ({"on": True, "nv": "aviso"} if d[0] == "evento" else {"on": True, "rec": True, "v": None})
+                        for m, d in METRICAS.items()},
             "registro": {"ligado": False, "pasta": "~/.local/share/pc-panel/registro", "intervalo": 10, "dias": 30},
             # extra modules, off by default: Project Zomboid server and live viewer counter
             "modulos": {"zomboid": False, "live": False},
@@ -228,6 +333,43 @@ def limpar_cfg(d, base):
         for k in ("desktop", "som"):
             if k in d["avisar"]:
                 nova["avisar"][k] = bool(d["avisar"][k])
+        if d["avisar"].get("nivel") in NIVEIS[1:]:
+            nova["avisar"]["nivel"] = d["avisar"]["nivel"]
+    if isinstance(d.get("alertas"), dict):
+        if "fundo" in d["alertas"]:
+            nova["alertas"]["fundo"] = bool(d["alertas"]["fundo"])
+        if d["alertas"].get("cada") in (5, 10, 30, 60):
+            nova["alertas"]["cada"] = d["alertas"]["cada"]
+    if isinstance(d.get("limites"), dict):
+        for m, x in d["limites"].items():
+            if m not in METRICAS or not isinstance(x, dict):
+                continue
+            direcao, menor, maior = METRICAS[m]
+            alvo = nova["limites"][m]
+            if "on" in x:
+                alvo["on"] = bool(x["on"])
+            if direcao == "evento":
+                if x.get("nv") in NIVEIS[1:]:
+                    alvo["nv"] = x["nv"]
+                continue
+            if "rec" in x:
+                alvo["rec"] = bool(x["rec"])
+            v = x.get("v")
+            if v is None:
+                continue
+            if not (isinstance(v, list) and len(v) == 3 and all(y is None or numero(y) for y in v)):
+                return None, ("Limite inválido em %s" % m, "Invalid threshold in %s" % m)
+            usados = [y for y in v if y is not None]
+            if any(not menor <= y <= maior for y in usados):
+                return None, ("Os limites de %s precisam ficar entre %s e %s" % (m, menor, maior),
+                              "The %s thresholds must be between %s and %s" % (m, menor, maior))
+            if usados != sorted(usados, reverse=direcao == "baixo") or len(set(usados)) != len(usados):
+                return None, ("Os limites de %s precisam %s de atenção para crítico" % (m, "descer" if direcao == "baixo" else "subir"),
+                              "The %s thresholds must %s from warning to critical" % (m, "go down" if direcao == "baixo" else "go up"))
+            if not usados and not alvo["rec"]:
+                return None, ("Preencha pelo menos um limite de %s ou desligue o alerta" % m,
+                              "Fill at least one %s threshold or turn the alert off" % m)
+            alvo["v"] = v
     if isinstance(d.get("modulos"), dict):
         for k in ("zomboid", "live"):
             if k in d["modulos"]:
@@ -414,7 +556,7 @@ abertos, pendentes = {}, {}
 
 def notificar(ev):
     # desktop notification, only when enabled in Settings
-    if not cfg["avisar"]["desktop"]:
+    if not cfg["avisar"]["desktop"] or NIVEIS.index(ev["nv"]) < NIVEIS.index(cfg["avisar"]["nivel"]):
         return
     args = ["busctl", "--user", "call", "org.freedesktop.Notifications", "/org/freedesktop/Notifications",
             "org.freedesktop.Notifications", "Notify", "susssasa{sv}i", "PC Panel", "0",
@@ -432,9 +574,12 @@ def acompanhar(avisos, t, jogo):
         aberto = abertos.get(ident)
         if aberto:
             aberto["ok"] = 0
-            if NIVEIS.index(a["nv"]) > NIVEIS.index(aberto["ev"]["nv"]):
+            antes = NIVEIS.index(aberto["ev"]["nv"])
+            if NIVEIS.index(a["nv"]) > antes:
                 aberto["ev"].update(nv=a["nv"], pt=a["pt"], en=a["en"])
                 ev_seq[0] += 1
+                if antes < NIVEIS.index(cfg["avisar"]["nivel"]):
+                    notificar(aberto["ev"])   # it just got bad enough to notify
             continue
         pendentes[ident] = pendentes.get(ident, 0) + 1
         if pendentes[ident] >= 2:
@@ -457,6 +602,31 @@ def acompanhar(avisos, t, jogo):
             registro.evento("fim", aberto["ev"])
 
 
+ARQ_ALERTA = os.path.join(os.environ.get("XDG_RUNTIME_DIR") or "/tmp", "pc-panel", "alert")
+bandeja = {"ult": None}
+
+
+def avisar_bandeja():
+    # The tray icon watches this small file (inotify, no polling): first line is the worst
+    # level now (0 ok, 1 warning, 2 serious, 3 critical), then one line per problem.
+    # One-off events (kernel error, crash) stay for 10 minutes.
+    agora = time.time()
+    lista = [a["ev"] for a in list(abertos.values())] + [e for e in list(eventos) if e["fim"] == e["t"] and agora - e["t"] < 600]
+    lista.sort(key=lambda e: -NIVEIS.index(e["nv"]))
+    pior = NIVEIS.index(lista[0]["nv"]) if lista else 0
+    corpo = "%d\n%s" % (pior, "".join(e[cfg["idioma"]].replace("\n", " ")[:120] + "\n" for e in lista[:5]))
+    if corpo == bandeja["ult"]:
+        return
+    try:
+        os.makedirs(os.path.dirname(ARQ_ALERTA), exist_ok=True)
+        with open(ARQ_ALERTA + ".new", "w") as f:
+            f.write(corpo)
+        os.replace(ARQ_ALERTA + ".new", ARQ_ALERTA)
+        bandeja["ult"] = corpo
+    except OSError as e:
+        avisar("bandeja", e)
+
+
 def evento_avulso(nv, pt, en, cartao="saude"):
     t = round(time.time())
     jogo = extra["jogos"][0]["nome"] if extra["jogos"] else None
@@ -465,6 +635,7 @@ def evento_avulso(nv, pt, en, cartao="saude"):
     ev_seq[0] += 1
     registro.evento("fim", ev)
     notificar(ev)
+    avisar_bandeja()
 
 
 # ---------------------------------------------------------------- fans (the part without root)
@@ -682,6 +853,11 @@ def calibrar():
 def ao_parar():
     # with the panel stopped nobody drives the graphics card curve: hand it back to
     # the factory curve. The choice stays saved and returns when the panel starts.
+    # The tray icon goes back to normal.
+    try:
+        os.remove(ARQ_ALERTA)
+    except OSError:
+        pass
     try:
         cmd = json.loads(ler(ARQ_FANS) or "null")
         if isinstance(cmd, dict) and isinstance(cmd.get("gpu"), dict) and cmd["gpu"].get("modo") == "curva":
@@ -748,6 +924,13 @@ class Nvidia:
             lib.nvmlDeviceGetPowerManagementLimit(h, ctypes.byref(lim))
             lib.nvmlDeviceGetNumFans(h, ctypes.byref(nf))
             self.nfans = min(nf.value, 4)
+            lt = {}
+            for nome_t, tipo in (("desligar", 0), ("lento", 1), ("max", 3)):
+                v = ctypes.c_uint()
+                if lib.nvmlDeviceGetTemperatureThreshold(h, tipo, ctypes.byref(v)) == 0 and 40 <= v.value <= 130:
+                    lt[nome_t] = v.value
+            hw_lim["gpu"] = lt
+            rec_cache["v"] = None
             self.fixo = {"nome": nome.value.decode(errors="replace").replace("NVIDIA GeForce ", ""),
                          "driver": drv.value.decode(errors="replace"), "watts_max": round(lim.value / 1000)}
             self.lib, self.h, self.erro = lib, h, None
@@ -811,6 +994,10 @@ class Amd:
                 melhor, self.dev = total, d
         if self.dev:
             self.hw = (glob.glob(self.dev + "/hwmon/hwmon*") or [None])[0]
+            c = limite_do_sensor(self.hw + "/temp1_input")[1] if self.hw else None
+            if c and not hw_lim["gpu"]:
+                hw_lim["gpu"] = {"crit": round(c)}
+                rec_cache["v"] = None
 
     def medir(self):
         d, h = self.dev, self.hw
@@ -944,14 +1131,16 @@ def info_saude():
     if saida is not None:
         linhas = [x.strip() for x in saida.splitlines() if x.strip()]
         s["kerr"], s["kult"] = len(linhas), (linhas[-1][:220] if linhas else "")
-        if antes["kerr"] is not None and s["kerr"] > antes["kerr"]:
-            evento_avulso("aviso", "Erro novo do kernel: " + s["kult"], "New kernel error: " + s["kult"])
+        k = cfg["limites"]["kernel"]
+        if antes["kerr"] is not None and s["kerr"] > antes["kerr"] and k["on"]:
+            evento_avulso(k["nv"], "Erro novo do kernel: " + s["kult"], "New kernel error: " + s["kult"])
     saida = rodar(["coredumpctl", "list", "--since", "today", "--no-legend", "-q", "--no-pager"])
     if saida is not None:
         nomes = [os.path.basename(p) for linha in saida.splitlines() for p in linha.split() if p.startswith("/")]
         s["trav"], s["tult"] = len(nomes), (nomes[-1] if nomes else "")
-        if antes["trav"] is not None and s["trav"] > antes["trav"]:
-            evento_avulso("aviso", "%s travou e foi fechado pelo sistema" % s["tult"], "%s crashed" % s["tult"])
+        k = cfg["limites"]["travou"]
+        if antes["trav"] is not None and s["trav"] > antes["trav"] and k["on"]:
+            evento_avulso(k["nv"], "%s travou e foi fechado pelo sistema" % s["tult"], "%s crashed" % s["tult"])
     s["reinicio"] = not os.path.exists("/usr/lib/modules/%s/pkgbase" % os.uname().release)
     achados = re.findall(r"^\[([0-9T:+-]+)\] \[PACMAN\] starting full system upgrade",
                          cauda("/var/log/pacman.log", 262144).decode(errors="replace"), re.M)
@@ -1365,6 +1554,7 @@ class Medidor:
         self.amd = None
         self.ant = None
         self.pings = collections.deque(maxlen=60)
+        self.usos = collections.deque(maxlen=64)     # (time, processor use) for the 30 s average
         self.ult_ping = 0.0
         self.custo = collections.deque(maxlen=45)
 
@@ -1419,7 +1609,26 @@ class Medidor:
         cpu = {"nome": NOME_CPU, "uso": usos[0] if usos else None, "nucleos": usos[1:], "temp": tcpu,
                "ghz": round(max(mhz) / 1e6, 2) if mhz else None, "carga": round(os.getloadavg()[0], 1),
                "psi": psi("cpu")}
-        nv["cpu"] = nivel(tcpu, LIM["cpu"])
+        nv["cpu"] = nivel(tcpu, limite("temp_cpu"))
+        if cpu["uso"] is not None:
+            self.usos.append((t, cpu["uso"]))
+        janela = [u for (q, u) in self.usos if t - q <= 31]
+        lim_uso = limite("cpu_uso")
+        if lim_uso and len(janela) >= 2 and t - self.usos[0][0] >= 20:
+            media = sum(janela) / len(janela)
+            topo = ((extra["progs"] or {}).get("cpu") or [None])[0]
+            extra_pt = extra_en = ""
+            if topo:
+                extra_pt = ", mais usado: %s %d %%" % (topo["nome"], round(topo["pct"] / NCPU))
+                extra_en = ", top: %s %d %%" % (topo["nome"], round(topo["pct"] / NCPU))
+            n = av("cpu-uso", "cpu", nivel(media, lim_uso), "Processador em %d %% (média de 30 s)%s" % (media, extra_pt),
+                   "Processor at %d %% (30 s average)%s" % (media, extra_en))
+            nv["cpu"] = max(nv["cpu"], n, key=NIVEIS.index)
+        topo = ((extra["progs"] or {}).get("cpu") or [None])[0]
+        if topo:
+            parte = topo["pct"] / NCPU
+            av("prog-cpu", "prog", nivel(parte, limite("prog_cpu")), "%s usando %d %% do processador" % (topo["nome"], parte),
+               "%s using %d %% of the processor" % (topo["nome"], parte))
 
         # memory
         mi = {}
@@ -1434,11 +1643,12 @@ class Medidor:
                "swap_mibs": round((c["swap"] - a["swap"]) * PAGINA_KB / 1024 / dt, 2) if dt > 0 else 0.0,
                "psi": psi("memory")}
         left = ram["left"] // 1024
-        nv["ram"] = nivel_min(left, (3072, 1024, 256))
-        if ram["swap_mibs"] > 0.5 and left < 512:
+        lim_ram = limite("ram")
+        nv["ram"] = nivel_min(left, lim_ram)
+        if lim_ram and ram["swap_mibs"] > 0.5 and left < 512:
             nv["ram"] = "critico"
         av("ram", "ram", nv["ram"], "RAM livre em %d MiB" % left, "Free RAM at %d MiB" % left)
-        if ram["psi"] >= 10:
+        if lim_ram and ram["psi"] >= 10:
             n2 = av("ram-psi", "ram", "serio", "PC engasgando por falta de RAM (pressão %d %%)" % ram["psi"],
                     "PC stalling for lack of RAM (pressure %d %%)" % ram["psi"])
             nv["ram"] = max(nv["ram"], n2, key=NIVEIS.index)
@@ -1453,8 +1663,8 @@ class Medidor:
         ult_vram.update(procs)
         if gpu["ok"]:
             pct = 100.0 * gpu["vram"] / gpu["vram_total"]
-            nv["vram"] = av("vram", "vram", nivel(pct, (80, 90, 96)), "VRAM em %d %%" % pct, "VRAM at %d %%" % pct)
-            nv["gpu"] = nivel(gpu["temp"], LIM["gpu"])
+            nv["vram"] = av("vram", "vram", nivel(pct, limite("vram")), "VRAM em %d %%" % pct, "VRAM at %d %%" % pct)
+            nv["gpu"] = nivel(gpu["temp"], limite("temp_gpu"))
         elif gpu.get("ausente"):
             nv["vram"] = nv["gpu"] = "bom"
             gpu["erro"] = {"pt": "", "en": ""}
@@ -1489,8 +1699,8 @@ class Medidor:
         if not rota["iface"]:
             nv["rede"] = av("rede", "rede", "critico", "Sem rede", "No network")
         else:
-            n1 = av("ping", "rede", nivel(med, (50, 90, 160)), "Ping em %d ms" % (med or 0), "Ping at %d ms" % (med or 0))
-            n2 = av("perda", "rede", nivel(perda if len(self.pings) >= 10 else None, (1.5, 6, 20)),
+            n1 = av("ping", "rede", nivel(med, limite("ping")), "Ping em %d ms" % (med or 0), "Ping at %d ms" % (med or 0))
+            n2 = av("perda", "rede", nivel(perda if len(self.pings) >= 10 else None, limite("perda")),
                     "Perda de pacotes em %d %%" % round(perda), "Packet loss at %d %%" % round(perda))
             nv["rede"] = max(n1, n2, key=NIVEIS.index)
 
@@ -1517,7 +1727,7 @@ class Medidor:
             if tdisco:
                 temps.append({"id": "ssd", "nome": d["nome"], "c": tdisco})
             usado = round(100.0 * (1 - d["livre"] / d["total"]), 1) if d["total"] else 0.0
-            n2 = av("disco-" + d["dev"], "disc", nivel(usado, (85, 93, 97)), "Disco %s com %d %% ocupado" % (nome_pt, usado),
+            n2 = av("disco-" + d["dev"], "disc", nivel(usado, limite("disco")), "Disco %s com %d %% ocupado" % (nome_pt, usado),
                     "Disk %s %d %% full" % (nome_en, usado))
             lista_discos.append(dict(io, nome=d["nome"], modelo=d["modelo"], total=d["total"], livre=d["livre"],
                                      usado=usado, nv=max(nd, n2, key=NIVEIS.index)))
@@ -1530,8 +1740,9 @@ class Medidor:
                 pt, en = ("SSD Sistema", "System SSD") if x["nome"] == "/" else ("SSD " + x["nome"], "SSD " + x["nome"])
             else:
                 pt, en = NOME_TEMP[x["id"]]
-            x["lim"] = LIM[x["id"]][0]
-            x["nv"] = av("temp-" + x["id"] + x["nome"], "temp", nivel(x["c"], LIM[x["id"]]),
+            lim = limite(TEMP_METRICA[x["id"]], x["nome"])
+            x["lim"] = next((y for y in lim if y is not None), None) if lim else None
+            x["nv"] = av("temp-" + x["id"] + x["nome"], "temp", nivel(x["c"], lim),
                          "%s a %d °C" % (pt, round(x["c"])), "%s at %d °C" % (en, round(x["c"])))
         canais = []
         for n in cfg["canais"]:
@@ -1564,6 +1775,7 @@ class Medidor:
         proteger_fans(gpu.get("temp"), tcpu)
         guiar_gpu(gpu.get("temp"))
         acompanhar(avisos, t, jogo)
+        avisar_bandeja()
 
         self.custo.append((time.monotonic(), time.process_time()))
         (m0, p0), (m1, p1) = self.custo[0], self.custo[-1]
@@ -1657,7 +1869,7 @@ def laco_lento():
                 varredura()
             if vence("sis", 60 if aberta else 300):
                 extra["sis"] = info_sistema()
-            if vence("saude", 120 if aberta else 900):
+            if vence("saude", 120 if aberta or cfg["alertas"]["fundo"] else 900):
                 info_saude()
         except Exception as e:
             avisar("lento", e)
@@ -1736,7 +1948,7 @@ def pagina():
 
 
 def info_geral():
-    return {"cfg": cfg, "info": registro.info(), "upd": dict(upd), "curvas": CURVAS, "curva_gpu": CURVA_GPU,
+    return {"cfg": cfg, "recomendados": recomendados(), "metricas": {m: d[0] for m, d in METRICAS.items()}, "info": registro.info(), "upd": dict(upd), "curvas": CURVAS, "curva_gpu": CURVA_GPU,
             "versao": VERSAO, "metodo": metodo_instalacao(), "novidade": {k: v for k, v in novidade.items() if k != "arquivos"}}
 
 

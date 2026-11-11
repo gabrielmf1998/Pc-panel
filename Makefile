@@ -16,7 +16,8 @@ install: bin/pc-panel-tray
 	install -Dm755 bin/pc-panel $(DESTDIR)$(PREFIX)/bin/pc-panel
 	install -Dm755 bin/pc-panel-tray $(DESTDIR)$(PREFIX)/bin/pc-panel-tray
 	install -Dm644 share/pc-panel/page.html $(DESTDIR)$(PREFIX)/share/pc-panel/page.html
-	install -Dm644 share/icons/hicolor/scalable/apps/pc-panel.svg $(DESTDIR)$(PREFIX)/share/icons/hicolor/scalable/apps/pc-panel.svg
+	install -d $(DESTDIR)$(PREFIX)/share/icons/hicolor/scalable/apps
+	install -m644 share/icons/hicolor/scalable/apps/pc-panel*.svg $(DESTDIR)$(PREFIX)/share/icons/hicolor/scalable/apps/
 	sed 's|@TRAY@|$(PREFIX)/bin/pc-panel-tray|' share/applications/pc-panel.desktop > pc-panel.desktop.tmp
 	install -Dm644 pc-panel.desktop.tmp $(DESTDIR)$(PREFIX)/share/applications/pc-panel.desktop
 	rm -f pc-panel.desktop.tmp

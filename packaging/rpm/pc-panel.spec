@@ -1,6 +1,6 @@
 %global debug_package %{nil}
 Name:           pc-panel
-Version:        0.2.0
+Version:        0.3.0
 Release:        1
 Summary:        Local web dashboard to monitor and control a Linux PC, with a tray icon
 License:        MIT
@@ -47,7 +47,7 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install
 %{_bindir}/pc-panel
 %{_bindir}/pc-panel-tray
 %{_datadir}/applications/pc-panel.desktop
-%{_datadir}/icons/hicolor/scalable/apps/pc-panel.svg
+%{_datadir}/icons/hicolor/scalable/apps/pc-panel*.svg
 %{_datadir}/pc-panel/
 %{_prefix}/lib/pc-panel/
 %{_userunitdir}/pc-panel.service
@@ -55,6 +55,9 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install
 %{_unitdir}/pc-panel-fans.service
 
 %changelog
+* Tue Nov 10 2026 PC Panel contributors - 0.3.0-1
+- Alerts: tray icon turns yellow, orange or red, configurable thresholds with hardware based recommended values
+
 * Tue Nov 10 2026 PC Panel contributors - 0.2.0-1
 - Tray icon: change port, start with system, quit
 - Self-update for every install type
