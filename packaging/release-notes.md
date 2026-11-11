@@ -1,3 +1,27 @@
+## 0.4.2: network view, SSD forecast, incident report
+
+- **Network view.** The Network card says in one line whether the connection is good and where the
+  trouble is; its details button opens a full screen view. The router is pinged next to the internet
+  target, so the view tells "between this PC and the router" (cable, Wi-Fi, the router) from "past
+  the router" (the provider), and says when the PC itself dropped UDP packets. Ping chart for the
+  internet and the router (10 minutes, lost pings marked), traffic chart, a quality table (now,
+  median, worst 5 %, jitter, loss), programs on the network (TCP download and upload per program,
+  TCP and UDP socket counts) and the connection details (link, duplex, MTU, Wi-Fi signal, card
+  errors, TCP resent, UDP dropped, totals since boot).
+- **Costs nothing while closed.** The per-program list is read only while the view is open (every
+  5 s, 10 s while gaming). Measured over 120 s each, against 0.4.1 on the same PC: page closed 0.108 %
+  of one core in both; page open 0.592 % in both; network view open 0.675 % (0.08 % more). Memory
+  about 1.5 MiB more.
+- **Jitter alert** (recommended 20/40/80 ms). The 24 h history now keeps worst packet loss, jitter,
+  download and upload, and game sessions keep average ping, worst loss and jitter.
+- **SSD life forecast** for NVMe drives: terabytes per 1 % of wear, terabytes left to 100 % of the
+  rated wear and, after a day of measured writes, the years left at your pace. Marked rough while
+  the life used is under 5 %.
+- **Incident report.** Each unexpected stop in the black box comes with a short list of what changed
+  in the final 2 minutes (temperatures, processor clock, free RAM, swap, disk waits, lost pings).
+- **Desktop notifications are off by default** on new installs; the tray icon and the page already
+  show every alert. A choice already saved in Settings is kept.
+
 ## 0.4.1: black box writes 27 times less
 
 - **The black box wrote far more than it should.** Each 512 byte record plus sync went through the

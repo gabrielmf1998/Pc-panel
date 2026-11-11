@@ -12,7 +12,7 @@ The interface is available in English and Portuguese.
 - RAM, swap, cache and memory pressure
 - Graphics card usage, VRAM, temperature, power, fan speed (NVIDIA, basic AMD)
 - Processor usage per core, temperature, clock, load
-- Network ping, loss, jitter, download and upload, link speed and errors
+- Network ping, loss, jitter, download and upload, link speed and errors, and a full network view
 - Programs ranked by RAM, VRAM and CPU
 - Temperatures and fans, disks with free space, wait time and busy share
 - System health: kernel errors, crashed programs, pending reboot, pending updates (pacman or dnf)
@@ -27,15 +27,41 @@ automatic, fixed, or follow a custom curve.
 
 Fan control needs one step with the administrator password and is **off until you enable it**.
 
+## Network view
+
+The Network card says in one line whether the connection is good and, when it is not, where the
+trouble is. Its **details** button (or Network in the top bar, on wide windows) opens a full screen
+view:
+
+- **Where the trouble is**: the router is pinged next to the internet target, so the view can tell
+  "between this PC and the router" (cable, Wi-Fi, the router itself) from "past the router" (the
+  provider), and says when the PC itself dropped UDP packets because a program did not read them
+  in time.
+- **Ping chart** for the internet and the router over the last 10 minutes, lost pings marked, and a
+  traffic chart (download and upload).
+- **Connection quality**: now, median, worst 5 %, jitter and loss for the internet and the router.
+- **Programs on the network**: download and upload per program (TCP), with TCP and UDP socket counts.
+  UDP traffic (most online games, voice calls, browser QUIC) has no per-program counter without
+  root, so only the number of UDP sockets shows.
+- **Connection**: interface, link speed and duplex, MTU, Wi-Fi signal, network card errors, TCP
+  resent segments, UDP dropped by the PC, connections, totals since boot.
+
+The per-program list costs something only while this view is open: it reads the socket table every
+5 s (10 s while gaming) and stops when the view closes. The router is pinged with the same tiny
+packet and at the same pace as the internet target. The card itself stays small (ping, loss, jitter,
+rates and the one line verdict), so a small window next to a game shows only what matters.
+
 ## Alerts
 
 When something crosses a threshold you see it: the tray icon turns **yellow** (warning), **orange**
 (serious) or **red** (critical) and lists the problems in its tooltip, the page shows a banner, and
-optionally a desktop notification appears and the page plays a sound. Nothing blinks.
+optionally a desktop notification appears and the page plays a sound. Nothing blinks. Desktop
+notifications are **off by default** (the tray icon and the page already show everything); turn them
+on in Settings, Alerts.
 
 Watched: low free RAM, VRAM use, processor use (30 s average), one program using the processor,
 processor, graphics card, SSD, memory and motherboard temperatures, disk space, ping, packet loss,
-kernel errors and crashed programs.
+ping jitter, kernel errors and crashed programs.
 
 Every threshold is configurable in Settings, Alerts, with three levels each, and every one has a
 **Recommended** option that follows your hardware:
@@ -65,13 +91,22 @@ spare area, data written, power on hours, unsafe shutdowns and media errors; SAT
 spare area, bad sectors and uncorrectable errors. Alerts: life used (recommended 80/90/97 %), a
 health problem reported by the drive, and any new read/write error.
 
+For NVMe drives the panel also gives a **life forecast**: data written divided by the life used gives
+the terabytes per 1 % of wear, so it says how many terabytes are left to 100 % of the rated wear and,
+once it has seen at least a day of writes (one point every 6 hours, up to 30 days), how many years
+that is at your pace. The forecast is marked rough while the life used is under 5 %, because drives
+report it as a whole number.
+
 ## Black box, 24 h history and game sessions
 
 - **Black box**: a summary of every sample (every 5 s with the page open, 10 s with it closed) goes
   to a file of fixed size (180 KiB, 30 to 60 minutes) that is written in place and synced, so it
   survives a freeze or a power cut. A clean stop leaves a marker; when the next boot finds records
   without it, the PC stopped unexpectedly, the last minutes are kept (up to 10 incidents) and an
-  alert says when it stopped. See History, Black box.
+  alert says when it stopped. See History, Black box. Each incident comes with a short report of
+  what changed in the final 2 minutes against the minutes before them (temperatures that rose, a
+  processor clock that fell, free RAM that ran out, swap, disk waits, lost pings), or says nothing
+  was out of the ordinary.
 - **24 h history**: one row per minute (averages and peaks), saved every 15 minutes, shown as a chart
   per metric with the minutes a game was running marked.
 - **Game sessions**: when a game closes (after at least 2 minutes) its duration, average use, peak

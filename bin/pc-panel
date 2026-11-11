@@ -35,7 +35,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 
-VERSAO = "0.4.1"
+VERSAO = "0.4.2"
 REPO = "gabrielmf1998/pc-panel"         # owner/repository on GitHub, used only to look for a new version
 PASTA_CFG = os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"), "pc-panel")
 
@@ -80,7 +80,7 @@ METRICAS = {
     "ram": ("baixo", 0, 1048576), "vram": ("alto", 1, 100), "cpu_uso": ("alto", 1, 100), "prog_cpu": ("alto", 1, 100),
     "temp_cpu": ("alto", 20, 130), "temp_gpu": ("alto", 20, 130), "temp_ssd": ("alto", 20, 130),
     "temp_mem": ("alto", 20, 130), "temp_placa": ("alto", 20, 130), "disco": ("alto", 1, 100),
-    "ping": ("alto", 1, 10000), "perda": ("alto", 0.1, 100), "bateria": ("baixo", 1, 99), "ssd_desgaste": ("alto", 1, 100),
+    "ping": ("alto", 1, 10000), "perda": ("alto", 0.1, 100), "jitter": ("alto", 1, 1000), "bateria": ("baixo", 1, 99), "ssd_desgaste": ("alto", 1, 100),
     "kernel": ("evento", 0, 0), "travou": ("evento", 0, 0), "parou": ("evento", 0, 0), "ssd_saude": ("evento", 0, 0),
 }
 NIVEL_EVENTO = {"parou": "serio", "ssd_saude": "critico"}     # default level of the one-off alerts, the rest start at "aviso"
@@ -186,7 +186,7 @@ def recomendados():
     total = ler_int_meminfo("MemTotal") // 1024
     r = {"ram": [max(256, round(total * f / 64) * 64) for f in (0.10, 0.04, 0.015)],
          "vram": [85, 93, 97], "cpu_uso": [90, 97, None], "prog_cpu": [80, 95, None],
-         "disco": [85, 93, 97], "ping": [60, 100, 180], "perda": [2, 6, 20], "temp_placa": [55, 65, 75],
+         "disco": [85, 93, 97], "ping": [60, 100, 180], "perda": [2, 6, 20], "jitter": [20, 40, 80], "temp_placa": [55, 65, 75],
          "bateria": [15, 8, 3], "ssd_desgaste": [80, 90, 97]}
     fonte = {"temp_cpu": "", "temp_gpu": "", "temp_mem": ""}
     mx, crit = limite_do_sensor(fontes["cpu"])
@@ -289,15 +289,17 @@ def cochilar(seg):
     with sino:
         sino.wait(seg)
 hist = collections.deque(maxlen=700)        # 11 minutes even when sampling every 1 s
+rede_pedida = [0.0]                         # last time the page asked for the Network view
 seq = 0
 estado = {"t": 0}
 visto = [0.0]                       # when the last page request arrived
 fontes = {"cpu": None, "placa": None, "chip": None, "mem": [], "fans": [], "nvme": {}}
-rota = {"iface": None, "gw": None, "ip": None, "link": None, "erros": None, "descartes": None}
+rota = {"iface": None, "gw": None, "ip": None, "link": None, "erros": None, "descartes": None, "mtu": None,
+        "duplex": None, "wifi": False}
 discos = []
 pings = {"gw": (0.0, None), "net": (0.0, None)}
 ult_vram = {}                       # pid -> MiB, from the last card reading
-extra = {"progs": None, "jogos": [], "live": {"obs": False}, "pz": None, "obs": False,
+extra = {"progs": None, "jogos": [], "live": {"obs": False}, "pz": None, "obs": False, "nomes_pid": {}, "rede_progs": None,
          "sis": {"kernel": os.uname().release, "falhas": [], "bateria": None},
          "saude": {"kerr": None, "kult": "", "trav": None, "tult": "", "reinicio": False, "atualizado": None}}
 fans = {"pode": False, "aplicado": None, "calibrando": None, "velho": False}
@@ -347,7 +349,7 @@ def passo_pagina():
 def cfg_padrao():
     return {"idioma": "pt" if os.environ.get("LANG", "").startswith("pt") else "en", "tema": "escuro", "cor": "azul", "fonte": 1, "passo": 2, "perfil": "tudo",
             "cartoes": {c: True for c in CARTOES}, "encaixe": True, "ping_alvo": "1.1.1.1",
-            "avisar": {"desktop": True, "som": False, "nivel": "serio"},
+            "avisar": {"desktop": False, "som": False, "nivel": "serio"},
             # keep measuring with the page closed so the tray icon and notifications can warn
             "alertas": {"fundo": True, "cada": 10},
             "limites": {m: ({"on": True, "nv": NIVEL_EVENTO.get(m, "aviso")} if d[0] == "evento" else {"on": True, "rec": True, "v": None})
@@ -753,6 +755,7 @@ ARQ_CAIXA_OK = PASTA_ESTADO + "/caixa-preta.ok"
 ARQ_INCIDENTES = PASTA_ESTADO + "/incidentes.json"
 ARQ_H24 = PASTA_ESTADO + "/historico-24h.json"
 ARQ_SSD = PASTA_ESTADO + "/ssd.json"
+ARQ_SSD_RITMO = PASTA_ESTADO + "/ssd-ritmo.json"
 ARQ_SESSOES = PASTA_DADOS + "/sessoes.jsonl"
 ARQ_DICA = os.path.join(os.path.dirname(ARQ_ALERTA), "tip")
 BOOT_ID = (ler("/proc/sys/kernel/random/boot_id") or "?").strip().replace("-", "")[:12]
@@ -766,6 +769,9 @@ def resumo_amostra(a):
             "gpu": g.get("uso"), "tg": g.get("temp"), "w": g.get("watts"),
             "vr": g.get("vram"), "vt": g.get("vram_total"), "ram": r["left"] // 1024, "sw": r["swap"] // 1024,
             "swr": r["swap_mibs"], "pm": r["psi"], "pio": a["psi_io"], "ping": a["rede"]["ping"],
+            "pl": a["rede"]["perda"], "jt": a["rede"]["osc"],
+            "rx": None if a["rede"]["rx"] is None else round(a["rede"]["rx"] * 8 / 1e6, 2),
+            "tx": None if a["rede"]["tx"] is None else round(a["rede"]["tx"] * 8 / 1e6, 2),
             "j": (a["jogos"][0]["nome"][:32] if a["jogos"] else None),
             "top": [top["nome"][:24], round(top["pct"] / NCPU)] if top else None,
             "fan": max([x["rpm"] for x in a["fans"]["canais"]] or [None], key=lambda x: x or 0),
@@ -925,7 +931,7 @@ def caixa_ok():
 class Historico24:
     # one line per minute for the last 24 hours (averages and peaks), saved every 15 minutes
     COLS = ["t", "cpu", "cpu_max", "tc_max", "gpu", "gpu_max", "tg_max", "w_max", "vram_max", "ram_min",
-            "swap_max", "ping", "ping_max", "jogo", "nv"]
+            "swap_max", "ping", "ping_max", "jogo", "nv", "perda_max", "jit", "rx", "tx"]
 
     def __init__(self):
         self.linhas = collections.deque(maxlen=1440)
@@ -937,9 +943,13 @@ class Historico24:
     def carregar(self):
         try:
             d = json.loads(ler(ARQ_H24) or "null")
-            if isinstance(d, dict) and d.get("cols") == self.COLS:
+            if isinstance(d, dict) and isinstance(d.get("cols"), list) and "t" in d["cols"]:
+                # columns are matched by name, so a file from an older version still loads
+                pos = [d["cols"].index(k) if k in d["cols"] else None for k in self.COLS]
                 limite_t = time.time() - 86400
-                self.linhas.extend(x for x in d["linhas"] if isinstance(x, list) and x and x[0] >= limite_t)
+                for x in d["linhas"]:
+                    if isinstance(x, list) and len(x) == len(d["cols"]) and x[0] >= limite_t:
+                        self.linhas.append([None if i is None else x[i] for i in pos])
         except (ValueError, TypeError):
             pass
 
@@ -950,7 +960,7 @@ class Historico24:
             if self.minuto != m:
                 self.fechar()
                 self.minuto, self.acc = m, collections.defaultdict(list)
-            for k in ("cpu", "tc", "gpu", "tg", "w", "vr", "ram", "sw", "ping", "nv"):
+            for k in ("cpu", "tc", "gpu", "tg", "w", "vr", "ram", "sw", "ping", "nv", "pl", "jt", "rx", "tx"):
                 if r[k] is not None and r[k] >= 0:
                     self.acc[k].append(r[k])
             if r["j"]:
@@ -964,7 +974,7 @@ class Historico24:
         mx = lambda k: max(x[k]) if x[k] else None
         self.linhas.append([self.minuto, media("cpu"), mx("cpu"), mx("tc"), media("gpu"), mx("gpu"), mx("tg"), mx("w"),
                             mx("vr"), min(x["ram"]) if x["ram"] else None, mx("sw"), media("ping"), mx("ping"),
-                            (x["j"] or [None])[0], mx("nv") or 0])
+                            (x["j"] or [None])[0], mx("nv") or 0, mx("pl"), media("jt"), media("rx"), media("tx")])
         self.acc = None
         self.mudou = True
 
@@ -998,7 +1008,8 @@ class Sessoes:
         if s is None:
             s = self.atual = {"nome": j["nome"], "ini": round(j["desde"]), "fim": round(a["t"]), "n": 0, "cpu": 0.0, "gpu": 0.0,
                               "tc_max": None, "tg_max": None, "w_max": None, "vram_max": None, "vram_jogo": 0,
-                              "ram_min": None, "ram_jogo": 0, "swap_max": 0, "ping_max": None}
+                              "ram_min": None, "ram_jogo": 0, "swap_max": 0, "ping_max": None,
+                              "ping_s": 0.0, "ping_n": 0, "perda_max": None, "jit_s": 0.0, "jit_n": 0}
         g, c, r = a["gpu"], a["cpu"], a["ram"]
         mx = lambda k, v: s.update({k: v if s[k] is None or (v is not None and v > s[k]) else s[k]})
         s["fim"] = round(a["t"])
@@ -1010,6 +1021,15 @@ class Sessoes:
         mx("w_max", g.get("watts"))
         mx("vram_max", g.get("vram"))
         mx("ping_max", a["rede"]["ping"] if (a["rede"]["ping"] or 0) >= 0 else None)
+        rd = a["rede"]
+        if rd["ping"] is not None and rd["ping"] >= 0:
+            s["ping_s"] += rd["ping"]
+            s["ping_n"] += 1
+        if rd["n"] >= 10:
+            mx("perda_max", rd["perda"])
+        if rd["osc"] is not None:
+            s["jit_s"] += rd["osc"]
+            s["jit_n"] += 1
         left = r["left"] // 1024
         s["ram_min"] = left if s["ram_min"] is None else min(s["ram_min"], left)
         s["ram_jogo"] = max(s["ram_jogo"], j["kb"])
@@ -1019,7 +1039,9 @@ class Sessoes:
     def resumo(self, s):
         if not s:
             return None
-        x = {k: v for k, v in s.items() if k not in ("cpu", "gpu", "n")}
+        x = {k: v for k, v in s.items() if k not in ("cpu", "gpu", "n", "ping_s", "ping_n", "jit_s", "jit_n")}
+        x["ping"] = round(s["ping_s"] / s["ping_n"], 1) if s["ping_n"] else None
+        x["jit"] = round(s["jit_s"] / s["jit_n"], 1) if s["jit_n"] else None
         x["cpu"] = round(s["cpu"] / s["n"]) if s["n"] else None
         x["gpu"] = round(s["gpu"] / s["n"]) if s["n"] else None
         x["alertas"] = sum(1 for e in list(eventos) if e.get("jogo") == s["nome"] and e["t"] >= s["ini"])
@@ -1115,6 +1137,33 @@ def duracao(seg):
 
 ssd = {}                            # block device name -> health
 ssd_base = {}                       # drive -> error count already seen, so only new errors alert
+ssd_ritmo = {}                      # drive -> [[time, bytes written, % used, power-on hours]], one every 6 h
+
+
+def previsao_ssd(chave, h):
+    # Life forecast of an NVMe SSD. The drive reports "% used" of its rated endurance and the
+    # bytes written, so bytes per 1 % comes from the drive itself; the pace is what it wrote
+    # over the last days (at least one). An estimate: % used is a whole number, so with a
+    # few % only the forecast is rough, and 100 % is the rating, not the end of the drive.
+    if h["escrito"] is None or h["gasto"] is None:
+        return None, False
+    agora, novo = time.time(), False
+    pts = ssd_ritmo.setdefault(chave, [])
+    if not pts or agora - pts[-1][0] >= 6 * 3600:
+        pts.append([round(agora), h["escrito"], h["gasto"], h["horas"]])
+        del pts[:-240]
+        novo = True
+    p = {"tb_pct": None, "restam_tb": None, "tb_dia": None, "dias": None, "anos": None, "aprox": h["gasto"] < 5}
+    if h["gasto"] >= 1:
+        por = h["escrito"] / h["gasto"]
+        p.update(tb_pct=round(por / 1e12, 2), restam_tb=round(max(0, 100 - h["gasto"]) * por / 1e12, 1))
+    base = next((x for x in pts if agora - x[0] <= 30 * 86400), None)
+    if base and agora - base[0] >= 86400 and h["escrito"] >= base[1]:
+        dias = (agora - base[0]) / 86400
+        p.update(tb_dia=round((h["escrito"] - base[1]) / 1e12 / dias, 4), dias=round(dias, 1))
+        if p["restam_tb"] is not None and p["tb_dia"] > 0:
+            p["anos"] = round(p["restam_tb"] / p["tb_dia"] / 365, 1)
+    return p, novo
 
 
 def busctl_json(*args):
@@ -1142,11 +1191,17 @@ def saude_ssd():
             ssd_base.update(json.loads(ler(ARQ_SSD) or "{}"))
         except ValueError:
             pass
-    novo, mudou = {}, False
+    if not ssd_ritmo:
+        try:
+            x = json.loads(ler(ARQ_SSD_RITMO) or "{}")
+            ssd_ritmo.update({k: v for k, v in x.items() if isinstance(v, list)} if isinstance(x, dict) else {})
+        except ValueError:
+            pass
+    novo, mudou, ritmo_mudou = {}, False, False
     for drive, dev in blocos.items():
         ifs = objs.get(drive, {})
         h = {"saude": None, "gasto": None, "reserva": None, "reserva_min": None, "escrito": None, "horas": None,
-             "inseguros": None, "erros": 0, "problema": None}
+             "inseguros": None, "erros": 0, "problema": None, "previsao": None}
         if U + "NVMe.Controller" in ifs:
             at = busctl_json(drive, U + "NVMe.Controller", "SmartGetAttributes", "a{sv}", "0")
             at = {k: v.get("data") for k, v in at[0].items()} if at else {}
@@ -1156,6 +1211,8 @@ def saude_ssd():
             h.update(reserva=at.get("avail_spare"), reserva_min=at.get("spare_thresh"), escrito=at.get("total_data_written"),
                      inseguros=at.get("unsafe_shutdowns"), erros=at.get("media_errors") or 0,
                      horas=val(ifs, "NVMe.Controller", "SmartPowerOnHours"))
+            h["previsao"], n = previsao_ssd(os.path.basename(drive), h)
+            ritmo_mudou = ritmo_mudou or n
             avisos = val(ifs, "NVMe.Controller", "SmartCriticalWarning") or []
             if avisos:
                 h["problema"] = ("o SSD avisa: " + ", ".join(avisos), "the SSD reports: " + ", ".join(avisos))
@@ -1190,11 +1247,13 @@ def saude_ssd():
         novo[dev] = h
     ssd.clear()
     ssd.update(novo)
-    if mudou:
-        try:
+    try:
+        if mudou:
             gravar_json(ARQ_SSD, ssd_base)
-        except OSError as e:
-            avisar("ssd", e)
+        if ritmo_mudou:
+            gravar_json(ARQ_SSD_RITMO, ssd_ritmo)
+    except OSError as e:
+        avisar("ssd", e)
 
 
 # ---------------------------------------------------------------- fans (the part without root)
@@ -1603,7 +1662,7 @@ def achar_rota():
             if melhor is None or int(p[6]) < melhor[0]:
                 melhor = (int(p[6]), p[0], socket.inet_ntoa(struct.pack("<L", int(p[2], 16))))
     if not melhor:
-        rota.update(iface=None, gw=None, ip=None, link=None, erros=None, descartes=None)
+        rota.update(iface=None, gw=None, ip=None, link=None, erros=None, descartes=None, mtu=None, duplex=None, wifi=False)
         return
     ip = None
     try:
@@ -1620,7 +1679,9 @@ def achar_rota():
 
     link = ler_int(base + "speed")
     rota.update(iface=melhor[1], gw=melhor[2], ip=ip, link=link if link and link > 0 else None,
-                erros=soma("rx_errors", "tx_errors"), descartes=soma("rx_dropped", "tx_dropped"))
+                erros=soma("rx_errors", "tx_errors"), descartes=soma("rx_dropped", "tx_dropped"),
+                mtu=ler_int(base + "mtu"), duplex=(ler(base + "duplex") or "").strip() or None,
+                wifi=os.path.isdir(base + "wireless"))
 
 
 def achar_discos():
@@ -2056,7 +2117,7 @@ def varredura():
                 soltos.append(pid)
         nomes[pid] = nome
 
-    jogos, dentro_de_jogo = [], set()
+    jogos, dentro_de_jogo, de_jogo = [], set(), {}
     for pid, appid, raiz in raizes:
         membros = [x for x in arvore(pid) if x in procs]
         dentro_de_jogo.update(membros)
@@ -2066,6 +2127,7 @@ def varredura():
         maior = max(membros, key=lambda x: procs[x]["kb"])
         jogos.append({"nome": nome_app(appid, raiz) or nomes[maior], "desde": BOOT + procs[pid]["inicio"] / HZ,
                       "kb": kb, "vram": sum(vram.get(x, 0) for x in membros)})
+        de_jogo.update({x: jogos[-1]["nome"] for x in membros})
     for pid in soltos:
         if pid not in dentro_de_jogo:
             jogos.append({"nome": nomes[pid], "desde": BOOT + procs[pid]["inicio"] / HZ,
@@ -2092,7 +2154,126 @@ def varredura():
         progs={"ram": [{"nome": n, "kb": kb, "n": quantos[n], "swap": swap[n]} for n, kb in ram.most_common(16)],
                "vram": [{"nome": n, "mib": m} for n, m in placa.most_common(16)],
                "cpu": [{"nome": n, "pct": round(v, 1)} for n, v in uso.most_common(16) if v >= 0.5]},
-        jogos=jogos, pz=pz, obs=obs)
+        jogos=jogos, pz=pz, obs=obs, nomes_pid={**nomes, **de_jogo})
+
+
+def sockets_inet(proto):
+    # every TCP or UDP socket of the machine through sock_diag (what "ss" reads, no root):
+    # {inode: (remote end is this PC, bytes received, bytes sent and acked, state)}.
+    # UDP sockets have no byte counters, so they are only counted.
+    saida = {}
+    s = socket.socket(socket.AF_NETLINK, socket.SOCK_RAW, 4)            # NETLINK_SOCK_DIAG
+    try:
+        s.settimeout(2)
+        for fam in (socket.AF_INET, socket.AF_INET6):
+            # inet_diag_req_v2: family, protocol, extensions (TCP: tcp_info), every state, any address
+            req = struct.pack("=BBBBI", fam, proto, 2 if proto == socket.IPPROTO_TCP else 0, 0, 0xFFFFFFFF) + bytes(48)
+            s.send(struct.pack("=IHHII", 16 + len(req), 20, 0x301, 1, 0) + req)   # SOCK_DIAG_BY_FAMILY, dump
+            fim = False
+            while not fim:
+                buf = s.recv(65536)
+                i = 0
+                while i + 16 <= len(buf):
+                    tam, tipo = struct.unpack_from("=IH", buf, i)
+                    if tipo in (2, 3) or tam < 16:          # error or end of the dump
+                        fim = True
+                        break
+                    m = i + 16                              # inet_diag_msg
+                    estado, dst = buf[m + 1], buf[m + 24:m + 40]
+                    inode = struct.unpack_from("=I", buf, m + 68)[0]
+                    if buf[m] == socket.AF_INET:
+                        local = dst[0] == 127
+                    else:
+                        local = dst == bytes(15) + b"\1" or (dst[:12] == bytes(10) + b"\xff\xff" and dst[12] == 127)
+                    rx = tx = 0
+                    a = m + 72
+                    while a + 4 <= i + tam:
+                        alen, atipo = struct.unpack_from("=HH", buf, a)
+                        if alen < 4:
+                            break
+                        if atipo == 2 and alen - 4 >= 136:  # INET_DIAG_INFO: tcpi_bytes_acked, tcpi_bytes_received
+                            tx, rx = struct.unpack_from("=QQ", buf, a + 4 + 120)
+                        a += (alen + 3) & ~3
+                    if inode:
+                        saida[inode] = (local, rx, tx, estado)
+                    i += (tam + 3) & ~3
+    finally:
+        s.close()
+    return saida
+
+
+class RedeProgs:
+    # network use per program, measured only while the Network view is open: TCP bytes of
+    # every socket summed per program (the sockets of a game count as the game), UDP and
+    # TCP connections counted. Sockets are matched to programs through /proc/PID/fd, read
+    # again only when an unknown socket shows up (at most every 10 s).
+    def __init__(self):
+        self.parar()
+
+    def parar(self):
+        self.ant, self.t, self.dono, self.varrido = {}, None, {}, 0.0
+
+    def donos(self):
+        m = {}
+        for p in os.listdir("/proc"):
+            if not p.isdigit():
+                continue
+            try:
+                fds = os.listdir("/proc/%s/fd" % p)
+            except OSError:
+                continue
+            for fd in fds:
+                try:
+                    alvo = os.readlink("/proc/%s/fd/%s" % (p, fd))
+                except OSError:
+                    continue
+                if alvo.startswith("socket:["):
+                    m[int(alvo[8:-1])] = int(p)
+        self.dono, self.varrido = m, time.monotonic()
+
+    def nome(self, pid):
+        if pid is None:
+            return ""                   # a socket of another user or of the system
+        n = extra["nomes_pid"].get(pid)
+        if n:
+            return n
+        comm = (ler("/proc/%d/comm" % pid) or "").strip()
+        return APELIDOS.get(comm) or comm or "pid %d" % pid
+
+    def medir(self):
+        agora = time.monotonic()
+        tcp, udp = sockets_inet(socket.IPPROTO_TCP), sockets_inet(socket.IPPROTO_UDP)
+        faltam = any(i not in self.dono for i, x in tcp.items() if not x[0]) or any(i not in self.dono for i, x in udp.items() if not x[0])
+        if (faltam and agora - self.varrido > 10) or agora - self.varrido > 60:
+            self.donos()
+        dt = agora - self.t if self.t else 0.0
+        por, novo, conex = {}, {}, 0
+        for i, (local, rx, tx, est) in tcp.items():
+            if local:
+                continue                # this PC talking to itself (the panel page among them)
+            novo[i] = (rx, tx)
+            x = por.setdefault(self.nome(self.dono.get(i)), [0.0, 0.0, 0, 0])
+            if est == 1:
+                x[2] += 1
+                conex += 1
+            if dt > 0:
+                # a socket that was not there last time opened since then: all its bytes are new
+                a = self.ant.get(i, (0, 0))
+                x[0] += max(0, rx - a[0]) / dt
+                x[1] += max(0, tx - a[1]) / dt
+        nudp = 0
+        for i, x in udp.items():
+            if not x[0]:
+                por.setdefault(self.nome(self.dono.get(i)), [0.0, 0.0, 0, 0])[3] += 1
+                nudp += 1
+        self.ant, self.t = novo, agora
+        lista = sorted(por.items(), key=lambda kv: (-(kv[1][0] + kv[1][1]), -(kv[1][2] + kv[1][3])))
+        extra["rede_progs"] = {"pronto": dt > 0, "tcp": conex, "udp": nudp,
+                               "lista": [{"nome": n, "rx": round(v[0]), "tx": round(v[1]), "tcp": v[2], "udp": v[3]}
+                                         for n, v in lista if v[0] or v[1] or v[2] or v[3]][:14]}
+
+
+rede_progs = RedeProgs()
 
 
 def info_live():
@@ -2115,6 +2296,8 @@ class Medidor:
         self.amd = None
         self.ant = None
         self.pings = collections.deque(maxlen=60)
+        self.pings_gw = collections.deque(maxlen=60)
+        self.ult_gw = 0.0
         self.usos = collections.deque(maxlen=64)     # (time, processor use) for the 30 s average
         self.ult_ping = 0.0
         self.custo = collections.deque(maxlen=45)
@@ -2135,6 +2318,22 @@ class Medidor:
                 if nome.strip() == rota["iface"]:
                     p = resto.split()
                     c["rede"] = (rota["iface"], int(p[0]), int(p[8]))
+        # TCP segments sent and resent, UDP datagrams the PC itself dropped (IPv4 + IPv6)
+        sn = {}
+        for arq in ("/proc/net/snmp", "/proc/net/snmp6"):
+            linhas = (ler(arq) or "").splitlines()
+            if arq.endswith("6"):
+                for linha in linhas:
+                    k, _, v = linha.partition(" ")
+                    if k in ("Udp6InErrors", "Udp6RcvbufErrors", "Udp6InDatagrams"):
+                        sn[k[4:]] = sn.get(k[4:], 0) + int(v.strip() or 0)
+                continue
+            for cab, val in zip(linhas[::2], linhas[1::2]):
+                if cab.startswith(("Tcp:", "Udp:")):
+                    for k, v in zip(cab.split()[1:], val.split()[1:]):
+                        if k in ("OutSegs", "RetransSegs", "InErrors", "RcvbufErrors", "InDatagrams"):
+                            sn[k] = sn.get(k, 0) + int(v)
+        c["snmp"] = sn
         nomes = {d["dev"] for d in discos}
         for linha in (ler("/proc/diskstats") or "").splitlines():
             p = linha.split()
@@ -2249,21 +2448,60 @@ class Medidor:
         quando, gw = pings["gw"]
         if t - quando > 25:
             gw = None
-        bons = [x for x in self.pings if x >= 0]
-        perda = 100.0 * (len(self.pings) - len(bons)) / len(self.pings) if self.pings else 0.0
-        rec = sorted(bons[-8:])
-        med = rec[len(rec) // 2] if rec else None
-        osc = sum(abs(bons[i] - bons[i - 1]) for i in range(1, len(bons))) / (len(bons) - 1) if len(bons) > 2 else None
+        elif quando != self.ult_gw and gw is not None:
+            self.ult_gw = quando
+            self.pings_gw.append(gw)
+
+        def qualidade(fila):
+            # loss %, median of the last 8 answers, jitter (mean change between answers)
+            bons = [x for x in fila if x >= 0]
+            perda = 100.0 * (len(fila) - len(bons)) / len(fila) if fila else 0.0
+            rec = sorted(bons[-8:])
+            med = rec[len(rec) // 2] if rec else None
+            osc = sum(abs(bons[i] - bons[i - 1]) for i in range(1, len(bons))) / (len(bons) - 1) if len(bons) > 2 else None
+            return perda, med, osc
+
+        perda, med, osc = qualidade(self.pings)
+        perda_gw, med_gw, osc_gw = qualidade(self.pings_gw)
+        sa, sc = (a or {}).get("snmp") or {}, c.get("snmp") or {}
+        dif = lambda k: max(0, sc.get(k, 0) - sa.get(k, 0)) if sa else None
+        seg, reenv = dif("OutSegs"), dif("RetransSegs")
+        retx = round(100.0 * reenv / seg, 2) if seg else (0.0 if seg == 0 else None)
+        udp_perd = dif("InErrors")
+        cheia = len(self.pings) >= 10
+        # where the trouble is: between the PC and the router, beyond it, or in the PC itself
+        diag = "ok"
+        if not rota["iface"]:
+            diag = "sem"
+        elif len(self.pings_gw) >= 10 and (perda_gw >= 2 or (med_gw or 0) > (30 if rota["wifi"] else 15)):
+            diag = "roteador"
+        elif cheia and (perda >= 2 or nivel(med, limite("ping")) != "bom" or nivel(osc, limite("jitter")) != "bom"):
+            diag = "internet"
+        elif udp_perd:
+            diag = "pc"
+        wifi = None
+        if rota["wifi"]:
+            for linha in (ler("/proc/net/wireless") or "").splitlines()[2:]:
+                p = linha.split()
+                if p and p[0].rstrip(":") == rota["iface"] and len(p) > 3:
+                    wifi = float(p[3].rstrip("."))
         rede = {"iface": rota["iface"], "ip": rota["ip"], "rx": rx, "tx": tx, "ping": ping, "gw": gw,
                 "alvo": cfg["ping_alvo"], "perda": round(perda, 1), "osc": None if osc is None else round(osc, 1),
-                "link": rota["link"], "erros": rota["erros"], "descartes": rota["descartes"]}
+                "med": med, "gw_med": med_gw, "gw_perda": round(perda_gw, 1),
+                "gw_osc": None if osc_gw is None else round(osc_gw, 1), "n": len(self.pings), "gw_n": len(self.pings_gw),
+                "retx": retx, "udp_perd": udp_perd, "udp_buf": sc.get("RcvbufErrors"), "udp_err": sc.get("InErrors"),
+                "rx_tot": c["rede"][1] if c["rede"] else None, "tx_tot": c["rede"][2] if c["rede"] else None,
+                "link": rota["link"], "erros": rota["erros"], "descartes": rota["descartes"], "mtu": rota["mtu"],
+                "duplex": rota["duplex"], "wifi": wifi, "diag": diag}
         if not rota["iface"]:
             nv["rede"] = av("rede", "rede", "critico", "Sem rede", "No network")
         else:
             n1 = av("ping", "rede", nivel(med, limite("ping")), "Ping em %d ms" % (med or 0), "Ping at %d ms" % (med or 0))
-            n2 = av("perda", "rede", nivel(perda if len(self.pings) >= 10 else None, limite("perda")),
+            n2 = av("perda", "rede", nivel(perda if cheia else None, limite("perda")),
                     "Perda de pacotes em %d %%" % round(perda), "Packet loss at %d %%" % round(perda))
-            nv["rede"] = max(n1, n2, key=NIVEIS.index)
+            n3 = av("jitter", "rede", nivel(osc if cheia else None, limite("jitter")),
+                    "Oscilação do ping em %d ms" % round(osc or 0), "Ping jitter at %d ms" % round(osc or 0))
+            nv["rede"] = max(n1, n2, n3, key=NIVEIS.index)
 
         # temperatures, fans and disks
         temps = [{"id": "cpu", "nome": "", "c": tcpu}, {"id": "gpu", "nome": "", "c": gpu.get("temp")}]
@@ -2369,12 +2607,13 @@ class Medidor:
                                upd={k: upd[k] for k in ("quando", "flatpak", "erro", "rodando")}),
                  "nv": nv, "avisos": avisos, "silencio": mudos,
                  "jogando": jogando(), "sessao": sessoes.resumo(sessoes.atual),
+                 "rede_progs": extra["rede_progs"] if time.monotonic() - rede_pedida[0] < 15 else None,
                  "ev": ev_seq[0], "cfg": cfg_seq[0], "registro": cfg["registro"]["ligado"],
                  "espaco": lento[0] or float(cfg["passo"])}
         linha = [round(t, 1), round(ram["usada"] / 1048576, 2),
                  round(gpu["vram"] / 1024, 2) if gpu["ok"] else None, gpu.get("uso"), cpu["uso"],
                  ping, round(rx * 8 / 1e6, 3) if rx is not None else None,
-                 round(tx * 8 / 1e6, 3) if tx is not None else None, tcpu, gpu.get("temp")]
+                 round(tx * 8 / 1e6, 3) if tx is not None else None, tcpu, gpu.get("temp"), gw]
         registro.medida(agora)
         return linha, agora
 
@@ -2457,6 +2696,14 @@ def laco_lento():
                 ler_fans()
             if vence("procs", (10 if leve else 4) if aberta else 30):
                 varredura()
+            if time.monotonic() - rede_pedida[0] < 15:
+                if vence("rede_progs", 10 if leve else 5):
+                    rede_progs.medir()
+            else:
+                venc.pop("rede_progs", None)    # a past due time would wake this loop every 0.5 s
+                if rede_progs.t is not None:
+                    rede_progs.parar()
+                    extra["rede_progs"] = None
             if vence("ssd", 1800):
                 saude_ssd()
             if vence("h24", 900):
@@ -2570,6 +2817,10 @@ class Pedido(BaseHTTPRequestHandler):
                 desde = 0
             abriu = not assistindo()
             visto[0] = time.time()
+            if qs.get("rede") == ["1"]:
+                if time.monotonic() - rede_pedida[0] > 15:
+                    despertar()     # the slow loop may be asleep for up to 30 s
+                rede_pedida[0] = time.monotonic()
             if abriu:
                 despertar()         # the page just opened: every loop switches to the fast pace
             else:

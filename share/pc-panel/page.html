@@ -148,6 +148,30 @@ h3{margin:0;font-size:.86rem;font-weight:500;color:var(--apagado);white-space:no
 .botoes button[aria-pressed="true"]{background:var(--sup2);color:var(--tinta);border-color:var(--s1)}
 td button{padding:1px 8px;font-size:.86rem}
 #cx-resumo{max-width:940px;margin-bottom:10px;color:var(--tinta2)}
+#cx-rel{max-width:940px;margin:0 0 10px;padding-left:20px;color:var(--tinta)}
+#cx-rel li{margin:2px 0}
+#cx-rel li:first-child{list-style:none;margin-left:-20px;color:var(--tinta2)}
+.rd-aviso{font-size:.86rem;color:var(--tinta2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:none}
+.hd-dir{display:inline-flex;align-items:center;gap:12px}
+dialog.tela{width:min(1560px,96vw);height:min(960px,94vh);max-height:94vh;flex-direction:column}
+dialog.tela[open]{display:flex}
+.rd-diag{display:flex;gap:8px;align-items:baseline;margin:-4px 0 12px;color:var(--tinta)}
+.rd-tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px;flex:none}
+.rd-tile{background:var(--sup2);border:1px solid var(--borda);border-radius:10px;padding:8px 12px;min-width:0}
+.rd-tile .k{font-size:.86rem;color:var(--tinta2);white-space:nowrap}
+.rd-tile .v{font-size:1.55rem;font-weight:600;font-variant-numeric:tabular-nums;white-space:nowrap}
+.rd-tile small{display:block;color:var(--apagado);font-size:.82rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rd-tile.aviso{border-color:var(--aviso)}.rd-tile.serio{border-color:var(--serio)}.rd-tile.critico{border-color:var(--critico)}
+.rd-grade{flex:1 1 auto;min-height:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-template-rows:minmax(180px,1fr) auto;gap:12px}
+.rd-b{border:1px solid var(--borda);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;min-width:0;min-height:0;overflow:auto}
+.rd-b .graf{min-height:150px}
+.rd-gp{grid-column:span 2}
+.rd-b table{width:100%}
+.rd-b th,.rd-b td{padding:3px 8px}
+.rd-dl{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 14px;margin:0;font-size:.93rem}
+.rd-dl dt{color:var(--tinta2);white-space:nowrap}
+.rd-dl dd{margin:0;text-align:right;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:1000px),(max-height:700px){dialog.tela{height:auto}.rd-grade{flex:none;grid-template-columns:minmax(0,1fr);grid-template-rows:none}.rd-gp{grid-column:auto}.rd-b{overflow:visible}.rd-b .graf{min-height:170px}}
 .ev{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:baseline;height:var(--lin)}
 .ev .q,.ev .dur{color:var(--apagado);font-size:.86rem;font-variant-numeric:tabular-nums;white-space:nowrap}
 .ev .x{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -202,6 +226,7 @@ body[data-estreito] .num b{font-size:1.86rem}
 body[data-estreito] .data,body[data-estreito] nav .so-grande{display:none}
 body[data-estreito] .topo{padding:8px 10px 0;gap:8px;min-height:40px}
 body[data-estreito] .hora{font-size:1.29rem}
+@media (max-width:900px){#btn-rede{display:none}.topo .data{display:none}}   /* the Network card's "details" link opens it there */
 </style>
 </head>
 <body data-tema="escuro" data-cor="azul" data-cols="4">
@@ -213,6 +238,7 @@ body[data-estreito] .hora{font-size:1.29rem}
   <button type="button" class="chip" id="btn-mudo" hidden></button>
   <button type="button" class="chip" id="btn-ocultos" hidden></button>
   <nav>
+    <button type="button" id="btn-rede" class="so-grande" data-i="b_rede"></button>
     <button type="button" id="btn-fans" class="so-grande" data-i="b_fans"></button>
     <button type="button" id="btn-sens" class="so-grande" data-i="b_sens"></button>
     <button type="button" id="btn-tab" class="so-grande" data-i="b_hist"></button>
@@ -282,7 +308,7 @@ body[data-estreito] .hora{font-size:1.29rem}
   </section>
 
   <section class="cartao" id="c-rede">
-    <header><h2><span data-i="c_rede"></span><small id="rede-if"></small></h2><span class="pilula" id="rede-st"></span></header>
+    <header><h2><span data-i="c_rede"></span><small id="rede-if"></small></h2><span class="hd-dir"><button type="button" class="elo" id="btn-rede2" data-i="rd_mais"></button><span class="pilula" id="rede-st"></span></span></header>
     <div class="resumo">
       <div class="num"><b id="ping-v">0</b><span data-i="ms_ping"></span></div>
       <dl class="sub">
@@ -293,6 +319,7 @@ body[data-estreito] .hora{font-size:1.29rem}
         <div data-it="erros_t"><dt data-i="erros"></dt><dd id="rede-err"></dd></div>
       </dl>
     </div>
+    <div class="rd-aviso" id="rede-diag" hidden></div>
     <div class="redegraf">
       <div><h3><span data-i="ping_net"></span><small id="ping-alvo"></small></h3><div class="graf" id="g-ping"></div></div>
       <div>
@@ -354,10 +381,27 @@ body[data-estreito] .hora{font-size:1.29rem}
   <div data-painel="ses" hidden><p class="nota" id="ses-nota" style="margin-bottom:8px"></p><div class="rolagem"><table>
     <thead><tr><th class="e" data-i="th_jogo2"></th><th data-i="th_comecou"></th><th data-i="th_durou"></th><th data-i="th_cpu_p"></th><th data-i="th_cpu_max"></th>
       <th data-i="th_gpu_p"></th><th data-i="th_gpu_max"></th><th data-i="th_w_max"></th><th data-i="th_vram_pico"></th><th data-i="th_vram_jogo"></th>
-      <th data-i="th_ram_min"></th><th data-i="th_ram_jogo"></th><th data-i="th_alertas"></th></tr></thead>
+      <th data-i="th_ram_min"></th><th data-i="th_ram_jogo"></th><th data-i="th_ping_s"></th><th data-i="th_perda_s"></th><th data-i="th_jit_s"></th><th data-i="th_alertas"></th></tr></thead>
     <tbody id="ses-corpo"></tbody></table></div></div>
   <div data-painel="cx" hidden><p class="nota" id="cx-nota" style="margin-bottom:8px;max-width:940px"></p><div class="botoes" id="cx-lista"></div>
-    <p class="nota" id="cx-resumo"></p><div class="rolagem"><table><thead id="cx-cab"></thead><tbody id="cx-corpo"></tbody></table></div></div>
+    <p class="nota" id="cx-resumo"></p><ul id="cx-rel" hidden></ul><div class="rolagem"><table><thead id="cx-cab"></thead><tbody id="cx-corpo"></tbody></table></div></div>
+</dialog>
+
+<dialog id="rede" class="tela">
+  <header><h2><span data-i="rd_titulo"></span> <small class="nota" id="rd-if"></small></h2><button type="button" data-fechar data-i="fechar"></button></header>
+  <div class="rd-diag" id="rd-diag"></div>
+  <div class="rd-tiles" id="rd-tiles"></div>
+  <div class="rd-grade">
+    <section class="rd-b rd-gp"><h3 data-i="rd_g_ping"></h3>
+      <div class="legenda"><span><i style="background:var(--s1)"></i><span id="rd-l-net"></span></span><span><i style="background:var(--s2)"></i><span data-i="roteador"></span></span><span><i style="background:var(--critico);width:2px;height:9px"></i><span data-i="rd_perdas"></span></span></div>
+      <div class="graf" id="rd-gping"></div></section>
+    <section class="rd-b"><h3 data-i="rd_g_net"></h3>
+      <div class="legenda"><span><i style="background:var(--s1)"></i>Download</span><span><i style="background:var(--s2)"></i>Upload</span></div>
+      <div class="graf" id="rd-gnet"></div></section>
+    <section class="rd-b"><h3 data-i="rd_qual"></h3><table id="rd-qual"></table><p class="nota" data-i="rd_qual_n"></p></section>
+    <section class="rd-b"><h3 data-i="rd_con"></h3><dl class="rd-dl" id="rd-con"></dl></section>
+    <section class="rd-b"><h3 data-i="rd_progs"></h3><table id="rd-progs"></table><p class="nota" data-i="rd_progs_n"></p></section>
+  </div>
 </dialog>
 
 <dialog id="eventos" class="largo">
@@ -675,7 +719,32 @@ Object.assign(TX.pt, {
   a_medicao_n: 'O serviço roda na prioridade mais baixa do sistema (só usa o processador e o disco quando estão livres), então não tira quadros do jogo.',
   a_jogo_lim: 'Usar limites próprios enquanto um jogo está aberto', l_editar: 'Editando os limites:', l_normal: 'Normal', l_jogo: 'Jogando',
   l_jogo_n: 'Limites de jogo: ligar e desligar cada alerta vale para os dois modos.',
-  lm_ssd_desgaste: 'Vida útil gasta do SSD (%)', lm_parou: 'PC parou sem desligar (caixa preta)', lm_ssd_saude: 'Problema de saúde do SSD (SMART)'});
+  lm_ssd_desgaste: 'Vida útil gasta do SSD (%)', lm_parou: 'PC parou sem desligar (caixa preta)', lm_ssd_saude: 'Problema de saúde do SSD (SMART)',
+  lm_jitter: 'Oscilação do ping (ms)', b_rede: 'Rede', rd_mais: 'detalhes', rd_titulo: 'Rede', rd_internet: 'Internet', rd_perdas: 'ping perdido',
+  rd_g_ping: 'Ping, últimos 10 minutos', rd_g_net: 'Tráfego, últimos 10 minutos', rd_qual: 'Qualidade da conexão', rd_con: 'Conexão',
+  rd_qual_n: 'Mediana e pior 5 % dos últimos 10 minutos. Oscilação é a variação média de um ping para o seguinte: quanto menor, mais estável.',
+  rd_progs: 'Programas na rede', rd_outros: 'outros usuários e sistema', rd_medindo: 'medindo...',
+  rd_progs_n: 'Download e upload contam só TCP. Tráfego UDP (a maioria dos jogos online, chamadas de voz, QUIC do navegador) não tem contador por programa sem root, então aparece só o número de sockets UDP. Só é medido com esta janela aberta; o tráfego do PC com ele mesmo fica de fora.',
+  rd_th_prog: 'Programa', rd_th_agora: 'Agora', rd_th_med: 'Mediana', rd_th_p95: 'Pior 5 %', rd_th_osc: 'Oscilação', rd_th_perda: 'Perda',
+  rd_t_ping: 'Ping internet', rd_t_med: 'mediana {0}', rd_t_n: 'últimos {0} pings', rd_t_gwp: 'perda {0} %', rd_t_boot: '{0} desde que ligou',
+  rd_c_if: 'Interface', rd_c_link: 'Link', rd_c_mtu: 'MTU', rd_c_wifi: 'Sinal do Wi-Fi', rd_c_err: 'Erros da placa de rede', rd_c_retx: 'TCP reenviado agora',
+  rd_c_udp: 'UDP descartado pelo PC', rd_c_udp_v: 'agora {0}, desde o boot {1}', rd_c_conex: 'Conexões', rd_c_conex_v: '{0} TCP, {1} UDP',
+  rd_c_rx: 'Recebido desde que ligou', rd_c_tx: 'Enviado desde que ligou',
+  dg_ok: 'Conexão boa: o roteador e a internet estão respondendo bem.', dg_medindo: 'Medindo a qualidade, leva uns 20 segundos.',
+  dg_roteador: 'O problema está entre o PC e o roteador (cabo, Wi-Fi ou o próprio roteador): o roteador já responde mal.',
+  dg_internet: 'O roteador responde bem e a internet não: o problema está depois do roteador, no provedor ou no caminho até {0}.',
+  dg_pc: 'O PC descartou pacotes UDP recebidos porque um programa não os leu a tempo (fila cheia).', dg_sem: 'Sem rede.',
+  dgc_roteador: 'problema entre o PC e o roteador', dgc_internet: 'problema depois do roteador', dgc_pc: 'o PC descartou pacotes UDP',
+  h24_perda: 'Perda %', h24_jit: 'Oscilação ms', h24_rx: 'Download Mbit/s', h24_tx: 'Upload Mbit/s',
+  th_ping_s: 'Ping médio / máx', th_perda_s: 'Perda máx', th_jit_s: 'Oscilação',
+  ds_prev: 'Previsão: restam ~{0} TB de escrita até 100 % do desgaste nominal ({1} TB por 1 %)', ds_aprox: 'aproximada, o SSD informa o desgaste em % inteiro',
+  ds_ritmo: 'Escrevendo {0} TB por dia (últimos {1} dias), ~{2} anos nesse ritmo', ds_ritmo0: 'Ritmo de escrita: aparece depois de 1 dia medindo', d_anos: '~{0} anos',
+  cxr_titulo: 'O que mudou antes de parar (2 minutos finais comparados com os minutos antes deles):', cxr_nada: 'Nenhuma leitura fora do normal nos minutos antes de parar.',
+  cxr_tc: 'Processador esquentou de {0} para {1} °C', cxr_tg: 'Placa de vídeo esquentou de {0} para {1} °C', cxr_tcq: 'Processador muito quente: {0} °C',
+  cxr_tgq: 'Placa de vídeo muito quente: {0} °C', cxr_ghz: 'Clock do processador caiu de {0} para {1} GHz', cxr_ram: 'RAM livre caiu de {0} para {1}',
+  cxr_swap: 'Swap ativo: até {0} MiB/s', cxr_pm: 'Pressão de RAM chegou a {0} %', cxr_de: 'Disco demorando: espera de até {0} ms',
+  cxr_w: 'Consumo da placa de vídeo subiu de {0} para {1} W', cxr_cpu: 'Processador a {0} %', cxr_gpu: 'Placa de vídeo a {0} %',
+  cxr_ping: 'Ping perdido {0} vez(es)'});
 Object.assign(TX.en, {
   h_a10: 'Last 10 min', h_a24: 'Last 24 h', h_ases: 'Game sessions', h_acx: 'Black box',
   h24_cpu: 'CPU %', h24_tc: 'CPU °C', h24_gpu: 'GPU %', h24_tg: 'GPU °C', h24_w: 'GPU W',
@@ -706,7 +775,32 @@ Object.assign(TX.en, {
   a_medicao_n: 'The service runs at the lowest priority of the system (it only uses the processor and the disk when they are idle), so it does not take frames from the game.',
   a_jogo_lim: 'Use separate thresholds while a game is running', l_editar: 'Editing thresholds:', l_normal: 'Normal', l_jogo: 'Gaming',
   l_jogo_n: 'Gaming thresholds: turning each alert on or off applies to both modes.',
-  lm_ssd_desgaste: 'SSD life used (%)', lm_parou: 'PC stopped without shutting down (black box)', lm_ssd_saude: 'SSD health problem (SMART)'});
+  lm_ssd_desgaste: 'SSD life used (%)', lm_parou: 'PC stopped without shutting down (black box)', lm_ssd_saude: 'SSD health problem (SMART)',
+  lm_jitter: 'Ping jitter (ms)', b_rede: 'Network', rd_mais: 'details', rd_titulo: 'Network', rd_internet: 'Internet', rd_perdas: 'lost ping',
+  rd_g_ping: 'Ping, last 10 minutes', rd_g_net: 'Traffic, last 10 minutes', rd_qual: 'Connection quality', rd_con: 'Connection',
+  rd_qual_n: 'Median and worst 5 % of the last 10 minutes. Jitter is the average change from one ping to the next: the lower, the steadier.',
+  rd_progs: 'Programs on the network', rd_outros: 'other users and system', rd_medindo: 'measuring...',
+  rd_progs_n: 'Download and upload count TCP only. UDP traffic (most online games, voice calls, browser QUIC) has no per-program counter without root, so only the number of UDP sockets shows. Measured only while this window is open; traffic of the PC with itself is left out.',
+  rd_th_prog: 'Program', rd_th_agora: 'Now', rd_th_med: 'Median', rd_th_p95: 'Worst 5 %', rd_th_osc: 'Jitter', rd_th_perda: 'Loss',
+  rd_t_ping: 'Internet ping', rd_t_med: 'median {0}', rd_t_n: 'last {0} pings', rd_t_gwp: 'loss {0} %', rd_t_boot: '{0} since boot',
+  rd_c_if: 'Interface', rd_c_link: 'Link', rd_c_mtu: 'MTU', rd_c_wifi: 'Wi-Fi signal', rd_c_err: 'Network card errors', rd_c_retx: 'TCP resent now',
+  rd_c_udp: 'UDP dropped by the PC', rd_c_udp_v: 'now {0}, since boot {1}', rd_c_conex: 'Connections', rd_c_conex_v: '{0} TCP, {1} UDP',
+  rd_c_rx: 'Received since boot', rd_c_tx: 'Sent since boot',
+  dg_ok: 'Connection good: the router and the internet are answering well.', dg_medindo: 'Measuring the quality, takes about 20 seconds.',
+  dg_roteador: 'The trouble is between this PC and the router (cable, Wi-Fi or the router itself): the router already answers badly.',
+  dg_internet: 'The router answers well and the internet does not: the trouble is past the router, at the provider or on the way to {0}.',
+  dg_pc: 'The PC dropped received UDP packets because a program did not read them in time (queue full).', dg_sem: 'No network.',
+  dgc_roteador: 'trouble between the PC and the router', dgc_internet: 'trouble past the router', dgc_pc: 'the PC dropped UDP packets',
+  h24_perda: 'Loss %', h24_jit: 'Jitter ms', h24_rx: 'Download Mbit/s', h24_tx: 'Upload Mbit/s',
+  th_ping_s: 'Ping avg / max', th_perda_s: 'Loss max', th_jit_s: 'Jitter',
+  ds_prev: 'Forecast: about {0} TB of writes left to 100 % of the rated wear ({1} TB per 1 %)', ds_aprox: 'rough, the SSD reports wear as a whole %',
+  ds_ritmo: 'Writing {0} TB a day (last {1} days), about {2} years at this pace', ds_ritmo0: 'Write pace: shows after 1 day of measuring', d_anos: '~{0} years',
+  cxr_titulo: 'What changed before it stopped (the final 2 minutes against the minutes before them):', cxr_nada: 'No reading out of the ordinary in the minutes before it stopped.',
+  cxr_tc: 'Processor heated from {0} to {1} °C', cxr_tg: 'Graphics card heated from {0} to {1} °C', cxr_tcq: 'Processor very hot: {0} °C',
+  cxr_tgq: 'Graphics card very hot: {0} °C', cxr_ghz: 'Processor clock fell from {0} to {1} GHz', cxr_ram: 'Free RAM fell from {0} to {1}',
+  cxr_swap: 'Swap active: up to {0} MiB/s', cxr_pm: 'RAM pressure reached {0} %', cxr_de: 'Disk slow: waits of up to {0} ms',
+  cxr_w: 'Graphics card power rose from {0} to {1} W', cxr_cpu: 'Processor at {0} %', cxr_gpu: 'Graphics card at {0} %',
+  cxr_ping: 'Ping lost {0} time(s)'});
 
 const $ = id => document.getElementById(id);
 const NS = 'http://www.w3.org/2000/svg';
@@ -908,6 +1002,10 @@ const graficos = [
   new Grafico($('g-ping'), {series: [{i: 5, nome: 'Ping'}], piso: 40, fmt: v => nf(v) + ' ms', perdas: true}),
   new Grafico($('g-net'), {series: [{i: 6, nome: 'Download'}, {i: 7, nome: 'Upload', cor: 'var(--s2)'}], piso: 1,
     fmt: v => nf(v, v < 10 ? 2 : 1) + ' Mbit/s'}),
+  new Grafico($('rd-gping'), {series: [{i: 5, nome: 'rd_internet'}, {i: 10, nome: 'roteador', cor: 'var(--s2)'}], piso: 40,
+    fmt: v => nf(v, v < 10 ? 1 : 0) + ' ms', perdas: true}),
+  new Grafico($('rd-gnet'), {series: [{i: 6, nome: 'Download'}, {i: 7, nome: 'Upload', cor: 'var(--s2)'}], piso: 1,
+    fmt: v => nf(v, v < 10 ? 2 : 1) + ' Mbit/s'}),
 ];
 
 function cRam() {
@@ -976,6 +1074,59 @@ function cRede() {
   $('net-rx').textContent = mbit(r.rx == null ? null : r.rx * 8 / 1e6);
   $('net-tx').textContent = mbit(r.tx == null ? null : r.tx * 8 / 1e6);
   pilula($('rede-st'), A.nv.rede);
+  const dg = r.diag, x = $('rede-diag'), mostra = r.n >= 10 && (dg === 'roteador' || dg === 'internet' || dg === 'pc');
+  x.hidden = !mostra;
+  if (mostra) { const nv = dg === 'roteador' ? 'serio' : 'aviso'; x.replaceChildren(el('i', 'g ' + nv, GL[nv]), ' ' + T('dgc_' + dg)); }
+  cRedeDet();
+}
+// ---------- Network view: everything about the connection, drawn only while it is open
+function abrirRede() { if (!$('rede').open) $('rede').showModal(); cRedeDet(); ciclo(); }
+function pior5(i) {
+  const v = H.filter(l => A && l[0] >= A.t - JANELA && l[i] != null && l[i] >= 0).map(l => l[i]).sort((a, b) => a - b);
+  return v.length ? v[Math.min(v.length - 1, Math.floor(v.length * 0.95))] : null;
+}
+function cRedeDet() {
+  if (!A || !$('rede').open) return;
+  const r = A.rede, P = A.rede_progs;
+  const ms = v => v == null ? '?' : v < 0 ? T('perdido') : nf(v, v < 10 ? 1 : 0) + ' ms';
+  const nvDe = id => ((A.avisos || []).find(a => a.id === id) || {}).nv || 'bom';
+  $('rd-if').textContent = r.iface ? r.iface + (r.ip ? ', ' + r.ip : '') : T('sem_rota');
+  $('rd-l-net').textContent = T('rd_internet') + ' (' + r.alvo + ')';
+  const dg = r.diag === 'ok' && r.n < 10 ? 'medindo' : r.diag;
+  const nvd = {ok: 'bom', medindo: 'bom', roteador: 'serio', internet: 'aviso', pc: 'aviso', sem: 'critico'}[dg] || 'bom';
+  $('rd-diag').replaceChildren(el('i', 'g ' + nvd, GL[nvd]), el('span', '', T('dg_' + dg, r.alvo)));
+  $('rd-diag').firstChild.style.color = COR[nvd] === 'var(--s1)' ? 'var(--bom)' : COR[nvd];
+  const tile = (k, v, sub, nv) => {
+    const d = el('div', 'rd-tile' + (nv && nv !== 'bom' ? ' ' + nv : ''));
+    d.append(el('div', 'k', k), el('div', 'v', v), el('small', '', sub || '\u00a0'));
+    return d;
+  };
+  $('rd-tiles').replaceChildren(
+    tile(T('rd_t_ping'), ms(r.ping), T('rd_t_med', ms(r.med)), nvDe('ping')),
+    tile(T('oscilacao'), r.osc == null ? '?' : nf(r.osc) + ' ms', T('roteador') + ' ' + (r.gw_osc == null ? '?' : nf(r.gw_osc) + ' ms'), nvDe('jitter')),
+    tile(T('perda'), nf(r.perda, r.perda && r.perda < 10 ? 1 : 0) + ' %', T('rd_t_n', r.n), nvDe('perda')),
+    tile(T('roteador'), ms(r.gw), T('rd_t_gwp', nf(r.gw_perda, r.gw_perda && r.gw_perda < 10 ? 1 : 0)), dg === 'roteador' ? 'serio' : 'bom'),
+    tile('Download', mbit(r.rx == null ? null : r.rx * 8 / 1e6) || '?', r.rx_tot != null ? T('rd_t_boot', tamB(r.rx_tot)) : ''),
+    tile('Upload', mbit(r.tx == null ? null : r.tx * 8 / 1e6) || '?', r.tx_tot != null ? T('rd_t_boot', tamB(r.tx_tot)) : ''));
+  const linha = (cel, tag) => { const tr = el('tr'); cel.forEach((c, k) => tr.append(el(tag || 'td', k ? '' : 'e', c))); return tr; };
+  const pct = (v, n) => n ? nf(v, v && v < 10 ? 1 : 0) + ' %' : '?';
+  $('rd-qual').replaceChildren(
+    linha(['', T('rd_th_agora'), T('rd_th_med'), T('rd_th_p95'), T('rd_th_osc'), T('rd_th_perda')], 'th'),
+    linha([T('rd_internet'), ms(r.ping), ms(r.med), ms(pior5(5)), r.osc == null ? '?' : nf(r.osc) + ' ms', pct(r.perda, r.n)]),
+    linha([T('roteador'), ms(r.gw), ms(r.gw_med), ms(pior5(10)), r.gw_osc == null ? '?' : nf(r.gw_osc) + ' ms', pct(r.gw_perda, r.gw_n)]));
+  const link = r.link ? (r.link >= 1000 ? nf(r.link / 1000, r.link % 1000 ? 1 : 0) + ' Gbit/s' : r.link + ' Mbit/s') + (r.duplex ? ', ' + r.duplex : '') : '?';
+  const itens = [[T('rd_c_if'), r.iface || T('sem_rota')], ['IP', r.ip || '?'], [T('rd_c_link'), link], [T('rd_c_mtu'), r.mtu || '?'],
+    r.wifi != null ? [T('rd_c_wifi'), int(r.wifi) + ' dBm'] : null,
+    [T('rd_c_err'), r.erros == null ? '?' : T('err_v', int(r.erros), int(r.descartes))],
+    [T('rd_c_retx'), r.retx == null ? '?' : nf(r.retx, r.retx < 10 ? 2 : 1) + ' %'],
+    [T('rd_c_udp'), T('rd_c_udp_v', int(r.udp_perd || 0), int(r.udp_err || 0))],
+    [T('rd_c_conex'), P ? T('rd_c_conex_v', P.tcp, P.udp) : T('rd_medindo')],
+    [T('rd_c_rx'), r.rx_tot == null ? '?' : tamB(r.rx_tot)], [T('rd_c_tx'), r.tx_tot == null ? '?' : tamB(r.tx_tot)]];
+  $('rd-con').replaceChildren(...itens.filter(Boolean).flatMap(([k, v]) => [el('dt', '', k), el('dd', '', String(v))]));
+  const taxa = b => !P || !P.pronto ? '…' : b >= 125 ? mbit(b * 8 / 1e6) : '0';
+  $('rd-progs').replaceChildren(linha([T('rd_th_prog'), 'Download', 'Upload', 'TCP', 'UDP'], 'th'),
+    ...(P ? P.lista.map(x => linha([x.nome || T('rd_outros'), taxa(x.rx), taxa(x.tx), String(x.tcp), String(x.udp)]))
+      : [linha([T('rd_medindo'), '', '', '', ''])]));
 }
 function cabem(alvo) {
   const lh = parseFloat(getComputedStyle(document.body).getPropertyValue('--lin')) * rem() || 23;
@@ -1050,6 +1201,12 @@ function cDisc() {
         sd.reserva != null ? T('ds_reserva', sd.reserva) : null, sd.escrito != null ? T('ds_escrito', nf(sd.escrito / 1e12)) : null,
         sd.horas != null ? T('ds_horas', int(sd.horas)) : null, sd.inseguros != null ? T('ds_inseguros', int(sd.inseguros)) : null,
         T('ds_erros', int(sd.erros || 0))].filter(Boolean).join(', ') + '. ' + T('ds_nota');
+      const pv = sd.previsao;
+      if (pv && pv.restam_tb != null) {
+        dicaSd += '\n' + T('ds_prev', int(pv.restam_tb), nf(pv.tb_pct)) + (pv.aprox ? ' (' + T('ds_aprox') + ')' : '') + '. ' +
+          (pv.tb_dia != null ? T('ds_ritmo', nf(pv.tb_dia, pv.tb_dia < 0.1 ? 3 : 2), nf(pv.dias, 0), pv.anos == null ? '?' : nf(pv.anos, pv.anos < 10 ? 1 : 0)) : T('ds_ritmo0')) + '.';
+        if (pv.anos != null && !pv.aprox) x.append(', ' + T('d_anos', pv.anos >= 100 ? '100+' : nf(pv.anos, pv.anos < 10 ? 1 : 0)));
+      }
     }
     if (d.ler != null) io.append(el('span', '', T('leitura') + ' ' + nf(d.ler / 1048576) + ' MiB/s'), el('span', '', T('gravacao') + ' ' + nf(d.gravar / 1048576) + ' MiB/s'),
       el('span', '', T('espera', nf(d.espera, d.espera < 10 ? 1 : 0))), el('span', '', T('ocupado_d', nf(d.ocupado, 0))));
@@ -1308,7 +1465,7 @@ async function puxarEventos() {
 async function puxar() {
   if (document.hidden) return;
   try {
-    const d = await pedir('/dados?desde=' + seq + '&i=' + inst);
+    const d = await pedir('/dados?desde=' + seq + '&i=' + inst + ($('rede').open ? '&rede=1' : ''));
     if (!d.agora || !d.agora.ram) throw new Error('sem medida');
     if (d.i !== inst) { H = []; inst = d.i; cfgSeq = evSeq = -1; }
     for (const l of d.hist) H.push(l);
@@ -1365,7 +1522,8 @@ function tabela10() {
 // 24 h: one metric at a time, one value per minute; [column, label, fixed top, conversion]
 const M24 = [['cpu', 'h24_cpu', 100], ['tc_max', 'h24_tc'], ['gpu', 'h24_gpu', 100], ['tg_max', 'h24_tg'], ['w_max', 'h24_w'],
   ['vram_max', 'h24_vram', null, v => v / 1024], ['ram_min', 'h24_ram', null, v => v / 1024], ['swap_max', 'h24_swap', null, v => v / 1024],
-  ['ping', 'h24_ping']];
+  ['ping', 'h24_ping'], ['perda_max', 'h24_perda', null, null, 1], ['jit', 'h24_jit', null, null, 1], ['rx', 'h24_rx', null, null, 2],
+  ['tx', 'h24_tx', null, null, 2]];
 async function aba24() {
   $('h24-m').replaceChildren(...M24.map(m => {
     const b = el('button', '', T(m[1]));
@@ -1450,7 +1608,7 @@ function mira24() {
   sv('line', {x1: x, x2: x, y1: 8, y2: Ht - 20, class: 'mira'}, g);
   const r = el('div', 'r'), cor = el('i');
   cor.style.background = 'var(--s1)';
-  r.append(cor, el('b', '', nf(perto[1], e.m[3] ? 1 : 0)), el('span', '', T(e.m[1])));
+  r.append(cor, el('b', '', nf(perto[1], e.m[4] ?? (e.m[3] ? 1 : 0))), el('span', '', T(e.m[1])));
   d.replaceChildren(el('div', 'h', new Date(perto[0] * 1000).toLocaleTimeString(LOC, {hour: '2-digit', minute: '2-digit'})), r);
   if (perto[2]) d.append(el('div', 'h', T('h24_jogo') + ': ' + perto[2]));
   d.hidden = false;
@@ -1467,7 +1625,10 @@ async function abaSessoes() {
     tr.append(el('td', 'e', x.nome + (x.agora ? ' (' + T('ses_agora') + ')' : '')));
     for (const c of [new Date(x.ini * 1000).toLocaleString(LOC, {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'}),
       dur(x.fim - x.ini), q(x.cpu), q(x.tc_max), q(x.gpu), q(x.tg_max), q(x.w_max), mib(x.vram_max), mib(x.vram_jogo),
-      x.ram_min == null ? '' : tamMib(x.ram_min), x.ram_jogo ? tam(x.ram_jogo) : '', q(x.alertas)]) tr.append(el('td', '', c));
+      x.ram_min == null ? '' : tamMib(x.ram_min), x.ram_jogo ? tam(x.ram_jogo) : '',
+      x.ping == null ? '' : nf(x.ping, x.ping < 10 ? 1 : 0) + (x.ping_max != null ? ' / ' + int(x.ping_max) : ''),
+      x.perda_max == null ? '' : nf(x.perda_max, x.perda_max && x.perda_max < 10 ? 1 : 0) + ' %', x.jit == null ? '' : nf(x.jit),
+      q(x.alertas)]) tr.append(el('td', '', c));
     return tr;
   }));
 }
@@ -1476,7 +1637,7 @@ async function abaCaixa() {
   try { d = await pedir('/caixa'); } catch (e) { return; }
   $('cx-nota').textContent = (CFG && !CFG.caixa) || !d.ativa ? T('cx_off') : T('cx_nota');
   $('cx-resumo').textContent = d.incidentes.length ? '' : T('cx_nada');
-  $('cx-cab').replaceChildren(); $('cx-corpo').replaceChildren();
+  $('cx-cab').replaceChildren(); $('cx-corpo').replaceChildren(); $('cx-rel').hidden = true;
   $('cx-lista').replaceChildren(...d.incidentes.map((x, k) => {
     const b = el('button', '', T('cx_parou', new Date(x.t * 1000).toLocaleString(LOC, {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit'})));
     b.type = 'button';
@@ -1484,6 +1645,34 @@ async function abaCaixa() {
     return b;
   }));
   if (d.incidentes.length) $('cx-lista').firstElementChild.click();
+}
+function relatorioIncidente(R) {
+  // the final 2 minutes against the minutes before them; only what stands out
+  const u = R[R.length - 1], fim = R.filter(r => r.t >= u.t - 120), antes = R.filter(r => r.t < u.t - 120);
+  const vals = (lista, k) => lista.map(r => r[k]).filter(v => v != null && v >= 0);
+  const media = (lista, k) => { const v = vals(lista, k); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+  const max = (lista, k) => { const v = vals(lista, k); return v.length ? Math.max(...v) : null; };
+  const min = (lista, k) => { const v = vals(lista, k); return v.length ? Math.min(...v) : null; };
+  const out = [T('cxr_titulo')], n0 = v => int(v);
+  const tc0 = media(antes, 'tc'), tc1 = max(fim, 'tc'), tg0 = media(antes, 'tg'), tg1 = max(fim, 'tg');
+  if (tc1 != null && tc0 != null && tc1 - tc0 >= 8) out.push(T('cxr_tc', n0(tc0), n0(tc1)));
+  else if (tc1 != null && tc1 >= 90) out.push(T('cxr_tcq', n0(tc1)));
+  if (tg1 != null && tg0 != null && tg1 - tg0 >= 8) out.push(T('cxr_tg', n0(tg0), n0(tg1)));
+  else if (tg1 != null && tg1 >= 85) out.push(T('cxr_tgq', n0(tg1)));
+  const g0 = media(antes, 'ghz'), g1 = min(fim, 'ghz');
+  if (g0 != null && g1 != null && g0 - g1 >= 0.5) out.push(T('cxr_ghz', nf(g0, 2), nf(g1, 2)));
+  const w0 = media(antes, 'w'), w1 = max(fim, 'w');
+  if (w0 != null && w1 != null && w1 - w0 >= 60) out.push(T('cxr_w', n0(w0), n0(w1)));
+  const r0 = media(antes, 'ram'), r1 = min(fim, 'ram');
+  if (r0 != null && r1 != null && (r1 < r0 * 0.5 || r1 < 1024) && r0 - r1 >= 512) out.push(T('cxr_ram', tamMib(r0), tamMib(r1)));
+  const sw = max(fim, 'swr'); if (sw != null && sw >= 5) out.push(T('cxr_swap', nf(sw)));
+  const pm = max(fim, 'pm'); if (pm != null && pm >= 10) out.push(T('cxr_pm', n0(pm)));
+  const de = max(fim, 'de'); if (de != null && de >= 100) out.push(T('cxr_de', n0(de)));
+  const cpu = max(fim, 'cpu'); if (cpu != null && cpu >= 95) out.push(T('cxr_cpu', n0(cpu)));
+  const gpu = max(fim, 'gpu'); if (gpu != null && gpu >= 98 && (media(antes, 'gpu') ?? 100) < 90) out.push(T('cxr_gpu', n0(gpu)));
+  const perdidos = fim.filter(r => r.ping === -1).length; if (perdidos) out.push(T('cxr_ping', perdidos));
+  if (out.length === 1) out.push(T('cxr_nada'));
+  return out;
 }
 async function verIncidente(id) {
   let x;
@@ -1494,6 +1683,8 @@ async function verIncidente(id) {
     T('cx_ram', tamMib(u.ram)), u.swr ? T('cx_swr', nf(u.swr)) : null, u.j ? T('cx_jogo', u.j) : null, u.top ? T('cx_top', u.top[0], u.top[1]) : null];
   const final = [T('cx_tcmax', n0(mx('tc'))), T('cx_tgmax', n0(mx('tg'))), T('cx_rammin', tamMib(mn('ram'))), T('cx_swmax', nf(Math.max(0, mx('swr'))))];
   $('cx-resumo').textContent = T('cx_ultimo', new Date(u.t * 1000).toLocaleString(LOC), ult.filter(Boolean).join(', ')) + ' ' + T('cx_final', final.join(', '));
+  $('cx-rel').replaceChildren(...relatorioIncidente(R).map(t => el('li', '', t)));
+  $('cx-rel').hidden = false;
   const cols = [[T('th_hora'), r => hora(r.t)], [T('th_cpu_p'), r => n0(r.cpu)], [T('th_cpu_t'), r => n0(r.tc)], [T('cx_ghz'), r => r.ghz == null ? '' : nf(r.ghz, 2)],
     [T('th_gpu_p'), r => n0(r.gpu)], [T('th_gpu_t'), r => n0(r.tg)], ['W', r => n0(r.w)], ['VRAM GiB', r => r.vr == null ? '' : nf(r.vr / 1024)],
     [T('h24_ram'), r => nf(r.ram / 1024)], ['Swap MiB/s', r => nf(r.swr || 0)], [T('cx_pm'), r => nf(r.pm || 0)], [T('cx_de'), r => nf(r.de || 0)],
@@ -1871,6 +2062,8 @@ for (const b of $('lim-modo').querySelectorAll('button')) b.addEventListener('cl
 $('fa-aplicar').addEventListener('click', aplicarFans);
 $('fa-medir').addEventListener('click', medirFans);
 $('btn-ocultos').addEventListener('click', () => { rolar = !rolar; arranjar(true); desenhar(); });
+$('btn-rede').addEventListener('click', abrirRede);
+$('btn-rede2').addEventListener('click', abrirRede);
 for (const b of document.querySelectorAll('[data-fechar]')) b.addEventListener('click', () => b.closest('dialog').close());
 document.addEventListener('visibilitychange', () => { if (!document.hidden) ciclo(); });
 window.addEventListener('resize', () => { arranjar(true); desenhar(); });
@@ -1881,7 +2074,7 @@ setInterval(relogio, 1000);
 relogio();
 ciclo().then(() => {
   const abrir = {'#ajustes': abrirAjustes, '#fans': abrirFans, '#eventos': abrirEventos, '#historico': abrirTabela, '#sensores': abrirSensores,
-    '#24h': () => abrirTabela('24'), '#sessoes': () => abrirTabela('ses'), '#caixa': () => abrirTabela('cx')}[location.hash];
+    '#24h': () => abrirTabela('24'), '#sessoes': () => abrirTabela('ses'), '#caixa': () => abrirTabela('cx'), '#rede': abrirRede}[location.hash];
   if (abrir) abrir();
 });
 </script>

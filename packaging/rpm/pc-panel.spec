@@ -1,6 +1,6 @@
 %global debug_package %{nil}
 Name:           pc-panel
-Version:        0.4.1
+Version:        0.4.2
 Release:        1
 Summary:        Local web dashboard to monitor and control a Linux PC, with a tray icon
 License:        MIT
@@ -55,6 +55,10 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install
 %{_unitdir}/pc-panel-fans.service
 
 %changelog
+* Wed Nov 11 2026 PC Panel contributors - 0.4.2-1
+- Network view (router vs internet diagnosis, quality table, programs on the network), jitter alert
+- SSD life forecast, incident report, desktop notifications off by default
+
 * Wed Nov 11 2026 PC Panel contributors - 0.4.1-1
 - Black box writes one 4 KiB block straight to disk instead of a large page cache folio
 
