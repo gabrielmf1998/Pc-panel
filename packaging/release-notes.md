@@ -1,9 +1,9 @@
 ## 0.3.2: fixes
 
-- **Tray icon could turn into a blank page on an alert.** Plasma looked up the colored icon by name
-  and, having cached the lookup before the icon files existed, showed its "unknown" icon. The tray
-  now sends the four icons as small images built into the program (read only memory, 16 to 48 px),
-  the same way Electron apps do, so the color always shows.
+- **Tray icon could turn into a blank page on an alert.** Plasma did not load the colored icon by
+  its name and showed its "unknown" icon instead. The tray now sends the four icons as small images
+  built into the program (read only memory, 16 to 48 px), the same way Electron apps do, so it no
+  longer depends on an icon lookup.
 - **Alert colors follow the theme.** Each theme has its own yellow, orange and red, all readable:
   darker on the light theme (the old yellow was hard to read there), brighter on high contrast.
 - **Headset or mouse battery** is now in the thresholds table (recommended 15, 8 and 3 %), instead of
