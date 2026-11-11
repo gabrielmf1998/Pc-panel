@@ -11,14 +11,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Tools
-        # the runner's Azure mirror list sometimes stops resolving: use the main archive and retry
+        # if the Ubuntu mirrors cannot be reached, build against the systemd headers of the same
+        # version (from GitHub) and the libsystemd.so.0 the runner already has
         run: |
-          sudo sed -i 's#mirror+file:/etc/apt/apt-mirrors.txt#http://archive.ubuntu.com/ubuntu/#' /etc/apt/sources.list /etc/apt/sources.list.d/*.list 2>/dev/null || true
-          for i in 1 2 3; do
-            sudo apt-get -o Acquire::Retries=5 update && sudo apt-get -o Acquire::Retries=5 install -y --no-install-recommends gcc make libsystemd-dev file && exit 0
-            sleep 20
-          done
-          exit 1
+          if timeout 150 sudo apt-get -o Acquire::Retries=2 update && timeout 150 sudo apt-get install -y --no-install-recommends gcc make libsystemd-dev file; then exit 0; fi
+          V="$(dpkg-query -W -f='${Version}' libsystemd0 | sed 's/[.~-].*//')"
+          mkdir -p "$RUNNER_TEMP/sd/include/systemd" "$RUNNER_TEMP/sd/lib"
+          curl -fsSL "https://github.com/systemd/systemd/archive/refs/tags/v$V.tar.gz" | tar -xz -C "$RUNNER_TEMP/sd" --wildcards "systemd-$V/src/systemd/*.h"
+          cp "$RUNNER_TEMP/sd/systemd-$V/src/systemd/"*.h "$RUNNER_TEMP/sd/include/systemd/"
+          ln -s "$(ldconfig -p | awk '/libsystemd\.so\.0 .*x86-64/{print $NF; exit}')" "$RUNNER_TEMP/sd/lib/libsystemd.so"
+          echo "CPPFLAGS=-I$RUNNER_TEMP/sd/include" >> "$GITHUB_ENV"
+          echo "LDFLAGS=-L$RUNNER_TEMP/sd/lib" >> "$GITHUB_ENV"
       - name: Check, build and smoke test
         run: |
           make check
