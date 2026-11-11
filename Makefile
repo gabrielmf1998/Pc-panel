@@ -9,7 +9,7 @@ ARCH := $(shell uname -m)
 all: bin/pc-panel-tray
 
 # the tray icon: C on sd-bus (libsystemd), no GUI toolkit
-bin/pc-panel-tray: tray/pc-panel-tray.c
+bin/pc-panel-tray: tray/pc-panel-tray.c tray/icons.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) -Wall -Wextra -Wno-format-truncation -DVERSION='"$(VERSION)"' -o $@ $< $(LDFLAGS) -lsystemd
 
 install: bin/pc-panel-tray

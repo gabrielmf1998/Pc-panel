@@ -32,7 +32,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 
-VERSAO = "0.3.1"
+VERSAO = "0.3.2"
 REPO = "gabrielmf1998/pc-panel"         # owner/repository on GitHub, used only to look for a new version
 PASTA_CFG = os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"), "pc-panel")
 
@@ -77,7 +77,7 @@ METRICAS = {
     "ram": ("baixo", 0, 1048576), "vram": ("alto", 1, 100), "cpu_uso": ("alto", 1, 100), "prog_cpu": ("alto", 1, 100),
     "temp_cpu": ("alto", 20, 130), "temp_gpu": ("alto", 20, 130), "temp_ssd": ("alto", 20, 130),
     "temp_mem": ("alto", 20, 130), "temp_placa": ("alto", 20, 130), "disco": ("alto", 1, 100),
-    "ping": ("alto", 1, 10000), "perda": ("alto", 0.1, 100), "kernel": ("evento", 0, 0), "travou": ("evento", 0, 0),
+    "ping": ("alto", 1, 10000), "perda": ("alto", 0.1, 100), "bateria": ("baixo", 1, 99), "kernel": ("evento", 0, 0), "travou": ("evento", 0, 0),
 }
 TEMP_METRICA = {"cpu": "temp_cpu", "gpu": "temp_gpu", "ssd": "temp_ssd", "placa": "temp_placa", "mem": "temp_mem"}
 NCPU = os.cpu_count() or 1
@@ -181,7 +181,8 @@ def recomendados():
     total = ler_int_meminfo("MemTotal") // 1024
     r = {"ram": [max(256, round(total * f / 64) * 64) for f in (0.10, 0.04, 0.015)],
          "vram": [85, 93, 97], "cpu_uso": [90, 97, None], "prog_cpu": [80, 95, None],
-         "disco": [85, 93, 97], "ping": [60, 100, 180], "perda": [2, 6, 20], "temp_placa": [55, 65, 75]}
+         "disco": [85, 93, 97], "ping": [60, 100, 180], "perda": [2, 6, 20], "temp_placa": [55, 65, 75],
+         "bateria": [15, 8, 3]}
     fonte = {"temp_cpu": "", "temp_gpu": "", "temp_mem": ""}
     mx, crit = limite_do_sensor(fontes["cpu"])
     if crit and "coretemp" in (ler(os.path.dirname(fontes["cpu"] or "") + "/name") or ""):
@@ -1782,8 +1783,9 @@ class Medidor:
         for unidade in sis["falhas"]:
             av("falha-" + unidade, "saude", "aviso", "Serviço %s falhou" % unidade, "Service %s failed" % unidade)
         bat = sis["bateria"]
-        if bat and bat["pct"] <= 15 and not bat["carregando"]:
-            av("bateria", "sis", "aviso", "%s com %d %% de bateria" % (bat["nome"], bat["pct"]),
+        lim_bat = limite("bateria")
+        if bat and lim_bat and not bat["carregando"]:
+            av("bateria", "sis", nivel_min(bat["pct"], lim_bat), "%s com %d %% de bateria" % (bat["nome"], bat["pct"]),
                "%s battery at %d %%" % (bat["nome"], bat["pct"]))
         proteger_fans(gpu.get("temp"), tcpu)
         guiar_gpu(gpu.get("temp"))

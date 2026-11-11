@@ -40,6 +40,7 @@
 #include <unistd.h>
 #include <systemd/sd-bus.h>
 #include <systemd/sd-event.h>
+#include "icons.h"
 
 #ifndef VERSION
 #define VERSION "dev"
@@ -70,7 +71,6 @@ static sd_event_source *settle_timer;
 static char dialog_buf[64];
 static char alert_dir[PATH_MAX], alert_file[PATH_MAX], alert_text[1024];
 static int alert_level;
-static const char *const LEVEL_ICON[] = {"pc-panel", "pc-panel-warning", "pc-panel-serious", "pc-panel-critical"};
 static size_t dialog_len;
 
 /* ------------------------------------------------------------------ small helpers */
@@ -519,12 +519,25 @@ static int sni_prop(sd_bus *b, const char *path, const char *iface, const char *
     if (!strcmp(prop, "Id")) return sd_bus_message_append(reply, "s", "pc-panel");
     if (!strcmp(prop, "Title")) return sd_bus_message_append(reply, "s", "PC Panel");
     if (!strcmp(prop, "Status")) return sd_bus_message_append(reply, "s", alert_level >= 2 ? "NeedsAttention" : "Active");
-    if (!strcmp(prop, "IconName") || !strcmp(prop, "AttentionIconName"))
-        return sd_bus_message_append(reply, "s", LEVEL_ICON[alert_level]);
-    if (!strcmp(prop, "IconThemePath")) return sd_bus_message_append(reply, "s", icons_dir);
-    if (!strcmp(prop, "OverlayIconName"))
+    /* The icon goes as images (built into this program, read only memory) and not as a
+     * name: a tray host that looked up a name before the file existed keeps showing a
+     * blank icon for it, an image always shows. */
+    if (!strcmp(prop, "IconName") || !strcmp(prop, "AttentionIconName") || !strcmp(prop, "OverlayIconName"))
         return sd_bus_message_append(reply, "s", "");
-    if (!strcmp(prop, "IconPixmap") || !strcmp(prop, "OverlayIconPixmap") || !strcmp(prop, "AttentionIconPixmap"))
+    if (!strcmp(prop, "IconThemePath")) return sd_bus_message_append(reply, "s", icons_dir);
+    if (!strcmp(prop, "IconPixmap") || !strcmp(prop, "AttentionIconPixmap")) {
+        int r = sd_bus_message_open_container(reply, 'a', "(iiay)");
+        for (int i = 0; r >= 0 && i < ICON_SIZES; i++) {
+            int n = ICON_SIZE[i];
+            if ((r = sd_bus_message_open_container(reply, 'r', "iiay")) < 0 ||
+                (r = sd_bus_message_append(reply, "ii", n, n)) < 0 ||
+                (r = sd_bus_message_append_array(reply, 'y', ICON_PX[alert_level][i], (size_t)n * n * 4)) < 0)
+                break;
+            r = sd_bus_message_close_container(reply);
+        }
+        return r < 0 ? r : sd_bus_message_close_container(reply);
+    }
+    if (!strcmp(prop, "OverlayIconPixmap"))
         return sd_bus_message_append(reply, "a(iiay)", 0);
     if (!strcmp(prop, "ItemIsMenu")) return sd_bus_message_append(reply, "b", 0);
     if (!strcmp(prop, "Menu")) return sd_bus_message_append(reply, "o", MENU_PATH);
@@ -536,7 +549,7 @@ static int sni_prop(sd_bus *b, const char *path, const char *iface, const char *
             snprintf(body, sizeof body, "%s\n%s", alert_text, tip);
         else
             snprintf(body, sizeof body, "%s", tip);
-        return sd_bus_message_append(reply, "(sa(iiay)ss)", LEVEL_ICON[alert_level], 0, "PC Panel", body);
+        return sd_bus_message_append(reply, "(sa(iiay)ss)", "", 0, "PC Panel", body);
     }
     return -ENOENT;
 }
@@ -563,11 +576,11 @@ static const sd_bus_vtable sni_vtable[] = {
     SD_BUS_PROPERTY("WindowId", "i", sni_prop, 0, SD_BUS_VTABLE_PROPERTY_CONST),
     SD_BUS_PROPERTY("IconName", "s", sni_prop, 0, SD_BUS_VTABLE_PROPERTY_EMITS_INVALIDATION),
     SD_BUS_PROPERTY("IconThemePath", "s", sni_prop, 0, SD_BUS_VTABLE_PROPERTY_CONST),
-    SD_BUS_PROPERTY("IconPixmap", "a(iiay)", sni_prop, 0, SD_BUS_VTABLE_PROPERTY_CONST),
+    SD_BUS_PROPERTY("IconPixmap", "a(iiay)", sni_prop, 0, SD_BUS_VTABLE_PROPERTY_EMITS_INVALIDATION),
     SD_BUS_PROPERTY("OverlayIconName", "s", sni_prop, 0, SD_BUS_VTABLE_PROPERTY_CONST),
     SD_BUS_PROPERTY("OverlayIconPixmap", "a(iiay)", sni_prop, 0, SD_BUS_VTABLE_PROPERTY_CONST),
     SD_BUS_PROPERTY("AttentionIconName", "s", sni_prop, 0, SD_BUS_VTABLE_PROPERTY_EMITS_INVALIDATION),
-    SD_BUS_PROPERTY("AttentionIconPixmap", "a(iiay)", sni_prop, 0, SD_BUS_VTABLE_PROPERTY_CONST),
+    SD_BUS_PROPERTY("AttentionIconPixmap", "a(iiay)", sni_prop, 0, SD_BUS_VTABLE_PROPERTY_EMITS_INVALIDATION),
     SD_BUS_PROPERTY("ToolTip", "(sa(iiay)ss)", sni_prop, 0, SD_BUS_VTABLE_PROPERTY_EMITS_INVALIDATION),
     SD_BUS_PROPERTY("ItemIsMenu", "b", sni_prop, 0, SD_BUS_VTABLE_PROPERTY_CONST),
     SD_BUS_PROPERTY("Menu", "o", sni_prop, 0, SD_BUS_VTABLE_PROPERTY_CONST),

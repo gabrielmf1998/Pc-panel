@@ -8,13 +8,15 @@
 <style>
 :root{color-scheme:dark;--plano:#0d0d0d;--sup:#1a1a19;--sup2:#262624;--tinta:#f0efec;--tinta2:#c3c2b7;
   --apagado:#898781;--grade:#2c2c2a;--eixo:#383835;--borda:rgba(255,255,255,.10);
-  --s1:#3987e5;--s2:#d95926;--bom:#0ca30c;--aviso:#fab219;--serio:#ec835a;--critico:#d03b3b;--lin:1.64rem;--topo-h:46px}
+  --s1:#3987e5;--s2:#d95926;--bom:#2fbf4a;--aviso:#f5bd3a;--serio:#f08a5d;--critico:#ef5a5a;--lin:1.64rem;--topo-h:46px}
 body[data-tema="preto"]{--plano:#000;--sup:#0b0b0b;--sup2:#1a1a19;--grade:#222220;--borda:rgba(255,255,255,.14)}
 body[data-tema="noite"]{--plano:#090e1a;--sup:#111a2c;--sup2:#1b2740;--grade:#1f2b45;--eixo:#2f3d5e;--tinta2:#c2c9d8;--apagado:#8490a8}
 body[data-tema="contraste"]{--plano:#000;--sup:#000;--sup2:#1a1a19;--tinta:#fff;--tinta2:#fff;--apagado:#c3c2b7;
-  --grade:#52514e;--eixo:#898781;--borda:rgba(255,255,255,.6);--s1:#6da7ec}
+  --grade:#52514e;--eixo:#898781;--borda:rgba(255,255,255,.6);--s1:#6da7ec;
+  --bom:#3ddc4a;--aviso:#ffd23f;--serio:#ff9a3c;--critico:#ff5c5c}
 body[data-tema="claro"]{color-scheme:light;--plano:#f0efec;--sup:#fcfcfb;--sup2:#f0efec;--tinta:#0b0b0b;--tinta2:#52514e;
-  --apagado:#898781;--grade:#e1e0d9;--eixo:#c3c2b7;--borda:rgba(11,11,11,.12);--s1:#2a78d6;--s2:#eb6834}
+  --apagado:#898781;--grade:#e1e0d9;--eixo:#c3c2b7;--borda:rgba(11,11,11,.12);--s1:#2a78d6;--s2:#eb6834;
+  --bom:#14801a;--aviso:#a35f00;--serio:#c2410c;--critico:#b42318}
 body[data-cor="agua"]{--s1:#199e70}body[data-cor="violeta"]{--s1:#9085e9}body[data-cor="magenta"]{--s1:#d55181}
 body[data-tema="claro"][data-cor="agua"]{--s1:#1baf7a}body[data-tema="claro"][data-cor="violeta"]{--s1:#6250d6}
 body[data-tema="claro"][data-cor="magenta"]{--s1:#e87ba4}
@@ -490,7 +492,7 @@ pt: {conectando: 'conectando', nv_bom: 'ok', nv_aviso: 'atenção', nv_serio: 'a
   lm_prog_cpu: 'Um programa usando o processador (% do total)', lm_temp_cpu: 'Temperatura do processador (°C)',
   lm_temp_gpu: 'Temperatura da placa de vídeo (°C)', lm_temp_ssd: 'Temperatura dos SSDs (°C)', lm_temp_mem: 'Temperatura da memória (°C)',
   lm_temp_placa: 'Temperatura da placa-mãe (°C)', lm_disco: 'Disco cheio (% usado)', lm_ping: 'Ping (ms)', lm_perda: 'Perda de pacotes (%)',
-  lm_kernel: 'Erros do kernel', lm_travou: 'Programa travou (crash)',
+  lm_bateria: 'Bateria do fone ou do mouse (%)', lm_kernel: 'Erros do kernel', lm_travou: 'Programa travou (crash)',
   l_fonte: 'De onde vem o recomendado: {0}.', l_ssd: 'SSDs: {0}', l_padrao: 'outros',
   a_registro: 'Registro em arquivo', a_log: 'Guardar as medidas e os eventos em arquivos CSV', a_pasta: 'Pasta', a_int: 'Gravar uma linha a cada',
   i_5: '5 segundos', i_10: '10 segundos', i_30: '30 segundos', i_60: '1 minuto', a_dias: 'Apagar arquivos com mais de', d_7: '7 dias',
@@ -585,7 +587,7 @@ en: {conectando: 'connecting', nv_bom: 'ok', nv_aviso: 'warning', nv_serio: 'hig
   lm_prog_cpu: 'One program using the processor (% of total)', lm_temp_cpu: 'Processor temperature (°C)',
   lm_temp_gpu: 'Graphics card temperature (°C)', lm_temp_ssd: 'SSD temperature (°C)', lm_temp_mem: 'Memory temperature (°C)',
   lm_temp_placa: 'Motherboard temperature (°C)', lm_disco: 'Disk full (% used)', lm_ping: 'Ping (ms)', lm_perda: 'Packet loss (%)',
-  lm_kernel: 'Kernel errors', lm_travou: 'Program crashed',
+  lm_bateria: 'Headset or mouse battery (%)', lm_kernel: 'Kernel errors', lm_travou: 'Program crashed',
   l_fonte: 'Where recommended comes from: {0}.', l_ssd: 'SSDs: {0}', l_padrao: 'others',
   a_registro: 'Logging to file', a_log: 'Save the samples and the events to CSV files', a_pasta: 'Folder', a_int: 'Write one row every',
   i_5: '5 seconds', i_10: '10 seconds', i_30: '30 seconds', i_60: '1 minute', a_dias: 'Delete files older than', d_7: '7 days',
