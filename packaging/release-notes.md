@@ -1,3 +1,10 @@
+## 0.4.1: black box writes 27 times less
+
+- **The black box wrote far more than it should.** Each 512 byte record plus sync went through the
+  page cache, and on recent kernels that dirties a whole large folio: measured about 1.3 MB a minute
+  on ext4 instead of a few KiB. Records now go straight to the disk (O_DIRECT, one 4 KiB block):
+  measured 48 KiB a minute with the page open. File systems without O_DIRECT keep the old way.
+
 ## 0.4.0: black box, 24 h history, game sessions, SSD health
 
 - **Black box.** A summary of every sample goes to a small file of fixed size (180 KiB, the last 30
@@ -25,7 +32,7 @@
   most and the program list every 10 s.
 - **Measured cost** (120 s runs, share of one processor core): page closed 0.075 % before and after,
   memory 66 to 68 MiB; page open 0.45 % before, 0.30 % now (partly run to run noise); page open with
-  a game running 0.16 %. The black box writes 512 bytes every 5 to 15 s, about 3 to 6 KiB a minute.
+  a game running 0.16 %. The black box writes one record every 5 to 15 s (see 0.4.1 for its real disk cost).
 
 ## 0.3.3: fix
 

@@ -18,6 +18,7 @@ import glob
 import hashlib
 import http.client
 import json
+import mmap
 import os
 import re
 import shutil
@@ -34,7 +35,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 
-VERSAO = "0.4.0"
+VERSAO = "0.4.1"
 REPO = "gabrielmf1998/pc-panel"         # owner/repository on GitHub, used only to look for a new version
 PASTA_CFG = os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"), "pc-panel")
 
@@ -779,10 +780,15 @@ class CaixaPreta:
     # the newest one is at most one sample old, and a slow disk never holds up sampling.
     # A clean stop leaves a marker; a record from an earlier boot without one means the
     # PC stopped on its own, and those last minutes are kept as an incident.
-    SLOTS, TAM, CADA = 360, 512, 5.0
+    # Writes go straight to the disk (O_DIRECT, one 4 KiB block): through the page cache a
+    # 512 byte write plus sync costs a whole large folio, measured 118 KiB each on ext4.
+    SLOTS, TAM, CADA, BLOCO = 360, 512, 5.0, 4096
 
     def __init__(self):
         self.fd = None
+        self.direto = None
+        self.espelho = None
+        self.buf = None
         self.n = 0
         self.ult = 0.0
         self.fila = None
@@ -827,10 +833,16 @@ class CaixaPreta:
                 os.ftruncate(self.fd, 0)
                 os.pwrite(self.fd, (b" " * (self.TAM - 1) + b"\n") * self.SLOTS, 0)
                 os.fsync(self.fd)
+            self.espelho = bytearray(os.pread(self.fd, self.SLOTS * self.TAM, 0))
         except OSError as e:
             avisar("caixa", e)
             self.fd = None
             return
+        try:
+            self.direto = os.open(ARQ_CAIXA, os.O_WRONLY | os.O_DIRECT | os.O_DSYNC | os.O_CLOEXEC)
+            self.buf = mmap.mmap(-1, self.BLOCO)    # page aligned, as O_DIRECT needs
+        except (OSError, AttributeError):
+            self.direto = None
         threading.Thread(target=self.laco, daemon=True).start()
 
     def guardar(self, recs):
@@ -876,8 +888,19 @@ class CaixaPreta:
                     self.cond.wait()
                 slot, dados = self.fila
                 self.fila = None
+            ini = slot * self.TAM
+            self.espelho[ini:ini + self.TAM] = dados
+            if self.direto is not None:
+                b = ini // self.BLOCO * self.BLOCO
+                self.buf[:] = self.espelho[b:b + self.BLOCO]
+                try:
+                    os.pwrite(self.direto, self.buf, b)
+                    continue
+                except OSError:
+                    os.close(self.direto)    # a file system without O_DIRECT: use the page cache
+                    self.direto = None
             try:
-                os.pwrite(self.fd, dados, slot * self.TAM)
+                os.pwrite(self.fd, dados, ini)
                 os.fdatasync(self.fd)
             except OSError as e:
                 avisar("caixa", e)

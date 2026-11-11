@@ -86,6 +86,8 @@ pace as the background alerts). Both can be turned off in Settings, Measuring.
 The service runs with the **SCHED_IDLE** processor class and the **idle** disk class: it only gets
 processor time and disk time nobody else wants, so a game is never delayed by it. With a game
 running the open page refreshes every 5 s at most (option), and the program list every 10 s.
+Each black box record is one 4 KiB block written straight to the disk (O_DIRECT), about 48 KiB a
+minute with the page open and half that with it closed.
 
 ## Tray icon
 

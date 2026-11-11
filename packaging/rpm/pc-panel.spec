@@ -1,6 +1,6 @@
 %global debug_package %{nil}
 Name:           pc-panel
-Version:        0.4.0
+Version:        0.4.1
 Release:        1
 Summary:        Local web dashboard to monitor and control a Linux PC, with a tray icon
 License:        MIT
@@ -55,6 +55,9 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install
 %{_unitdir}/pc-panel-fans.service
 
 %changelog
+* Wed Nov 11 2026 PC Panel contributors - 0.4.1-1
+- Black box writes one 4 KiB block straight to disk instead of a large page cache folio
+
 * Wed Nov 11 2026 PC Panel contributors - 0.4.0-1
 - Black box, 24 h history, game sessions, SSD health, gaming thresholds, silence alerts
 - Tray tooltip readings, lowest priority (SCHED_IDLE), lighter page while gaming
