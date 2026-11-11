@@ -3,7 +3,9 @@
 # It measures RAM, graphics card, processor, network, disks, system health and what
 # is running, and shows it on a local page:   http://127.0.0.1:47822
 # It only reads the system. What it writes: its own settings (~/.config/pc-panel),
-# the CSV log when enabled in Settings, and the fan command file
+# the black box, 24 h history and SSD error counts (~/.local/state/pc-panel), game
+# sessions (~/.local/share/pc-panel/sessoes.jsonl), the CSV log when enabled in Settings,
+# the tray files in $XDG_RUNTIME_DIR/pc-panel, and the fan command file
 # (/var/lib/pc-panel/fans.json, applied by the root helper pc-panel-fans).
 # With the page closed and nothing asking for samples (logging, graphics card
 # curve, fixed fan speed) the service sleeps and costs nothing.
@@ -32,7 +34,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 
-VERSAO = "0.3.3"
+VERSAO = "0.4.0"
 REPO = "gabrielmf1998/pc-panel"         # owner/repository on GitHub, used only to look for a new version
 PASTA_CFG = os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"), "pc-panel")
 
@@ -77,8 +79,10 @@ METRICAS = {
     "ram": ("baixo", 0, 1048576), "vram": ("alto", 1, 100), "cpu_uso": ("alto", 1, 100), "prog_cpu": ("alto", 1, 100),
     "temp_cpu": ("alto", 20, 130), "temp_gpu": ("alto", 20, 130), "temp_ssd": ("alto", 20, 130),
     "temp_mem": ("alto", 20, 130), "temp_placa": ("alto", 20, 130), "disco": ("alto", 1, 100),
-    "ping": ("alto", 1, 10000), "perda": ("alto", 0.1, 100), "bateria": ("baixo", 1, 99), "kernel": ("evento", 0, 0), "travou": ("evento", 0, 0),
+    "ping": ("alto", 1, 10000), "perda": ("alto", 0.1, 100), "bateria": ("baixo", 1, 99), "ssd_desgaste": ("alto", 1, 100),
+    "kernel": ("evento", 0, 0), "travou": ("evento", 0, 0), "parou": ("evento", 0, 0), "ssd_saude": ("evento", 0, 0),
 }
+NIVEL_EVENTO = {"parou": "serio", "ssd_saude": "critico"}     # default level of the one-off alerts, the rest start at "aviso"
 TEMP_METRICA = {"cpu": "temp_cpu", "gpu": "temp_gpu", "ssd": "temp_ssd", "placa": "temp_placa", "mem": "temp_mem"}
 NCPU = os.cpu_count() or 1
 hw_lim = {"gpu": None}           # graphics card limits read from the driver (NVML or amdgpu)
@@ -182,7 +186,7 @@ def recomendados():
     r = {"ram": [max(256, round(total * f / 64) * 64) for f in (0.10, 0.04, 0.015)],
          "vram": [85, 93, 97], "cpu_uso": [90, 97, None], "prog_cpu": [80, 95, None],
          "disco": [85, 93, 97], "ping": [60, 100, 180], "perda": [2, 6, 20], "temp_placa": [55, 65, 75],
-         "bateria": [15, 8, 3]}
+         "bateria": [15, 8, 3], "ssd_desgaste": [80, 90, 97]}
     fonte = {"temp_cpu": "", "temp_gpu": "", "temp_mem": ""}
     mx, crit = limite_do_sensor(fontes["cpu"])
     if crit and "coretemp" in (ler(os.path.dirname(fontes["cpu"] or "") + "/name") or ""):
@@ -218,6 +222,21 @@ def recomendados():
     return r
 
 
+def recomendados_jogo():
+    # while a game runs a full graphics card and a busy processor are expected:
+    # only warn when it is about to run out
+    return dict(recomendados(), vram=[95, 98, None], cpu_uso=[95, 99, None], prog_cpu=[90, 98, None])
+
+
+def jogando():
+    return bool(cfg["jogo"]["limites"] and extra["jogos"])
+
+
+def silenciado(ident, t=None):
+    t = t or time.time()
+    return silencio.get(ident, 0) > t or silencio.get("*", 0) > t
+
+
 def ler_int_meminfo(chave):
     m = re.search(r"^%s:\s+(\d+)" % chave, ler("/proc/meminfo") or "", re.M)
     return int(m.group(1)) if m else 0
@@ -228,8 +247,11 @@ def limite(mid, disco=None):
     c = cfg["limites"][mid]
     if not c["on"]:
         return None
+    rec = recomendados
+    if mid in cfg["limites_jogo"] and jogando():
+        c, rec = cfg["limites_jogo"][mid], recomendados_jogo
     if c["rec"] or not c.get("v"):
-        r = recomendados()[mid]
+        r = rec()[mid]
         return (r.get(disco) or r["_"]) if mid == "temp_ssd" else r
     return c["v"]
 
@@ -282,6 +304,8 @@ curva_gpu = {"alvo": None, "quando": 0.0}
 upd = {"quando": None, "pacotes": [], "flatpak": None, "erro": None, "rodando": False}
 novidade = {"quando": None, "versao": None, "nova": False, "erro": None, "rodando": False, "arquivos": {}}
 eventos = collections.deque(maxlen=300)
+silencio = {}                       # alert id (or "*" for all) -> silenced until this time
+trava_ev = threading.Lock()         # open events and silences change from the sampling and the web threads
 ev_seq = [0]
 cfg_seq = [0]
 cfg = {}
@@ -294,12 +318,14 @@ def assistindo(limite=20):
 def ritmo():
     # (seconds between samples, page open?) or (None, False) to sleep
     if assistindo():
-        return float(cfg["passo"]), True
+        return passo_pagina(), True
     lento = []
     if cfg["alertas"]["fundo"]:
         lento.append(cfg["alertas"]["cada"])
     if cfg["registro"]["ligado"]:
         lento.append(cfg["registro"]["intervalo"])
+    if cfg["caixa"]:
+        lento.append(10)
     f = cfg["fans"]
     if fans["pode"] and f:
         if f["gpu"]["modo"] == "curva":
@@ -307,6 +333,12 @@ def ritmo():
         if f["gpu"]["modo"] == "fixo" or any(x["modo"] == "fixo" for x in f["placa"].values()):
             lento.append(10)        # fixed fan speed: keep an eye on the temperature
     return (float(min(lento)), False) if lento else (None, False)
+
+
+def passo_pagina():
+    # with a game running the open page samples every 5 s at most, every frame counts
+    p = float(cfg["passo"])
+    return max(p, 5.0) if cfg["jogo"]["leve"] and extra["jogos"] else p
 
 
 # ---------------------------------------------------------------- settings
@@ -317,8 +349,16 @@ def cfg_padrao():
             "avisar": {"desktop": True, "som": False, "nivel": "serio"},
             # keep measuring with the page closed so the tray icon and notifications can warn
             "alertas": {"fundo": True, "cada": 10},
-            "limites": {m: ({"on": True, "nv": "aviso"} if d[0] == "evento" else {"on": True, "rec": True, "v": None})
+            "limites": {m: ({"on": True, "nv": NIVEL_EVENTO.get(m, "aviso")} if d[0] == "evento" else {"on": True, "rec": True, "v": None})
                         for m, d in METRICAS.items()},
+            # thresholds used while a game runs (on/off still comes from "limites")
+            "limites_jogo": {m: {"rec": True, "v": None} for m, d in METRICAS.items() if d[0] != "evento"},
+            # limites: use limites_jogo while gaming; leve: open page samples every 5 s while gaming
+            "jogo": {"limites": True, "leve": True},
+            # tray tooltip with a few readings, rewritten every 30 s at most
+            "dica": True,
+            # black box and 24 h history: keep sampling every 10 s with the page closed
+            "caixa": True,
             "registro": {"ligado": False, "pasta": "~/.local/share/pc-panel/registro", "intervalo": 10, "dias": 30},
             # extra modules, off by default: Project Zomboid server and live viewer counter
             "modulos": {"zomboid": False, "live": False},
@@ -354,36 +394,18 @@ def limpar_cfg(d, base):
             nova["alertas"]["fundo"] = bool(d["alertas"]["fundo"])
         if d["alertas"].get("cada") in (5, 10, 30, 60):
             nova["alertas"]["cada"] = d["alertas"]["cada"]
-    if isinstance(d.get("limites"), dict):
-        for m, x in d["limites"].items():
-            if m not in METRICAS or not isinstance(x, dict):
-                continue
-            direcao, menor, maior = METRICAS[m]
-            alvo = nova["limites"][m]
-            if "on" in x:
-                alvo["on"] = bool(x["on"])
-            if direcao == "evento":
-                if x.get("nv") in NIVEIS[1:]:
-                    alvo["nv"] = x["nv"]
-                continue
-            if "rec" in x:
-                alvo["rec"] = bool(x["rec"])
-            v = x.get("v")
-            if v is None:
-                continue
-            if not (isinstance(v, list) and len(v) == 3 and all(y is None or numero(y) for y in v)):
-                return None, ("Limite inválido em %s" % m, "Invalid threshold in %s" % m)
-            usados = [y for y in v if y is not None]
-            if any(not menor <= y <= maior for y in usados):
-                return None, ("Os limites de %s precisam ficar entre %s e %s" % (m, menor, maior),
-                              "The %s thresholds must be between %s and %s" % (m, menor, maior))
-            if usados != sorted(usados, reverse=direcao == "baixo") or len(set(usados)) != len(usados):
-                return None, ("Os limites de %s precisam %s de atenção para crítico" % (m, "descer" if direcao == "baixo" else "subir"),
-                              "The %s thresholds must %s from warning to critical" % (m, "go down" if direcao == "baixo" else "go up"))
-            if not usados and not alvo["rec"]:
-                return None, ("Preencha pelo menos um limite de %s ou desligue o alerta" % m,
-                              "Fill at least one %s threshold or turn the alert off" % m)
-            alvo["v"] = v
+    for chave in ("limites", "limites_jogo"):
+        if isinstance(d.get(chave), dict):
+            falha = limpar_limites(d[chave], nova[chave])
+            if falha:
+                return None, falha
+    if isinstance(d.get("jogo"), dict):
+        for k in ("limites", "leve"):
+            if k in d["jogo"]:
+                nova["jogo"][k] = bool(d["jogo"][k])
+    for k in ("dica", "caixa"):
+        if k in d:
+            nova[k] = bool(d[k])
     if isinstance(d.get("modulos"), dict):
         for k in ("zomboid", "live"):
             if k in d["modulos"]:
@@ -422,6 +444,40 @@ def limpar_cfg(d, base):
             return None, ("Não consegui gravar na pasta %s (%s)" % (real, e.strerror),
                           "Could not write to the folder %s (%s)" % (real, e.strerror))
     return nova, None
+
+
+def limpar_limites(entrada, destino):
+    # validates thresholds in place; returns None or (error in Portuguese, error in English)
+    for m, x in entrada.items():
+        if m not in destino or not isinstance(x, dict):
+            continue
+        direcao, menor, maior = METRICAS[m]
+        alvo = destino[m]
+        if "on" in x and "on" in alvo:
+            alvo["on"] = bool(x["on"])
+        if direcao == "evento":
+            if x.get("nv") in NIVEIS[1:]:
+                alvo["nv"] = x["nv"]
+            continue
+        if "rec" in x:
+            alvo["rec"] = bool(x["rec"])
+        v = x.get("v")
+        if v is None:
+            continue
+        if not (isinstance(v, list) and len(v) == 3 and all(y is None or numero(y) for y in v)):
+            return "Limite inválido em %s" % m, "Invalid threshold in %s" % m
+        usados = [y for y in v if y is not None]
+        if any(not menor <= y <= maior for y in usados):
+            return ("Os limites de %s precisam ficar entre %s e %s" % (m, menor, maior),
+                    "The %s thresholds must be between %s and %s" % (m, menor, maior))
+        if usados != sorted(usados, reverse=direcao == "baixo") or len(set(usados)) != len(usados):
+            return ("Os limites de %s precisam %s de atenção para crítico" % (m, "descer" if direcao == "baixo" else "subir"),
+                    "The %s thresholds must %s from warning to critical" % (m, "go down" if direcao == "baixo" else "go up"))
+        if not usados and not alvo["rec"]:
+            return ("Preencha pelo menos um limite de %s ou desligue o alerta" % m,
+                    "Fill at least one %s threshold or turn the alert off" % m)
+        alvo["v"] = v
+    return None
 
 
 def carregar_cfg():
@@ -597,7 +653,7 @@ def acompanhar(avisos, t, jogo):
             continue
         pendentes[ident] = pendentes.get(ident, 0) + 1
         if pendentes[ident] >= 2:
-            ev = {"t": round(t), "fim": None, "nv": a["nv"], "pt": a["pt"], "en": a["en"], "jogo": jogo, "c": a["c"]}
+            ev = {"t": round(t), "fim": None, "nv": a["nv"], "pt": a["pt"], "en": a["en"], "jogo": jogo, "c": a["c"], "id": ident}
             eventos.append(ev)
             abertos[ident] = {"ev": ev, "ok": 0}
             del pendentes[ident]
@@ -625,7 +681,8 @@ def avisar_bandeja():
     # level now (0 ok, 1 warning, 2 serious, 3 critical), then one line per problem.
     # One-off events (kernel error, crash) stay for 10 minutes.
     agora = time.time()
-    lista = [a["ev"] for a in list(abertos.values())] + [e for e in list(eventos) if e["fim"] == e["t"] and agora - e["t"] < 600]
+    lista = [a["ev"] for a in list(abertos.values())] + [e for e in list(eventos) if e["fim"] == e["t"] and agora - e["t"] < 600
+                                                         and not e.get("mudo")]
     lista.sort(key=lambda e: -NIVEIS.index(e["nv"]))
     pior = NIVEIS.index(lista[0]["nv"]) if lista else 0
     corpo = "%d\n%s" % (pior, "".join(e[cfg["idioma"]].replace("\n", " ")[:120] + "\n" for e in lista[:5]))
@@ -645,11 +702,476 @@ def evento_avulso(nv, pt, en, cartao="saude"):
     t = round(time.time())
     jogo = extra["jogos"][0]["nome"] if extra["jogos"] else None
     ev = {"t": t, "fim": t, "nv": nv, "pt": pt, "en": en, "jogo": jogo, "c": cartao}
+    if silenciado("*", t):
+        ev["mudo"] = True               # kept in the list, but no tray colour or notification
     eventos.append(ev)
     ev_seq[0] += 1
     registro.evento("fim", ev)
-    notificar(ev)
+    if not ev.get("mudo"):
+        notificar(ev)
     avisar_bandeja()
+
+
+def silenciar(ident, minutos):
+    # silence one alert (or all, "*") for a while; an open event closes now
+    t = time.time()
+    with trava_ev:
+        _silenciar(ident, minutos, t)
+    avisar_bandeja()
+
+
+def _silenciar(ident, minutos, t):
+    if minutos:
+        silencio[ident] = t + minutos * 60
+    else:
+        silencio.pop(ident, None)
+    for k in [k for k, v in silencio.items() if v <= t]:
+        del silencio[k]
+    if minutos:
+        for i in [i for i in abertos if ident in ("*", i)]:
+            abertos[i]["ev"]["fim"] = round(t)
+            registro.evento("fim", abertos.pop(i)["ev"])
+        for i in [i for i in pendentes if ident in ("*", i)]:
+            del pendentes[i]
+    ev_seq[0] += 1
+
+
+def gravar_json(arq, dados):
+    os.makedirs(os.path.dirname(arq), exist_ok=True)
+    with open(arq + ".novo", "w") as f:
+        json.dump(dados, f, separators=(",", ":"), ensure_ascii=False)
+    os.replace(arq + ".novo", arq)
+
+
+# ---------------------------------------------------------------- black box, 24 h history, game sessions
+
+PASTA_ESTADO = os.path.join(os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state"), "pc-panel")
+PASTA_DADOS = os.path.join(os.environ.get("XDG_DATA_HOME") or os.path.expanduser("~/.local/share"), "pc-panel")
+ARQ_CAIXA = PASTA_ESTADO + "/caixa-preta.bin"
+ARQ_CAIXA_OK = PASTA_ESTADO + "/caixa-preta.ok"
+ARQ_INCIDENTES = PASTA_ESTADO + "/incidentes.json"
+ARQ_H24 = PASTA_ESTADO + "/historico-24h.json"
+ARQ_SSD = PASTA_ESTADO + "/ssd.json"
+ARQ_SESSOES = PASTA_DADOS + "/sessoes.jsonl"
+ARQ_DICA = os.path.join(os.path.dirname(ARQ_ALERTA), "tip")
+BOOT_ID = (ler("/proc/sys/kernel/random/boot_id") or "?").strip().replace("-", "")[:12]
+
+
+def resumo_amostra(a):
+    # the few numbers kept per sample by the black box and the 24 h history
+    g, c, r = a["gpu"], a["cpu"], a["ram"]
+    top = ((a.get("progs") or {}).get("cpu") or [None])[0]
+    return {"t": round(a["t"]), "cpu": c["uso"], "tc": c["temp"], "ghz": c["ghz"], "carga": c["carga"],
+            "gpu": g.get("uso"), "tg": g.get("temp"), "w": g.get("watts"),
+            "vr": g.get("vram"), "vt": g.get("vram_total"), "ram": r["left"] // 1024, "sw": r["swap"] // 1024,
+            "swr": r["swap_mibs"], "pm": r["psi"], "pio": a["psi_io"], "ping": a["rede"]["ping"],
+            "j": (a["jogos"][0]["nome"][:32] if a["jogos"] else None),
+            "top": [top["nome"][:24], round(top["pct"] / NCPU)] if top else None,
+            "fan": max([x["rpm"] for x in a["fans"]["canais"]] or [None], key=lambda x: x or 0),
+            "de": max([d["espera"] or 0 for d in a["discos"]] or [0]),
+            "nv": max([NIVEIS.index(x["nv"]) for x in a["avisos"]] or [0])}
+
+
+class CaixaPreta:
+    # The last minutes kept on disk, in a file that never changes size (360 slots of
+    # 512 bytes: 30 minutes at one record every 5 s, 60 at every 10 s). Each record is
+    # written in place and synced from its own thread, so after a freeze or a power cut
+    # the newest one is at most one sample old, and a slow disk never holds up sampling.
+    # A clean stop leaves a marker; a record from an earlier boot without one means the
+    # PC stopped on its own, and those last minutes are kept as an incident.
+    SLOTS, TAM, CADA = 360, 512, 5.0
+
+    def __init__(self):
+        self.fd = None
+        self.n = 0
+        self.ult = 0.0
+        self.fila = None
+        self.cond = threading.Condition()
+        self.incidentes = []
+        self.novo = None
+
+    def iniciar(self):
+        try:
+            self.incidentes = json.loads(ler(ARQ_INCIDENTES) or "[]")
+        except ValueError:
+            self.incidentes = []
+        recs = []
+        try:
+            with open(ARQ_CAIXA, "rb") as f:
+                bruto = f.read()
+            for i in range(0, len(bruto), self.TAM):
+                try:
+                    r = json.loads(bruto[i:i + self.TAM].strip(b" \n\0") or b"null")
+                except ValueError:
+                    continue
+                if isinstance(r, dict) and isinstance(r.get("s"), int):
+                    recs.append(r)
+        except OSError:
+            pass
+        ok = (ler(ARQ_CAIXA_OK) or "").strip()
+        if recs:
+            recs.sort(key=lambda r: r["s"])
+            ult = recs[-1]
+            self.n = ult["s"] + 1
+            if ult.get("b") != BOOT_ID and ok != ult.get("b"):
+                self.guardar([r for r in recs if r.get("b") == ult.get("b")])
+        try:
+            os.remove(ARQ_CAIXA_OK)
+        except OSError:
+            pass
+        try:
+            os.makedirs(PASTA_ESTADO, exist_ok=True)
+            self.fd = os.open(ARQ_CAIXA, os.O_RDWR | os.O_CREAT | os.O_CLOEXEC, 0o600)
+            if os.fstat(self.fd).st_size != self.SLOTS * self.TAM:
+                # written once with real bytes, so later writes never allocate blocks
+                os.ftruncate(self.fd, 0)
+                os.pwrite(self.fd, (b" " * (self.TAM - 1) + b"\n") * self.SLOTS, 0)
+                os.fsync(self.fd)
+        except OSError as e:
+            avisar("caixa", e)
+            self.fd = None
+            return
+        threading.Thread(target=self.laco, daemon=True).start()
+
+    def guardar(self, recs):
+        u = recs[-1]
+        inc = {"id": str(u["t"]), "t": u["t"], "inicio": recs[0]["t"], "detectado": round(time.time()),
+               "n": len(recs), "registros": recs}
+        self.incidentes = ([inc] + [x for x in self.incidentes if x.get("id") != inc["id"]])[:10]
+        try:
+            gravar_json(ARQ_INCIDENTES, self.incidentes)
+        except OSError as e:
+            avisar("caixa", e)
+        self.novo = u["t"]              # the event is raised once the settings are loaded
+
+    def avisar_novo(self):
+        if self.novo is None:
+            return
+        k, quando = cfg["limites"]["parou"], time.localtime(self.novo)
+        self.novo = None
+        if k["on"]:
+            evento_avulso(k["nv"], time.strftime("O PC parou sem desligar normalmente em %d/%m às %H:%M:%S "
+                                                 "(travamento, queda de energia ou reset). A caixa preta guardou os últimos minutos.", quando),
+                          time.strftime("The PC stopped without a normal shutdown on %m/%d at %H:%M:%S "
+                                        "(freeze, power cut or reset). The black box kept the last minutes.", quando))
+
+    def anotar(self, a):
+        if self.fd is None or a["t"] - self.ult < self.CADA - 0.5:
+            return
+        self.ult = a["t"]
+        r = dict(resumo_amostra(a), b=BOOT_ID, s=self.n)
+        dados = json.dumps(r, separators=(",", ":"), ensure_ascii=False).encode()
+        if len(dados) > self.TAM - 1:
+            r.update(j=None, top=None)
+            dados = json.dumps(r, separators=(",", ":")).encode()
+        with self.cond:
+            self.fila = (self.n % self.SLOTS, dados.ljust(self.TAM - 1) + b"\n")
+            self.n += 1
+            self.cond.notify()
+
+    def laco(self):
+        while True:
+            with self.cond:
+                while self.fila is None:
+                    self.cond.wait()
+                slot, dados = self.fila
+                self.fila = None
+            try:
+                os.pwrite(self.fd, dados, slot * self.TAM)
+                os.fdatasync(self.fd)
+            except OSError as e:
+                avisar("caixa", e)
+
+    def lista(self):
+        return [{k: x[k] for k in ("id", "t", "inicio", "detectado", "n")} for x in self.incidentes]
+
+    def um(self, ident):
+        return next((x for x in self.incidentes if x.get("id") == ident), None)
+
+
+def caixa_ok():
+    # clean stop: the next start must not take the old records for a freeze
+    try:
+        os.makedirs(PASTA_ESTADO, exist_ok=True)
+        with open(ARQ_CAIXA_OK, "w") as f:
+            f.write(BOOT_ID)
+    except OSError:
+        pass
+
+
+class Historico24:
+    # one line per minute for the last 24 hours (averages and peaks), saved every 15 minutes
+    COLS = ["t", "cpu", "cpu_max", "tc_max", "gpu", "gpu_max", "tg_max", "w_max", "vram_max", "ram_min",
+            "swap_max", "ping", "ping_max", "jogo", "nv"]
+
+    def __init__(self):
+        self.linhas = collections.deque(maxlen=1440)
+        self.trava = threading.Lock()
+        self.minuto = None
+        self.acc = None
+        self.mudou = False
+
+    def carregar(self):
+        try:
+            d = json.loads(ler(ARQ_H24) or "null")
+            if isinstance(d, dict) and d.get("cols") == self.COLS:
+                limite_t = time.time() - 86400
+                self.linhas.extend(x for x in d["linhas"] if isinstance(x, list) and x and x[0] >= limite_t)
+        except (ValueError, TypeError):
+            pass
+
+    def anotar(self, a):
+        r = resumo_amostra(a)
+        m = int(r["t"] // 60 * 60)
+        with self.trava:
+            if self.minuto != m:
+                self.fechar()
+                self.minuto, self.acc = m, collections.defaultdict(list)
+            for k in ("cpu", "tc", "gpu", "tg", "w", "vr", "ram", "sw", "ping", "nv"):
+                if r[k] is not None and r[k] >= 0:
+                    self.acc[k].append(r[k])
+            if r["j"]:
+                self.acc["j"] = [r["j"]]
+
+    def fechar(self):
+        x = self.acc
+        if not x:
+            return
+        media = lambda k: round(sum(x[k]) / len(x[k]), 1) if x[k] else None
+        mx = lambda k: max(x[k]) if x[k] else None
+        self.linhas.append([self.minuto, media("cpu"), mx("cpu"), mx("tc"), media("gpu"), mx("gpu"), mx("tg"), mx("w"),
+                            mx("vr"), min(x["ram"]) if x["ram"] else None, mx("sw"), media("ping"), mx("ping"),
+                            (x["j"] or [None])[0], mx("nv") or 0])
+        self.acc = None
+        self.mudou = True
+
+    def dados(self):
+        with self.trava:
+            linhas = list(self.linhas)
+        return {"cols": self.COLS, "linhas": linhas}
+
+    def salvar(self):
+        if not self.mudou:
+            return
+        self.mudou = False
+        try:
+            gravar_json(ARQ_H24, self.dados())
+        except OSError as e:
+            avisar("historico", e)
+
+
+class Sessoes:
+    # one summary per game session (at least 2 minutes), appended to sessoes.jsonl
+    def __init__(self):
+        self.atual = None
+
+    def anotar(self, a):
+        j = a["jogos"][0] if a["jogos"] else None
+        if self.atual and (not j or j["nome"] != self.atual["nome"]):
+            self.fechar()
+        if not j:
+            return
+        s = self.atual
+        if s is None:
+            s = self.atual = {"nome": j["nome"], "ini": round(j["desde"]), "fim": round(a["t"]), "n": 0, "cpu": 0.0, "gpu": 0.0,
+                              "tc_max": None, "tg_max": None, "w_max": None, "vram_max": None, "vram_jogo": 0,
+                              "ram_min": None, "ram_jogo": 0, "swap_max": 0, "ping_max": None}
+        g, c, r = a["gpu"], a["cpu"], a["ram"]
+        mx = lambda k, v: s.update({k: v if s[k] is None or (v is not None and v > s[k]) else s[k]})
+        s["fim"] = round(a["t"])
+        s["n"] += 1
+        s["cpu"] += c["uso"] or 0
+        s["gpu"] += g.get("uso") or 0
+        mx("tc_max", c["temp"])
+        mx("tg_max", g.get("temp"))
+        mx("w_max", g.get("watts"))
+        mx("vram_max", g.get("vram"))
+        mx("ping_max", a["rede"]["ping"] if (a["rede"]["ping"] or 0) >= 0 else None)
+        left = r["left"] // 1024
+        s["ram_min"] = left if s["ram_min"] is None else min(s["ram_min"], left)
+        s["ram_jogo"] = max(s["ram_jogo"], j["kb"])
+        s["vram_jogo"] = max(s["vram_jogo"], j["vram"] or 0)
+        s["swap_max"] = max(s["swap_max"], r["swap"] // 1024)
+
+    def resumo(self, s):
+        if not s:
+            return None
+        x = {k: v for k, v in s.items() if k not in ("cpu", "gpu", "n")}
+        x["cpu"] = round(s["cpu"] / s["n"]) if s["n"] else None
+        x["gpu"] = round(s["gpu"] / s["n"]) if s["n"] else None
+        x["alertas"] = sum(1 for e in list(eventos) if e.get("jogo") == s["nome"] and e["t"] >= s["ini"])
+        return x
+
+    def fechar(self):
+        s, self.atual = self.atual, None
+        if not s or s["fim"] - s["ini"] < 120:
+            return
+        try:
+            os.makedirs(PASTA_DADOS, exist_ok=True)
+            with open(ARQ_SESSOES, "a") as f:
+                f.write(json.dumps(self.resumo(s), separators=(",", ":"), ensure_ascii=False) + "\n")
+            if os.path.getsize(ARQ_SESSOES) > 512 * 1024:
+                with open(ARQ_SESSOES) as f:
+                    resto = f.readlines()[-1000:]
+                with open(ARQ_SESSOES + ".novo", "w") as f:
+                    f.writelines(resto)
+                os.replace(ARQ_SESSOES + ".novo", ARQ_SESSOES)
+        except OSError as e:
+            avisar("sessoes", e)
+
+    def lista(self, n=100):
+        saida = []
+        for linha in reversed(cauda(ARQ_SESSOES, 262144).decode(errors="replace").splitlines()):
+            try:
+                x = json.loads(linha)
+            except ValueError:
+                continue
+            if isinstance(x, dict):
+                saida.append(x)
+            if len(saida) >= n:
+                break
+        return saida
+
+
+caixa = CaixaPreta()
+h24 = Historico24()
+sessoes = Sessoes()
+dica = {"t": 0.0, "txt": None}
+
+
+def escrever_dica(a):
+    # a few readings for the tray tooltip, at most every 30 s, only when it changed
+    if not cfg["dica"]:
+        apagar_dica()
+        return
+    if a["t"] - dica["t"] < 30:
+        return
+    dica["t"] = a["t"]
+    pt = cfg["idioma"] == "pt"
+    c, g, r = a["cpu"], a["gpu"], a["ram"]
+    n0 = lambda v: "?" if v is None else "%d" % round(v)
+    linhas = ["CPU %s %% · %s °C" % (n0(c["uso"]), n0(c["temp"]))]
+    if g.get("ok"):
+        linhas.append("GPU %s %% · %s °C · VRAM %.1f / %.0f GiB" % (n0(g["uso"]), n0(g["temp"]), g["vram"] / 1024, g["vram_total"] / 1024))
+    linhas.append(("RAM livre %.1f GiB" if pt else "Free RAM %.1f GiB") % (r["left"] / 1048576))
+    if a["rede"]["ping"] is not None and a["rede"]["ping"] >= 0:
+        linhas.append("Ping %d ms" % round(a["rede"]["ping"]))
+    if a["jogos"]:
+        j = a["jogos"][0]
+        linhas.append("%s · %s" % (j["nome"][:40], duracao(a["t"] - j["desde"])))
+    txt = "\n".join(linhas) + "\n"
+    if txt == dica["txt"]:
+        return
+    try:
+        os.makedirs(os.path.dirname(ARQ_DICA), exist_ok=True)
+        with open(ARQ_DICA + ".new", "w") as f:
+            f.write(txt)
+        os.replace(ARQ_DICA + ".new", ARQ_DICA)
+        dica["txt"] = txt
+    except OSError as e:
+        avisar("dica", e)
+
+
+def apagar_dica():
+    if dica["txt"] is None and not os.path.exists(ARQ_DICA):
+        return
+    dica.update(t=0.0, txt=None)
+    try:
+        os.remove(ARQ_DICA)
+    except OSError:
+        pass
+
+
+def duracao(seg):
+    seg = int(max(0, seg))
+    h, m = seg // 3600, seg // 60 % 60
+    return "%d h %02d min" % (h, m) if h else "%d min" % m
+
+
+# ---------------------------------------------------------------- SSD health (UDisks2, no root needed)
+
+ssd = {}                            # block device name -> health
+ssd_base = {}                       # drive -> error count already seen, so only new errors alert
+
+
+def busctl_json(*args):
+    saida = rodar(["busctl", "--system", "--auto-start=no", "--json=short", "call", "org.freedesktop.UDisks2"] + list(args), 10)
+    try:
+        return json.loads(saida)["data"] if saida else None
+    except (ValueError, KeyError, TypeError):
+        return None
+
+
+def saude_ssd():
+    d = busctl_json("/org/freedesktop/UDisks2", "org.freedesktop.DBus.ObjectManager", "GetManagedObjects")
+    if not d:
+        return
+    objs, U = d[0], "org.freedesktop.UDisks2."
+    val = lambda ifs, i, k: (ifs.get(U + i, {}).get(k) or {}).get("data")
+    blocos = {}
+    for caminho, ifs in objs.items():
+        drive = val(ifs, "Block", "Drive")
+        if drive and drive != "/" and U + "Partition" not in ifs:
+            dev = bytes(val(ifs, "Block", "Device") or []).rstrip(b"\0").decode(errors="replace")
+            blocos[drive] = os.path.basename(dev)
+    if not ssd_base:
+        try:
+            ssd_base.update(json.loads(ler(ARQ_SSD) or "{}"))
+        except ValueError:
+            pass
+    novo, mudou = {}, False
+    for drive, dev in blocos.items():
+        ifs = objs.get(drive, {})
+        h = {"saude": None, "gasto": None, "reserva": None, "reserva_min": None, "escrito": None, "horas": None,
+             "inseguros": None, "erros": 0, "problema": None}
+        if U + "NVMe.Controller" in ifs:
+            at = busctl_json(drive, U + "NVMe.Controller", "SmartGetAttributes", "a{sv}", "0")
+            at = {k: v.get("data") for k, v in at[0].items()} if at else {}
+            if at.get("percent_used") is not None:
+                h["gasto"] = at["percent_used"]
+                h["saude"] = max(0, 100 - at["percent_used"])
+            h.update(reserva=at.get("avail_spare"), reserva_min=at.get("spare_thresh"), escrito=at.get("total_data_written"),
+                     inseguros=at.get("unsafe_shutdowns"), erros=at.get("media_errors") or 0,
+                     horas=val(ifs, "NVMe.Controller", "SmartPowerOnHours"))
+            avisos = val(ifs, "NVMe.Controller", "SmartCriticalWarning") or []
+            if avisos:
+                h["problema"] = ("o SSD avisa: " + ", ".join(avisos), "the SSD reports: " + ", ".join(avisos))
+        elif val(ifs, "Drive.Ata", "SmartSupported") and val(ifs, "Drive.Ata", "SmartEnabled"):
+            at = busctl_json(drive, U + "Drive.Ata", "SmartGetAttributes", "a{sv}", "0")
+            por_id = {x[0]: x for x in (at[0] if at else [])}
+            seg = val(ifs, "Drive.Ata", "SmartPowerOnSeconds")
+            h["horas"] = seg // 3600 if seg else None
+            if 170 in por_id:               # available reserved space, normalized
+                h["reserva"], h["reserva_min"] = por_id[170][3], por_id[170][5]
+            # reallocated + pending sectors (libatasmart) and errors the drive could not correct
+            h["erros"] = (val(ifs, "Drive.Ata", "SmartNumBadSectors") or 0) + (por_id[187][6] if 187 in por_id else 0)
+            if val(ifs, "Drive.Ata", "SmartFailing"):
+                h["problema"] = ("o SMART diz que o disco está falhando", "SMART says the disk is failing")
+            elif (val(ifs, "Drive.Ata", "SmartNumAttributesFailing") or 0) > 0:
+                h["problema"] = ("atributos do SMART abaixo do limite", "SMART attributes below threshold")
+        else:
+            continue
+        if h["reserva"] is not None and h["reserva_min"] and h["reserva"] <= h["reserva_min"] and not h["problema"]:
+            h["problema"] = ("reserva do SSD esgotada (%d %%)" % h["reserva"], "SSD spare area used up (%d %%)" % h["reserva"])
+        chave = os.path.basename(drive)
+        antes = ssd_base.get(chave)
+        if antes is None or h["erros"] > antes:
+            k = cfg["limites"]["ssd_saude"]
+            if h["erros"] > (antes or 0) and k["on"]:
+                nome = next((x["nome"] for x in discos if x["dev"] == dev), dev)
+                nome_pt, nome_en = ("Sistema", "System") if nome == "/" else (nome, nome)
+                evento_avulso(k["nv"], "SSD %s registrou %d erro(s) de leitura/gravação (total %d)" % (nome_pt, h["erros"] - (antes or 0), h["erros"]),
+                              "SSD %s logged %d new read/write error(s) (total %d)" % (nome_en, h["erros"] - (antes or 0), h["erros"]), "disc")
+            ssd_base[chave] = h["erros"]
+            mudou = True
+        novo[dev] = h
+    ssd.clear()
+    ssd.update(novo)
+    if mudou:
+        try:
+            gravar_json(ARQ_SSD, ssd_base)
+        except OSError as e:
+            avisar("ssd", e)
 
 
 # ---------------------------------------------------------------- fans (the part without root)
@@ -867,11 +1389,13 @@ def calibrar():
 def ao_parar():
     # with the panel stopped nobody drives the graphics card curve: hand it back to
     # the factory curve. The choice stays saved and returns when the panel starts.
-    # The tray icon goes back to normal.
-    try:
-        os.remove(ARQ_ALERTA)
-    except OSError:
-        pass
+    # The tray icon goes back to normal, and the black box notes a clean stop.
+    caixa_ok()
+    for arq in (ARQ_ALERTA, ARQ_DICA):
+        try:
+            os.remove(arq)
+        except OSError:
+            pass
     try:
         cmd = json.loads(ler(ARQ_FANS) or "null")
         if isinstance(cmd, dict) and isinstance(cmd.get("gpu"), dict) and cmd["gpu"].get("modo") == "curva":
@@ -1605,7 +2129,7 @@ class Medidor:
         avisos, nv = [], {}
 
         def av(ident, cartao, n, pt, en):
-            if n != "bom":
+            if n != "bom" and not silenciado(ident, t):
                 avisos.append({"id": ident, "c": cartao, "nv": n, "pt": pt, "en": en})
             return n
 
@@ -1743,8 +2267,20 @@ class Medidor:
             usado = round(100.0 * (1 - d["livre"] / d["total"]), 1) if d["total"] else 0.0
             n2 = av("disco-" + d["dev"], "disc", nivel(usado, limite("disco")), "Disco %s com %d %% ocupado" % (nome_pt, usado),
                     "Disk %s %d %% full" % (nome_en, usado))
+            h = ssd.get(d["dev"])
+            n3 = "bom"
+            if h:
+                h = dict(h)
+                if h["gasto"] is not None:
+                    n3 = av("ssd-gasto-" + d["dev"], "disc", nivel(h["gasto"], limite("ssd_desgaste")),
+                            "SSD %s com %d %% da vida útil gasta" % (nome_pt, h["gasto"]), "SSD %s has used %d %% of its life" % (nome_en, h["gasto"]))
+                k = cfg["limites"]["ssd_saude"]
+                if h["problema"] and k["on"]:
+                    n3 = max(n3, av("ssd-saude-" + d["dev"], "disc", k["nv"], "SSD %s: %s" % (nome_pt, h["problema"][0]),
+                                    "SSD %s: %s" % (nome_en, h["problema"][1])), key=NIVEIS.index)
+                h["nv"] = n3
             lista_discos.append(dict(io, nome=d["nome"], modelo=d["modelo"], total=d["total"], livre=d["livre"],
-                                     usado=usado, nv=max(nd, n2, key=NIVEIS.index)))
+                                     usado=usado, saude=h, nv=max(nd, n2, n3, key=NIVEIS.index)))
         temps.append({"id": "placa", "nome": "", "c": grau(fontes["placa"])})
         tmem = [x for x in (grau(m) for m in fontes["mem"]) if x]
         temps.append({"id": "mem", "nome": "", "c": max(tmem) if tmem else None})
@@ -1789,7 +2325,9 @@ class Medidor:
                "%s battery at %d %%" % (bat["nome"], bat["pct"]))
         proteger_fans(gpu.get("temp"), tcpu)
         guiar_gpu(gpu.get("temp"))
-        acompanhar(avisos, t, jogo)
+        with trava_ev:
+            acompanhar(avisos, t, jogo)
+            mudos = {k: round(v) for k, v in silencio.items() if v > t}
         avisar_bandeja()
 
         self.custo.append((time.monotonic(), time.process_time()))
@@ -1806,7 +2344,8 @@ class Medidor:
                  "sis": dict(sis, ligado=ligado, driver=gpu.get("driver"), painel=proprio),
                  "saude": dict(sd, falhas=len(sis["falhas"]), npac=len(upd["pacotes"]),
                                upd={k: upd[k] for k in ("quando", "flatpak", "erro", "rodando")}),
-                 "nv": nv, "avisos": [{"nv": x["nv"], "pt": x["pt"], "en": x["en"], "c": x["c"]} for x in avisos],
+                 "nv": nv, "avisos": avisos, "silencio": mudos,
+                 "jogando": jogando(), "sessao": sessoes.resumo(sessoes.atual),
                  "ev": ev_seq[0], "cfg": cfg_seq[0], "registro": cfg["registro"]["ligado"],
                  "espaco": lento[0] or float(cfg["passo"])}
         linha = [round(t, 1), round(ram["usada"] / 1048576, 2),
@@ -1825,6 +2364,7 @@ def laco_medir():
         passo = ritmo()[0]
         if passo is None:
             dormindo = True
+            apagar_dica()               # nothing is measured, the tooltip would go stale
             acordar.wait(30)            # a page request or a settings change sets it
             acordar.clear()
             continue
@@ -1840,6 +2380,11 @@ def laco_medir():
                 estado = agora
             with novo:
                 novo.notify_all()
+            if cfg["caixa"]:
+                caixa.anotar(agora)
+                h24.anotar(agora)
+            sessoes.anotar(agora)
+            escrever_dica(agora)
         except Exception as e:              # never die because of one reading
             avisar("medir", e)
         ultima = time.monotonic()
@@ -1884,10 +2429,15 @@ def laco_lento():
                 achar_rota()
             if vence("discos", 30):
                 achar_discos()
-            if vence("fans", 3 if aberta else 30):
+            leve = cfg["jogo"]["leve"] and extra["jogos"]
+            if vence("fans", (6 if leve else 3) if aberta else 30):
                 ler_fans()
-            if vence("procs", 4 if aberta else 30):
+            if vence("procs", (10 if leve else 4) if aberta else 30):
                 varredura()
+            if vence("ssd", 1800):
+                saude_ssd()
+            if vence("h24", 900):
+                h24.salvar()
             if vence("sis", 60 if aberta else 300):
                 extra["sis"] = info_sistema()
             if vence("saude", 120 if aberta or cfg["alertas"]["fundo"] else 900):
@@ -1972,7 +2522,7 @@ def pagina():
 
 
 def info_geral():
-    return {"cfg": cfg, "recomendados": recomendados(), "metricas": {m: d[0] for m, d in METRICAS.items()}, "info": registro.info(), "upd": dict(upd), "curvas": CURVAS, "curva_gpu": CURVA_GPU,
+    return {"cfg": cfg, "recomendados": recomendados(), "recomendados_jogo": recomendados_jogo(), "metricas": {m: d[0] for m, d in METRICAS.items()}, "info": registro.info(), "upd": dict(upd), "curvas": CURVAS, "curva_gpu": CURVA_GPU,
             "versao": VERSAO, "metodo": metodo_instalacao(), "novidade": {k: v for k, v in novidade.items() if k != "arquivos"}}
 
 
@@ -2001,12 +2551,13 @@ class Pedido(BaseHTTPRequestHandler):
                 despertar()         # the page just opened: every loop switches to the fast pace
             else:
                 acordar.set()
-            if time.time() - estado["t"] > cfg["passo"] * 2 + 1:
+            passo = passo_pagina()
+            if time.time() - estado["t"] > passo * 2 + 1:
                 with novo:
                     novo.wait(3.0)      # it was sleeping or slow, wait for a fresh sample
             with trava:
                 faltam = seq - desde if desde else len(hist)
-                corpo = {"i": INSTANCIA, "seq": seq, "passo": cfg["passo"], "agora": estado,
+                corpo = {"i": INSTANCIA, "seq": seq, "passo": passo, "agora": estado,
                          "hist": list(hist)[-faltam:] if faltam > 0 else []}
             self.json(corpo)
         elif u.path == "/config":
@@ -2015,6 +2566,20 @@ class Pedido(BaseHTTPRequestHandler):
             self.json({"eventos": list(eventos)[-200:]})
         elif u.path == "/sensores":
             self.json({"grupos": todos_sensores()})
+        elif u.path == "/caixa":
+            ident = parse_qs(u.query).get("id", [""])[0]
+            if ident:
+                inc = caixa.um(ident)
+                if inc:
+                    self.json(inc)
+                else:
+                    self.send_error(404)
+            else:
+                self.json({"incidentes": caixa.lista(), "cada": caixa.CADA, "slots": caixa.SLOTS, "ativa": caixa.fd is not None})
+        elif u.path == "/historico24":
+            self.json(h24.dados())
+        elif u.path == "/sessoes":
+            self.json({"sessoes": sessoes.lista(), "atual": sessoes.resumo(sessoes.atual)})
         elif u.path == "/registro/hoje.csv":
             nome = time.strftime("painel-%Y-%m-%d.csv")
             try:
@@ -2118,6 +2683,16 @@ class Pedido(BaseHTTPRequestHandler):
                 return
             threading.Thread(target=calibrar, daemon=True).start()
             self.json({"ok": True})
+        elif caminho == "/silenciar":
+            ident, minutos = dados.get("id") if isinstance(dados, dict) else None, (dados or {}).get("min")
+            if not isinstance(ident, str) or not 0 < len(ident) <= 120 or minutos not in (0, 15, 60, 180):
+                self.send_error(400)
+                return
+            silenciar(ident, minutos)
+            despertar()
+            with trava_ev:
+                mudos = {k: round(v) for k, v in silencio.items()}
+            self.json({"silencio": mudos})
         elif caminho == "/atualizacoes":
             threading.Thread(target=verificar_atualizacoes, daemon=True).start()
             self.json({"ok": True})
@@ -2151,8 +2726,27 @@ class Pedido(BaseHTTPRequestHandler):
 
 
 def sair(*_):
+    try:
+        sessoes.fechar()
+        with h24.trava:
+            h24.fechar()
+        h24.salvar()
+    except Exception as e:
+        avisar("sair", e)
     ao_parar()
     os._exit(0)
+
+
+def prioridade_minima():
+    # never compete with a game: lowest processor class (SCHED_IDLE runs only on idle
+    # time) and idle disk class. Threads and helper commands started later inherit it.
+    try:
+        os.sched_setscheduler(0, os.SCHED_IDLE, os.sched_param(0))
+    except (AttributeError, OSError) as e:
+        avisar("prioridade", e)
+    nr = {"x86_64": 251, "aarch64": 30, "riscv64": 30}.get(os.uname().machine)     # ioprio_set
+    if nr:
+        ctypes.CDLL(None, use_errno=True).syscall(nr, 1, 0, 3 << 13)       # IOPRIO_WHO_PROCESS, self, IOPRIO_CLASS_IDLE
 
 
 if __name__ == "__main__":
@@ -2162,7 +2756,11 @@ if __name__ == "__main__":
     if "--on-stop" in sys.argv:
         ao_parar()
         sys.exit(0)
+    prioridade_minima()
     carregar_cfg()
+    h24.carregar()
+    caixa.iniciar()
+    caixa.avisar_novo()
     try:
         upd.update(json.loads(ler(ARQ_UPD) or "{}"))
     except ValueError:

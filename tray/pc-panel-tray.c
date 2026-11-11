@@ -14,7 +14,8 @@
  * $XDG_RUNTIME_DIR/pc-panel/alert (also watched with inotify). The icon then turns
  * yellow (warning), orange (serious) or red (critical), lists the problems in its
  * tooltip, and from serious up asks the tray to keep it visible (NeedsAttention).
- * Nothing blinks.
+ * Nothing blinks. The tooltip can also show a few readings the dashboard writes to
+ * $XDG_RUNTIME_DIR/pc-panel/tip at most every 30 s (optional in Settings).
  *
  * The dashboard runs as the systemd user service pc-panel.service, or as a child
  * process of this icon when that service does not exist (AppImage, source folder).
@@ -69,7 +70,7 @@ static uint32_t revision = 1;
 static struct stat st_self, st_server;
 static sd_event_source *settle_timer;
 static char dialog_buf[64];
-static char alert_dir[PATH_MAX], alert_file[PATH_MAX], alert_text[1024];
+static char alert_dir[PATH_MAX], alert_file[PATH_MAX], alert_text[1024], tip_file[PATH_MAX], tip_text[512];
 static int alert_level;
 static size_t dialog_len;
 
@@ -543,12 +544,9 @@ static int sni_prop(sd_bus *b, const char *path, const char *iface, const char *
     if (!strcmp(prop, "Menu")) return sd_bus_message_append(reply, "o", MENU_PATH);
     if (!strcmp(prop, "WindowId")) return sd_bus_message_append(reply, "i", 0);
     if (!strcmp(prop, "ToolTip")) {
-        char body[sizeof alert_text + 80];
+        char body[sizeof alert_text + sizeof tip_text + 80];
         url(tip, sizeof tip);
-        if (alert_level)
-            snprintf(body, sizeof body, "%s\n%s", alert_text, tip);
-        else
-            snprintf(body, sizeof body, "%s", tip);
+        snprintf(body, sizeof body, "%s%s%s%s", alert_level ? alert_text : "", alert_level ? "\n" : "", tip_text, tip);
         return sd_bus_message_append(reply, "(sa(iiay)ss)", "", 0, "PC Panel", body);
     }
     return -ENOENT;
@@ -925,20 +923,40 @@ static void read_alert(void)
     sd_bus_emit_signal(bus, SNI_PATH, SNI_IFACE, "NewToolTip", "");
 }
 
+/* a few readings the dashboard rewrites every 30 s at most (optional, Settings) */
+static void read_tip(void)
+{
+    char buf[sizeof tip_text] = "";
+    FILE *f = fopen(tip_file, "r");
+    if (f) {
+        size_t n = fread(buf, 1, sizeof buf - 1, f);
+        fclose(f);
+        buf[n] = 0;
+    }
+    if (!strcmp(buf, tip_text))
+        return;
+    memcpy(tip_text, buf, sizeof tip_text);
+    sd_bus_emit_signal(bus, SNI_PATH, SNI_IFACE, "NewToolTip", "");
+}
+
 static int alert_ready(sd_event_source *s, int fd, uint32_t revents, void *u)
 {
     (void)s; (void)revents; (void)u;
     char buf[2048] __attribute__((aligned(__alignof__(struct inotify_event))));
-    int hit = 0;
+    int hit = 0, hit_tip = 0;
     ssize_t n;
     while ((n = read(fd, buf, sizeof buf)) > 0)
         for (char *p = buf; p < buf + n; p += sizeof(struct inotify_event) + ((struct inotify_event *)p)->len) {
             struct inotify_event *e = (struct inotify_event *)p;
             if (e->len && !strcmp(e->name, "alert"))
                 hit = 1;
+            if (e->len && !strcmp(e->name, "tip"))
+                hit_tip = 1;
         }
     if (hit)
         read_alert();
+    if (hit_tip)
+        read_tip();
     return 0;
 }
 
@@ -954,6 +972,7 @@ static void watch_alert(void)
         return;
     }
     read_alert();
+    read_tip();
 }
 
 /* ------------------------------------------------------------------ main */
@@ -990,6 +1009,7 @@ static void setup_paths(void)
     const char *run = getenv("XDG_RUNTIME_DIR");
     snprintf(alert_dir, sizeof alert_dir, "%s/pc-panel", run && *run == '/' ? run : "/tmp");
     snprintf(alert_file, sizeof alert_file, "%s/alert", alert_dir);
+    snprintf(tip_file, sizeof tip_file, "%s/tip", alert_dir);
     appimage = getenv("APPIMAGE");
     if (appimage && !*appimage)
         appimage = NULL;

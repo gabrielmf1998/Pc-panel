@@ -135,6 +135,19 @@ h3{margin:0;font-size:.86rem;font-weight:500;color:var(--apagado);white-space:no
 .mini .p{font-size:1.07rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mini .d{font-size:.89rem;color:var(--tinta2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-height:1.2rem}
 @container (max-height:3.2rem){.mini .d{display:none}}
+.mini .d2{display:none;font-size:.86rem;color:var(--apagado);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@container (min-height:4.6rem){.mini .d2{display:block}}
+.abas{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
+.abas button[aria-pressed="true"]{background:var(--sup2);color:var(--tinta);border-color:var(--s1)}
+.g24{position:relative;height:280px;width:min(940px,88vw);margin-top:8px}
+.g24 svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.faixa-jogo{fill:var(--tinta2);opacity:.09}
+.legenda i.jg{height:10px;background:var(--tinta2);opacity:.25}
+.botoes{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:0 0 10px}
+.botoes button{padding:3px 10px;font-size:.89rem}
+.botoes button[aria-pressed="true"]{background:var(--sup2);color:var(--tinta);border-color:var(--s1)}
+td button{padding:1px 8px;font-size:.86rem}
+#cx-resumo{max-width:940px;margin-bottom:10px;color:var(--tinta2)}
 .ev{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:8px;align-items:baseline;height:var(--lin)}
 .ev .q,.ev .dur{color:var(--apagado);font-size:.86rem;font-variant-numeric:tabular-nums;white-space:nowrap}
 .ev .x{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -197,6 +210,7 @@ body[data-estreito] .hora{font-size:1.29rem}
   <span class="data" id="data"></span>
   <button type="button" class="geral" id="btn-ev" data-it="geral_t">
     <span class="pilula" id="geral-st"></span><span id="geral-tx" data-i="conectando"></span></button>
+  <button type="button" class="chip" id="btn-mudo" hidden></button>
   <button type="button" class="chip" id="btn-ocultos" hidden></button>
   <nav>
     <button type="button" id="btn-fans" class="so-grande" data-i="b_fans"></button>
@@ -320,7 +334,7 @@ body[data-estreito] .hora{font-size:1.29rem}
     <div class="lista" id="l-ev"></div>
   </section>
 
-  <section class="cartao mini" id="c-jogo"><div class="l1"><h2 data-i="c_jogo"></h2><div class="p" id="jogo-p"></div></div><div class="d" id="jogo-d"></div></section>
+  <section class="cartao mini" id="c-jogo"><div class="l1"><h2 data-i="c_jogo"></h2><div class="p" id="jogo-p"></div></div><div class="d" id="jogo-d"></div><div class="d2" id="jogo-d2"></div></section>
   <section class="cartao mini" id="c-live"><div class="l1"><h2>Live</h2><div class="p" id="live-p"></div></div><div class="d" id="live-d"></div></section>
   <section class="cartao mini" id="c-pz"><div class="l1"><h2 data-i="c_pz"></h2><div class="p" id="pz-p"></div></div><div class="d" id="pz-d"></div></section>
   <section class="cartao mini" id="c-sis"><div class="l1"><h2 data-i="c_sis"></h2><div class="p" id="sis-p"></div></div><div class="d" id="sis-d"></div></section>
@@ -329,19 +343,29 @@ body[data-estreito] .hora{font-size:1.29rem}
 </main>
 
 <dialog id="tabela" class="largo">
-  <header><h2 data-i="h_titulo"></h2><button type="button" data-fechar data-i="fechar"></button></header>
-  <div class="rolagem"><table>
+  <header><h2 data-i="b_hist"></h2><button type="button" data-fechar data-i="fechar"></button></header>
+  <div class="abas" id="h-abas"><button type="button" data-aba="10" data-i="h_a10"></button><button type="button" data-aba="24" data-i="h_a24"></button><button type="button" data-aba="ses" data-i="h_ases"></button><button type="button" data-aba="cx" data-i="h_acx"></button></div>
+  <div data-painel="10"><p class="nota" data-i="h_titulo" style="margin-bottom:8px"></p><div class="rolagem"><table>
     <thead><tr><th data-i="th_hora"></th><th>RAM GiB</th><th>VRAM GiB</th><th data-i="th_gpu_p"></th><th data-i="th_cpu_p"></th><th>Ping ms</th>
       <th>Download Mbit/s</th><th>Upload Mbit/s</th><th data-i="th_cpu_t"></th><th data-i="th_gpu_t"></th></tr></thead>
     <tbody id="tab-corpo"></tbody>
-  </table></div>
+  </table></div></div>
+  <div data-painel="24" hidden><div class="botoes" id="h24-m"></div><p class="nota" id="h24-nota"></p><div class="g24" id="h24-g"></div></div>
+  <div data-painel="ses" hidden><p class="nota" id="ses-nota" style="margin-bottom:8px"></p><div class="rolagem"><table>
+    <thead><tr><th class="e" data-i="th_jogo2"></th><th data-i="th_comecou"></th><th data-i="th_durou"></th><th data-i="th_cpu_p"></th><th data-i="th_cpu_max"></th>
+      <th data-i="th_gpu_p"></th><th data-i="th_gpu_max"></th><th data-i="th_w_max"></th><th data-i="th_vram_pico"></th><th data-i="th_vram_jogo"></th>
+      <th data-i="th_ram_min"></th><th data-i="th_ram_jogo"></th><th data-i="th_alertas"></th></tr></thead>
+    <tbody id="ses-corpo"></tbody></table></div></div>
+  <div data-painel="cx" hidden><p class="nota" id="cx-nota" style="margin-bottom:8px;max-width:940px"></p><div class="botoes" id="cx-lista"></div>
+    <p class="nota" id="cx-resumo"></p><div class="rolagem"><table><thead id="cx-cab"></thead><tbody id="cx-corpo"></tbody></table></div></div>
 </dialog>
 
 <dialog id="eventos" class="largo">
   <header><h2 data-i="c_eventos"></h2><button type="button" data-fechar data-i="fechar"></button></header>
   <p class="nota" id="ev-nota" style="margin-bottom:10px"></p>
+  <div class="botoes" id="ev-mudo"></div>
   <div class="rolagem"><table>
-    <thead><tr><th data-i="th_comecou"></th><th data-i="th_durou"></th><th class="e" data-i="th_nivel"></th><th class="e" data-i="th_oque"></th><th class="e" data-i="th_jogo"></th></tr></thead>
+    <thead><tr><th data-i="th_comecou"></th><th data-i="th_durou"></th><th class="e" data-i="th_nivel"></th><th class="e" data-i="th_oque"></th><th class="e" data-i="th_jogo"></th><th></th></tr></thead>
     <tbody id="ev-corpo"></tbody>
   </table></div>
 </dialog>
@@ -368,7 +392,11 @@ body[data-estreito] .hora{font-size:1.29rem}
   <fieldset><legend data-i="a_medicao"></legend><div class="dois">
     <label class="campo"><span data-i="a_passo"></span><select id="aj-passo"><option value="1" data-i="p_1"></option><option value="2" data-i="p_2"></option><option value="5" data-i="p_5"></option></select></label>
     <label class="campo"><span data-i="a_ping"></span><input type="text" id="aj-ping" spellcheck="false" style="max-width:150px"></label>
-  </div></fieldset>
+  </div>
+    <label><input type="checkbox" id="aj-jogo-leve"> <span data-i="a_jogo_leve"></span></label>
+    <label><input type="checkbox" id="aj-caixa"> <span data-i="a_caixa"></span></label>
+    <label><input type="checkbox" id="aj-dica"> <span data-i="a_dica"></span></label>
+    <p class="nota" data-i="a_medicao_n"></p></fieldset>
   <fieldset><legend data-i="a_avisos"></legend>
     <label><input type="checkbox" id="aj-fundo"> <span data-i="a_fundo"></span></label>
     <div class="dois">
@@ -378,6 +406,8 @@ body[data-estreito] .hora{font-size:1.29rem}
     <label><input type="checkbox" id="aj-desktop"> <span data-i="a_desktop"></span></label>
     <label><input type="checkbox" id="aj-som"> <span data-i="a_som"></span></label>
     <p class="nota" data-i="a_lim_n"></p>
+    <label><input type="checkbox" id="aj-jogo-lim"> <span data-i="a_jogo_lim"></span></label>
+    <div class="botoes" id="lim-modo"><span class="nota" data-i="l_editar"></span><button type="button" data-modo="n" data-i="l_normal"></button><button type="button" data-modo="j" data-i="l_jogo"></button></div>
     <div class="rolagem"><table id="lim-tab"><thead><tr><th data-i="l_alerta"></th><th data-i="l_ligado"></th><th data-i="l_rec"></th>
       <th data-i="nv_aviso"></th><th data-i="nv_serio"></th><th data-i="nv_critico"></th></tr></thead><tbody id="lim-corpo"></tbody></table></div>
     <p class="nota" id="lim-fonte"></p>
@@ -613,6 +643,70 @@ en: {conectando: 'connecting', nv_bom: 'ok', nv_aviso: 'warning', nv_serio: 'hig
   f_medindo: 'Measuring the fans, step {0} of 7', f_nao_aplicou: 'Could not apply, the service did not answer.',
   f_velho: 'The administrator part of the fan control needs an update, reinstall pc-panel-fans.',
   f_falta: 'Fan control is not active. It needs a supported fan chip and one step with the administrator password, see the README.'}};
+
+// strings added in 0.4
+Object.assign(TX.pt, {
+  h_a10: 'Últimos 10 min', h_a24: 'Últimas 24 h', h_ases: 'Sessões de jogo', h_acx: 'Caixa preta',
+  h24_cpu: 'Processador %', h24_tc: 'Processador °C', h24_gpu: 'Placa %', h24_tg: 'Placa °C', h24_w: 'Placa W',
+  h24_vram: 'VRAM GiB', h24_ram: 'RAM livre GiB', h24_swap: 'Swap GiB', h24_ping: 'Ping ms',
+  h24_nota: 'Uma linha por minuto: média para uso e ping, pico para temperatura, consumo, VRAM e swap, mínimo para a RAM livre. Faixa clara = jogo aberto. Buracos são minutos sem medida (PC desligado ou serviço dormindo).',
+  h24_vazio: 'Ainda não há minutos guardados. O histórico enche sozinho enquanto o serviço mede.', h24_jogo: 'jogo aberto', h24_off: 'A caixa preta e o histórico de 24 h estão desligados nos Ajustes.',
+  th_jogo2: 'Jogo', th_cpu_max: 'Proc. máx °C', th_gpu_max: 'Placa máx °C', th_w_max: 'Placa máx W', th_vram_pico: 'VRAM pico',
+  th_vram_jogo: 'VRAM do jogo', th_ram_min: 'RAM livre mín', th_ram_jogo: 'RAM do jogo', th_alertas: 'Alertas',
+  ses_nota: 'Uma linha por sessão de pelo menos 2 minutos, a mais nova primeiro. Proc. % e Placa % são médias. Fica em {0}.',
+  ses_vazio: 'Nenhuma sessão guardada ainda. Uma sessão entra aqui quando o jogo fecha.', ses_agora: 'agora',
+  cx_nota: 'A caixa preta grava um resumo a cada 5 s com a página aberta e a cada 10 s com ela fechada, num arquivo de tamanho fixo que guarda de 30 a 60 minutos. Se o PC travar, cair a energia ou reiniciar sem desligar normalmente, os minutos antes da parada aparecem aqui no boot seguinte.',
+  cx_nada: 'Nenhuma parada inesperada registrada.', cx_off: 'A caixa preta está desligada nos Ajustes.',
+  cx_ultimo: 'Último registro às {0}: {1}.', cx_final: 'Nos 2 minutos finais: {0}.', cx_parou: 'parou {0}',
+  cx_tc: 'processador {0} °C', cx_tg: 'placa {0} °C', cx_w: '{0} W', cx_vr: 'VRAM {0}', cx_ram: 'RAM livre {0}', cx_swr: 'swap {0} MiB/s',
+  cx_tcmax: 'processador até {0} °C', cx_tgmax: 'placa até {0} °C', cx_rammin: 'RAM livre mínima {0}', cx_swmax: 'swap até {0} MiB/s',
+  cx_jogo: 'jogo {0}', cx_top: 'mais usado {0} {1} %', cx_ghz: 'GHz', cx_pm: 'Pressão RAM %', cx_de: 'Espera disco ms', cx_top_c: 'Mais usado',
+  mudo_1h: 'silenciar 1 h', mudo_1h_t: 'Silenciar todos os alertas por 1 hora (o ícone da bandeja e os avisos param, a página continua colorindo as leituras)',
+  mudo_ate: 'silenciado até {0}', mudo_t: 'Clique para voltar a avisar agora', mudo_um: 'silenciar 1 h', mudo_todos: 'Silenciar tudo por', mudo_desfazer: 'voltar a avisar',
+  m_15: '15 min', m_60: '1 h', m_180: '3 h',
+  d_saude: 'saúde {0} %', d_smart_ok: 'SMART ok', d_problema: 'SMART com problema', d_erros: '{0} erros',
+  ds_gasto: 'vida útil gasta {0} %', ds_reserva: 'reserva {0} %', ds_escrito: '{0} TB gravados', ds_horas: '{0} h ligado',
+  ds_inseguros: '{0} desligamentos sem aviso', ds_erros: '{0} erros de mídia', ds_nota: 'SMART lido pelo UDisks a cada 30 min',
+  j_sessao: 'Sessão: processador até {0} °C, placa até {1} °C, VRAM pico {2}, RAM livre mínima {3}',
+  j_limites: 'Jogo aberto: valem os limites de jogo dos Ajustes',
+  a_jogo_leve: 'Com um jogo aberto, atualizar a página no máximo a cada 5 segundos (sobra mais processador para o jogo)',
+  a_caixa: 'Caixa preta e histórico de 24 h (mede a cada 10 s também com a página fechada)',
+  a_dica: 'Mostrar leituras rápidas no ícone da bandeja ao passar o mouse (atualiza a cada 30 s)',
+  a_medicao_n: 'O serviço roda na prioridade mais baixa do sistema (só usa o processador e o disco quando estão livres), então não tira quadros do jogo.',
+  a_jogo_lim: 'Usar limites próprios enquanto um jogo está aberto', l_editar: 'Editando os limites:', l_normal: 'Normal', l_jogo: 'Jogando',
+  l_jogo_n: 'Limites de jogo: ligar e desligar cada alerta vale para os dois modos.',
+  lm_ssd_desgaste: 'Vida útil gasta do SSD (%)', lm_parou: 'PC parou sem desligar (caixa preta)', lm_ssd_saude: 'Problema de saúde do SSD (SMART)'});
+Object.assign(TX.en, {
+  h_a10: 'Last 10 min', h_a24: 'Last 24 h', h_ases: 'Game sessions', h_acx: 'Black box',
+  h24_cpu: 'CPU %', h24_tc: 'CPU °C', h24_gpu: 'GPU %', h24_tg: 'GPU °C', h24_w: 'GPU W',
+  h24_vram: 'VRAM GiB', h24_ram: 'Free RAM GiB', h24_swap: 'Swap GiB', h24_ping: 'Ping ms',
+  h24_nota: 'One row per minute: average for usage and ping, peak for temperature, power, VRAM and swap, minimum for free RAM. Light band = game running. Gaps are minutes without samples (PC off or service sleeping).',
+  h24_vazio: 'No minutes saved yet. The history fills by itself while the service measures.', h24_jogo: 'game running', h24_off: 'The black box and the 24 h history are off in Settings.',
+  th_jogo2: 'Game', th_cpu_max: 'CPU max °C', th_gpu_max: 'GPU max °C', th_w_max: 'GPU max W', th_vram_pico: 'VRAM peak',
+  th_vram_jogo: 'Game VRAM', th_ram_min: 'Free RAM min', th_ram_jogo: 'Game RAM', th_alertas: 'Alerts',
+  ses_nota: 'One row per session of at least 2 minutes, newest first. CPU % and GPU % are averages. Stored in {0}.',
+  ses_vazio: 'No session saved yet. A session lands here when the game closes.', ses_agora: 'now',
+  cx_nota: 'The black box writes a summary every 5 s with the page open and every 10 s with it closed, to a fixed size file that keeps 30 to 60 minutes. If the PC freezes, loses power or resets without a normal shutdown, the minutes before the stop show up here on the next boot.',
+  cx_nada: 'No unexpected stop recorded.', cx_off: 'The black box is off in Settings.',
+  cx_ultimo: 'Last record at {0}: {1}.', cx_final: 'In the final 2 minutes: {0}.', cx_parou: 'stopped {0}',
+  cx_tc: 'CPU {0} °C', cx_tg: 'GPU {0} °C', cx_w: '{0} W', cx_vr: 'VRAM {0}', cx_ram: 'free RAM {0}', cx_swr: 'swap {0} MiB/s',
+  cx_tcmax: 'CPU up to {0} °C', cx_tgmax: 'GPU up to {0} °C', cx_rammin: 'lowest free RAM {0}', cx_swmax: 'swap up to {0} MiB/s',
+  cx_jogo: 'game {0}', cx_top: 'top {0} {1} %', cx_ghz: 'GHz', cx_pm: 'RAM pressure %', cx_de: 'Disk wait ms', cx_top_c: 'Top program',
+  mudo_1h: 'silence 1 h', mudo_1h_t: 'Silence every alert for 1 hour (tray icon and notifications stop, the page still colours the readings)',
+  mudo_ate: 'silenced until {0}', mudo_t: 'Click to start alerting again now', mudo_um: 'silence 1 h', mudo_todos: 'Silence everything for', mudo_desfazer: 'alert again',
+  m_15: '15 min', m_60: '1 h', m_180: '3 h',
+  d_saude: 'health {0} %', d_smart_ok: 'SMART ok', d_problema: 'SMART problem', d_erros: '{0} errors',
+  ds_gasto: 'life used {0} %', ds_reserva: 'spare {0} %', ds_escrito: '{0} TB written', ds_horas: '{0} h powered on',
+  ds_inseguros: '{0} unsafe shutdowns', ds_erros: '{0} media errors', ds_nota: 'SMART read through UDisks every 30 min',
+  j_sessao: 'Session: CPU up to {0} °C, GPU up to {1} °C, VRAM peak {2}, lowest free RAM {3}',
+  j_limites: 'Game running: the gaming thresholds from Settings apply',
+  a_jogo_leve: 'With a game running, refresh the page every 5 seconds at most (leaves more processor for the game)',
+  a_caixa: 'Black box and 24 h history (samples every 10 s also with the page closed)',
+  a_dica: 'Show quick readings on the tray icon tooltip (updates every 30 s)',
+  a_medicao_n: 'The service runs at the lowest priority of the system (it only uses the processor and the disk when they are idle), so it does not take frames from the game.',
+  a_jogo_lim: 'Use separate thresholds while a game is running', l_editar: 'Editing thresholds:', l_normal: 'Normal', l_jogo: 'Gaming',
+  l_jogo_n: 'Gaming thresholds: turning each alert on or off applies to both modes.',
+  lm_ssd_desgaste: 'SSD life used (%)', lm_parou: 'PC stopped without shutting down (black box)', lm_ssd_saude: 'SSD health problem (SMART)'});
 
 const $ = id => document.getElementById(id);
 const NS = 'http://www.w3.org/2000/svg';
@@ -938,14 +1032,29 @@ function cDisc() {
   $('disc-psi').textContent = A.psi_io >= 1 ? T('espera_disco', nf(A.psi_io, 0)) : '';
   $('l-disc').replaceChildren(...A.discos.map(d => {
     const caixa = el('div', 'disco'), n = el('span', 'n', nomeDisco(d.nome)), m = el('div', 'med'), io = el('div', 'io'), v = el('span', 'v');
-    n.append(el('small', '', d.modelo));
+    const modelo = el('small', '', d.modelo);
+    n.append(modelo);
     m.append(el('i'));
     medidor(m, d.usado, d.nv);
     if (d.nv !== 'bom') v.append(el('i', 'g ' + d.nv, GL[d.nv]), ' ');
     v.append(T('livres_de', tamB(d.livre), tamB(d.total)));
+    const sd = d.saude;
+    let dicaSd = '';
+    if (sd) {
+      const x = el('span', sd.nv !== 'bom' ? sd.nv : '');
+      if (sd.nv !== 'bom') x.append(el('i', 'g ' + sd.nv, GL[sd.nv]), ' ');
+      x.append(sd.problema ? T('d_problema') : sd.saude != null ? T('d_saude', sd.saude) : T('d_smart_ok'));
+      if (sd.erros) x.append(', ' + T('d_erros', int(sd.erros)));
+      modelo.prepend(x, ', ');
+      dicaSd = [sd.problema ? sd.problema[L === 'en' ? 1 : 0] : null, sd.gasto != null ? T('ds_gasto', sd.gasto) : null,
+        sd.reserva != null ? T('ds_reserva', sd.reserva) : null, sd.escrito != null ? T('ds_escrito', nf(sd.escrito / 1e12)) : null,
+        sd.horas != null ? T('ds_horas', int(sd.horas)) : null, sd.inseguros != null ? T('ds_inseguros', int(sd.inseguros)) : null,
+        T('ds_erros', int(sd.erros || 0))].filter(Boolean).join(', ') + '. ' + T('ds_nota');
+    }
     if (d.ler != null) io.append(el('span', '', T('leitura') + ' ' + nf(d.ler / 1048576) + ' MiB/s'), el('span', '', T('gravacao') + ' ' + nf(d.gravar / 1048576) + ' MiB/s'),
       el('span', '', T('espera', nf(d.espera, d.espera < 10 ? 1 : 0))), el('span', '', T('ocupado_d', nf(d.ocupado, 0))));
-    caixa.title = T('tip_disco', nomeDisco(d.nome), d.modelo, int(d.usado)) + (d.espera != null ? ', ' + T('espera', nf(d.espera)) + ', ' + T('ocupado_d', nf(d.ocupado, 0)) : '');
+    caixa.title = T('tip_disco', nomeDisco(d.nome), d.modelo, int(d.usado)) + (d.espera != null ? ', ' + T('espera', nf(d.espera)) + ', ' + T('ocupado_d', nf(d.ocupado, 0)) : '') +
+      (dicaSd ? '\n' + dicaSd : '');
     caixa.append(n, v, m, io);
     return caixa;
   }));
@@ -980,10 +1089,13 @@ function chat(ligar) {
   $('chat-f').src = ligar ? 'http://' + location.hostname + ':47821/chat' : 'about:blank';
 }
 function cFaixa() {
-  const j = A.jogos || [];
+  const j = A.jogos || [], ss = A.sessao, q = v => v == null ? '?' : int(v);
   if (!j.length) por('jogo', T('j_nenhum'), '');
   else por('jogo', j[0].nome + (j.length > 1 ? T('j_mais', j.length - 1) : ''),
     [T('j_aberto', dur(A.t - j[0].desde)), 'RAM ' + tam(j[0].kb), j[0].vram ? 'VRAM ' + tamMib(j[0].vram) : null].filter(Boolean).join(', '), true);
+  const d2 = ss && j.length ? T('j_sessao', q(ss.tc_max), q(ss.tg_max), ss.vram_max == null ? '?' : tamMib(ss.vram_max), tamMib(ss.ram_min || 0)) : '';
+  $('jogo-d2').textContent = d2; $('jogo-d2').title = d2;
+  $('c-jogo').title = A.jogando ? T('j_limites') : '';
 
   const lv = A.live || {obs: false};
   if (!lv.obs) por('live', T('l_fechado'), '');
@@ -1012,10 +1124,13 @@ function cFaixa() {
     b ? b.nome + ' ' + b.pct + ' %' + (b.carregando ? ' ' + T('carregando') : '') : null,
     A.registro ? T('s_registro') : null].filter(Boolean).join(', '));
 }
+let iconeAntes = '';
 function icone(nv) {
-  const cor = {bom: '#3987e5', aviso: '#fab219', serio: '#ec835a', critico: '#d03b3b'}[nv];
+  const cs = getComputedStyle(document.body), cor = cs.getPropertyValue(nv === 'bom' ? '--s1' : '--' + nv).trim() || '#3987e5';
+  if (iconeAntes === nv + cor) return;
+  iconeAntes = nv + cor;
   $('icone').href = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="' +
-    (nv === 'bom' ? '#1a1a19' : cor) + '"/><path d="M5 21l6-7 5 4 6-9 5 5" fill="none" stroke="' + (nv === 'bom' ? cor : '#0b0b0b') +
+    (nv === 'bom' ? (cs.getPropertyValue('--sup').trim() || '#1a1a19') : cor) + '"/><path d="M5 21l6-7 5 4 6-9 5 5" fill="none" stroke="' + (nv === 'bom' ? cor : '#0b0b0b') +
     '" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>');
 }
 function bip() {
@@ -1043,6 +1158,13 @@ function cTopo() {
   }
   document.title = (a.length ? '(' + a.length + ') ' : '') + 'PC Panel';
   icone(pior);
+  const ms = A.silencio || {}, ids = Object.keys(ms), chip = $('btn-mudo');
+  if (ids.length) {
+    chip.hidden = false; chip.textContent = T('mudo_ate', hora(Math.max(...ids.map(k => ms[k]))).slice(0, 5));
+    chip.title = T('mudo_t'); chip.onclick = () => desfazerMudo();
+  } else if (a.length) {
+    chip.hidden = false; chip.textContent = T('mudo_1h'); chip.title = T('mudo_1h_t'); chip.onclick = () => silenciar('*', 60);
+  } else chip.hidden = true;
   const agora = new Set(a.map(x => x.c + x.nv));
   if (CFG && CFG.avisar.som && [...agora].some(x => !avisosAntes.has(x))) bip();
   avisosAntes = agora;
@@ -1058,6 +1180,15 @@ function cEventos() {
     lin.append(el('span', 'q', hora(e.t).slice(0, 5)), x, el('span', 'dur', e.fim ? dur(e.fim - e.t) : T('agora')));
     return lin;
   }));
+}
+
+async function silenciar(id, min) {
+  try { const d = await pedir('/silenciar', {id, min}); if (A) A.silencio = d.silencio; } catch (e) { return; }
+  ciclo();
+  if ($('eventos').open) tabelaEventos();
+}
+async function desfazerMudo() {
+  for (const id of Object.keys((A && A.silencio) || {})) await silenciar(id, 0);
 }
 
 // ---- fit: decides what fits in the window and where each card goes
@@ -1093,11 +1224,16 @@ function arranjar(forcar) {
   const prio = id => alerta.has(id) ? PRIO[id] / 100 : ['jogo', 'live', 'pz'].includes(id) ? (ativo(id) ? 10 : 50) + PRIO[id] / 100 : PRIO[id];
   const porPrio = candidatos.slice().sort((x, y) => prio(x) - prio(y));
   const gap = estreito ? 8 : 10, padV = estreito ? 16 : 22;
-  let res, un, compacto = estreito;
+  // a full screen (4 columns) shows everything: rows get shorter step by step before any card
+  // is hidden; a smaller window keeps the most important cards at a readable size
+  const escalas = encaixe && cols === 4 ? [1, .92, .84, .76, .7] : [1];
+  let res, un;
+  for (const k of escalas) {
+  let compacto = estreito;
   for (;;) {
-    un = Math.round((estreito ? 38 : 46) * FONTE);
+    un = Math.round((estreito ? 38 : 46) * FONTE * k);
     const N = encaixe ? Math.max(3, Math.floor((Hh - $('topo').offsetHeight - padV + gap) / (un + gap))) : 999;
-    const tamDe = id => (compacto && TAM[id].c) || TAM[id][chave] || TAM[id].m;
+    const tamDe = id => id === 'jogo' && ativo('jogo') && !compacto ? [1, 2] : (compacto && TAM[id].c) || TAM[id][chave] || TAM[id].m;
     // in narrow mode only cards with a compact form get in, plus any card with a problem
     let dentro = porPrio.filter(id => !estreito || alerta.has(id) || (TAM[id].c && (!['jogo', 'live', 'pz'].includes(id) || ativo(id))));
     const cabe = encaixar(dentro, cols, N, tamDe);
@@ -1109,6 +1245,8 @@ function arranjar(forcar) {
     }
     if (compacto || ESSENCIAIS.every(id => !candidatos.includes(id) || res.pos[id])) break;
     compacto = true;
+  }
+  if (candidatos.every(id => res.pos[id])) break;
   }
   const lateral = vivo && cols === 4;
   app.style.gridTemplateColumns = lateral ? 'repeat(4,minmax(0,1fr)) minmax(280px,.85fr)' : 'repeat(' + cols + ',minmax(0,1fr))';
@@ -1127,11 +1265,21 @@ function arranjar(forcar) {
   chip.title = rolar ? '' : T('ocultos_t', ocultos.join(', '));
 }
 
+// a row that does not fit whole is hidden instead of cut in half (reads first, then writes)
+function cortarListas() {
+  const esconder = [];
+  for (const l of document.querySelectorAll('.cartao:not(.fora) .lista')) {
+    const fim = l.getBoundingClientRect().bottom + 1;
+    for (const c of l.children) esconder.push([c, c.getBoundingClientRect().bottom > fim]);
+  }
+  for (const [c, x] of esconder) c.style.visibility = x ? 'hidden' : '';
+}
 function desenhar() {
   if (!A) return;
   cRam(); cPlaca(); cCpu(); cRede(); cFaixa(); cTopo();
   arranjar();
   cProg(); cTemp(); cDisc(); cSaude(); cEventos();
+  cortarListas();
   for (const g of graficos) g.desenhar();
   if ($('fans').open) {
     if (calAntes != null && A.fans.calibrando == null) abrirFans(); else fansAgora();
@@ -1190,7 +1338,18 @@ function relogio() {
 }
 
 // ---- dialogs
-function abrirTabela() {
+let abaH = '10', D24 = null, m24 = 'cpu', g24 = null;
+function abrirTabela(aba) {
+  mostrarAba(typeof aba === 'string' ? aba : abaH);
+  if (!$('tabela').open) $('tabela').showModal();
+}
+function mostrarAba(a) {
+  abaH = a;
+  for (const b of $('h-abas').children) b.setAttribute('aria-pressed', b.dataset.aba === a);
+  for (const p of document.querySelectorAll('#tabela [data-painel]')) p.hidden = p.dataset.painel !== a;
+  ({'10': tabela10, '24': aba24, ses: abaSessoes, cx: abaCaixa})[a]();
+}
+function tabela10() {
   const q = (v, f) => v == null ? '' : v < 0 ? T('perdido') : f(v), corpo = $('tab-corpo');
   corpo.replaceChildren();
   let ultimo = Infinity;
@@ -1202,15 +1361,165 @@ function abrirTabela() {
       q(l[6], v => nf(v, 2)), q(l[7], v => nf(v, 2)), q(l[8], int), q(l[9], int)]) tr.append(el('td', '', c));
     corpo.append(tr);
   }
-  $('tabela').showModal();
+}
+// 24 h: one metric at a time, one value per minute; [column, label, fixed top, conversion]
+const M24 = [['cpu', 'h24_cpu', 100], ['tc_max', 'h24_tc'], ['gpu', 'h24_gpu', 100], ['tg_max', 'h24_tg'], ['w_max', 'h24_w'],
+  ['vram_max', 'h24_vram', null, v => v / 1024], ['ram_min', 'h24_ram', null, v => v / 1024], ['swap_max', 'h24_swap', null, v => v / 1024],
+  ['ping', 'h24_ping']];
+async function aba24() {
+  $('h24-m').replaceChildren(...M24.map(m => {
+    const b = el('button', '', T(m[1]));
+    b.type = 'button'; b.setAttribute('aria-pressed', m[0] === m24);
+    b.onclick = () => { m24 = m[0]; for (const x of $('h24-m').children) x.setAttribute('aria-pressed', x === b); desenhar24(); };
+    return b;
+  }));
+  $('h24-nota').textContent = CFG && !CFG.caixa ? T('h24_off') : T('h24_nota');
+  try { D24 = await pedir('/historico24'); } catch (e) { return; }
+  if (!g24) {
+    const alvo = $('h24-g');
+    g24 = {svg: sv('svg', {role: 'img'}, alvo), dica: el('div', 'dica'), mx: null};
+    g24.dica.hidden = true; alvo.append(g24.dica);
+    alvo.addEventListener('pointermove', e => { g24.mx = e.clientX - alvo.getBoundingClientRect().left; mira24(); });
+    alvo.addEventListener('pointerleave', () => { g24.mx = null; mira24(); });
+  }
+  desenhar24();
+}
+function desenhar24() {
+  const alvo = $('h24-g'), W = alvo.clientWidth, Ht = alvo.clientHeight;
+  if (!D24 || !g24 || W < 60) return;
+  const svg = g24.svg;
+  const m = M24.find(x => x[0] === m24), i = D24.cols.indexOf(m[0]), ij = D24.cols.indexOf('jogo');
+  const t1 = Date.now() / 1000, t0 = t1 - 86400, conv = m[3] || (v => v);
+  const pts = D24.linhas.filter(l => l[0] >= t0 && l[i] != null).map(l => [l[0], conv(l[i]), l[ij]]);
+  const max = m[2] || bonito(Math.max(1, ...pts.map(p => p[1])));
+  const esq = 40, dir = 10, topo = 8, baixo = 20, pw = W - esq - dir, ph = Ht - topo - baixo;
+  const X = t => esq + (t - t0) / 86400 * pw, Y = v => topo + ph - Math.max(0, Math.min(v, max)) / max * ph;
+  g24.esc = {X, t0, pw, esq, pts, m, conv};
+  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + Ht);
+  svg.setAttribute('aria-label', T(m[1]) + ', 24 h');
+  svg.replaceChildren();
+  // game running: light bands
+  let ini = null, ant = null;
+  const banda = (a, b) => sv('rect', {x: X(a), y: topo, width: Math.max(1, X(b + 60) - X(a)), height: ph, class: 'faixa-jogo'}, svg);
+  for (const l of D24.linhas) {
+    if (l[0] < t0) continue;
+    if (l[ij] && ini == null) ini = l[0];
+    else if (ini != null && (!l[ij] || l[0] - ant > 150)) { banda(ini, ant); ini = l[ij] ? l[0] : null; }
+    ant = l[0];
+  }
+  if (ini != null) banda(ini, ant);
+  for (const v of [0, max / 2, max]) {
+    sv('line', {x1: esq, x2: W - dir, y1: Y(v), y2: Y(v), class: v ? 'grade' : 'eixo'}, svg);
+    sv('text', {x: esq - 6, y: Y(v) + 3.5, class: 'rot', 'text-anchor': 'end'}, svg).textContent = Number.isInteger(v) ? String(v) : nf(v);
+  }
+  const h0 = new Date(t0 * 1000); h0.setMinutes(0, 0, 0);
+  for (let t = h0.getTime() / 1000 + 3600; t < t1; t += 3600) {
+    const d = new Date(t * 1000);
+    if (d.getHours() % 3) continue;
+    sv('line', {x1: X(t), x2: X(t), y1: topo + ph, y2: topo + ph + 4, class: 'eixo'}, svg);
+    sv('text', {x: X(t), y: Ht - 4, class: 'rot', 'text-anchor': 'middle'}, svg).textContent = String(d.getHours()).padStart(2, '0') + 'h';
+  }
+  const segs = [];
+  let seg = null, tant = 0;
+  for (const p of pts) {
+    if (!seg || p[0] - tant > 150) { seg = []; segs.push(seg); }
+    seg.push([X(p[0]), Y(p[1])]); tant = p[0];
+  }
+  const y0 = (topo + ph).toFixed(1);
+  for (const p of segs) {
+    if (p.length < 2) { sv('circle', {cx: p[0][0], cy: p[0][1], r: 1.5, style: 'fill:var(--s1)'}, svg); continue; }
+    const d = 'M' + p.map(q => q[0].toFixed(1) + ',' + q[1].toFixed(1)).join('L');
+    sv('path', {d: d + 'L' + p[p.length - 1][0].toFixed(1) + ',' + y0 + 'L' + p[0][0].toFixed(1) + ',' + y0 + 'Z', style: 'fill:var(--s1);opacity:.1'}, svg);
+    sv('path', {d, class: 'linha', style: 'stroke:var(--s1)'}, svg);
+  }
+  if (!pts.length) sv('text', {x: esq + pw / 2, y: topo + ph / 2, class: 'rot', 'text-anchor': 'middle'}, svg).textContent = T('h24_vazio');
+  g24.gm = sv('g', {}, svg);
+  mira24();
+}
+function mira24() {
+  const g = g24 && g24.gm, d = g24 && g24.dica;
+  if (!g) return;
+  g.replaceChildren();
+  const e = g24.esc;
+  if (g24.mx == null || !e || !e.pts.length) { d.hidden = true; return; }
+  const alvoT = e.t0 + (g24.mx - e.esq) / e.pw * 86400;
+  let perto = null, dist = 1e12;
+  for (const p of e.pts) { const x = Math.abs(p[0] - alvoT); if (x < dist) { dist = x; perto = p; } }
+  if (!perto || dist > 900) { d.hidden = true; return; }
+  const x = e.X(perto[0]), Ht = $('h24-g').clientHeight;
+  sv('line', {x1: x, x2: x, y1: 8, y2: Ht - 20, class: 'mira'}, g);
+  const r = el('div', 'r'), cor = el('i');
+  cor.style.background = 'var(--s1)';
+  r.append(cor, el('b', '', nf(perto[1], e.m[3] ? 1 : 0)), el('span', '', T(e.m[1])));
+  d.replaceChildren(el('div', 'h', new Date(perto[0] * 1000).toLocaleTimeString(LOC, {hour: '2-digit', minute: '2-digit'})), r);
+  if (perto[2]) d.append(el('div', 'h', T('h24_jogo') + ': ' + perto[2]));
+  d.hidden = false;
+  const W = $('h24-g').clientWidth, w = d.offsetWidth;
+  d.style.left = Math.max(0, Math.min(W - w, x + 12 + w > W ? x - w - 12 : x + 12)) + 'px';
+}
+async function abaSessoes() {
+  let d;
+  try { d = await pedir('/sessoes'); } catch (e) { return; }
+  $('ses-nota').textContent = d.sessoes.length || d.atual ? T('ses_nota', '~/.local/share/pc-panel/sessoes.jsonl') : T('ses_vazio');
+  const q = v => v == null ? '' : int(v), mib = v => v ? tamMib(v) : '';
+  $('ses-corpo').replaceChildren(...(d.atual ? [Object.assign({agora: true}, d.atual)] : []).concat(d.sessoes).map(x => {
+    const tr = el('tr');
+    tr.append(el('td', 'e', x.nome + (x.agora ? ' (' + T('ses_agora') + ')' : '')));
+    for (const c of [new Date(x.ini * 1000).toLocaleString(LOC, {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'}),
+      dur(x.fim - x.ini), q(x.cpu), q(x.tc_max), q(x.gpu), q(x.tg_max), q(x.w_max), mib(x.vram_max), mib(x.vram_jogo),
+      x.ram_min == null ? '' : tamMib(x.ram_min), x.ram_jogo ? tam(x.ram_jogo) : '', q(x.alertas)]) tr.append(el('td', '', c));
+    return tr;
+  }));
+}
+async function abaCaixa() {
+  let d;
+  try { d = await pedir('/caixa'); } catch (e) { return; }
+  $('cx-nota').textContent = (CFG && !CFG.caixa) || !d.ativa ? T('cx_off') : T('cx_nota');
+  $('cx-resumo').textContent = d.incidentes.length ? '' : T('cx_nada');
+  $('cx-cab').replaceChildren(); $('cx-corpo').replaceChildren();
+  $('cx-lista').replaceChildren(...d.incidentes.map((x, k) => {
+    const b = el('button', '', T('cx_parou', new Date(x.t * 1000).toLocaleString(LOC, {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit'})));
+    b.type = 'button';
+    b.onclick = () => { for (const y of $('cx-lista').children) y.setAttribute('aria-pressed', y === b); verIncidente(x.id); };
+    return b;
+  }));
+  if (d.incidentes.length) $('cx-lista').firstElementChild.click();
+}
+async function verIncidente(id) {
+  let x;
+  try { x = await pedir('/caixa?id=' + encodeURIComponent(id)); } catch (e) { return; }
+  const R = x.registros, u = R[R.length - 1], fim = R.filter(r => r.t >= u.t - 120), n0 = v => v == null ? '?' : int(v);
+  const mx = k => Math.max(...fim.map(r => r[k] ?? -Infinity)), mn = k => Math.min(...fim.map(r => r[k] ?? Infinity));
+  const ult = [T('cx_tc', n0(u.tc)), T('cx_tg', n0(u.tg)), u.w != null ? T('cx_w', u.w) : null, u.vr != null ? T('cx_vr', tamMib(u.vr)) : null,
+    T('cx_ram', tamMib(u.ram)), u.swr ? T('cx_swr', nf(u.swr)) : null, u.j ? T('cx_jogo', u.j) : null, u.top ? T('cx_top', u.top[0], u.top[1]) : null];
+  const final = [T('cx_tcmax', n0(mx('tc'))), T('cx_tgmax', n0(mx('tg'))), T('cx_rammin', tamMib(mn('ram'))), T('cx_swmax', nf(Math.max(0, mx('swr'))))];
+  $('cx-resumo').textContent = T('cx_ultimo', new Date(u.t * 1000).toLocaleString(LOC), ult.filter(Boolean).join(', ')) + ' ' + T('cx_final', final.join(', '));
+  const cols = [[T('th_hora'), r => hora(r.t)], [T('th_cpu_p'), r => n0(r.cpu)], [T('th_cpu_t'), r => n0(r.tc)], [T('cx_ghz'), r => r.ghz == null ? '' : nf(r.ghz, 2)],
+    [T('th_gpu_p'), r => n0(r.gpu)], [T('th_gpu_t'), r => n0(r.tg)], ['W', r => n0(r.w)], ['VRAM GiB', r => r.vr == null ? '' : nf(r.vr / 1024)],
+    [T('h24_ram'), r => nf(r.ram / 1024)], ['Swap MiB/s', r => nf(r.swr || 0)], [T('cx_pm'), r => nf(r.pm || 0)], [T('cx_de'), r => nf(r.de || 0)],
+    ['Ping ms', r => r.ping == null ? '' : r.ping < 0 ? T('perdido') : nf(r.ping)], [T('cx_top_c'), r => r.top ? r.top[0] + ' ' + r.top[1] + ' %' : ''],
+    [T('th_jogo2'), r => r.j || '']];
+  const cab = el('tr');
+  cols.forEach(([n], k) => cab.append(el('th', k >= 13 ? 'e' : '', n)));
+  $('cx-cab').replaceChildren(cab);
+  $('cx-corpo').replaceChildren(...R.slice().reverse().map(r => {
+    const tr = el('tr');
+    cols.forEach(([, f], k) => tr.append(el('td', k >= 13 ? 'e' : '', f(r))));
+    return tr;
+  }));
 }
 function tabelaEventos() {
   $('ev-nota').textContent = T(EV.length ? 'ev_nota1' : 'ev_nota0');
+  const ms = (A && A.silencio) || {}, botao = (txt, f) => { const b = el('button', '', txt); b.type = 'button'; b.onclick = f; return b; };
+  const linha = [el('span', 'nota', T('mudo_todos')), ...[15, 60, 180].map(m => botao(T('m_' + m), () => silenciar('*', m)))];
+  if (Object.keys(ms).length) linha.push(el('span', 'nota', T('mudo_ate', hora(Math.max(...Object.values(ms))).slice(0, 5))), botao(T('mudo_desfazer'), desfazerMudo));
+  $('ev-mudo').replaceChildren(...linha);
   $('ev-corpo').replaceChildren(...EV.slice().reverse().map(e => {
-    const tr = el('tr'), nv = el('td', 'e');
+    const tr = el('tr'), nv = el('td', 'e'), acao = el('td');
     nv.append(el('i', 'g ' + e.nv, GL[e.nv]), ' ' + T('nv_' + e.nv));
+    if (!e.fim && e.id) acao.append(botao(T('mudo_um'), () => silenciar(e.id, 60)));
     tr.append(el('td', '', new Date(e.t * 1000).toLocaleString(LOC)), el('td', '', e.fim ? dur(e.fim - e.t) : T('ainda')),
-      nv, el('td', 'e', e[L]), el('td', 'e', e.jogo || ''));
+      nv, el('td', 'e', e[L]), el('td', 'e', e.jogo || ''), acao);
     return tr;
   }));
 }
@@ -1263,7 +1572,11 @@ async function abrirAjustes() {
   $('aj-perfil').value = c.perfil; $('aj-encaixe').checked = c.encaixe; $('aj-passo').value = c.passo; $('aj-ping').value = c.ping_alvo;
   $('aj-desktop').checked = c.avisar.desktop; $('aj-som').checked = c.avisar.som;
   $('aj-fundo').checked = c.alertas.fundo; $('aj-cada').value = c.alertas.cada; $('aj-nivel').value = c.avisar.nivel;
-  montarLimites(c.limites, d.recomendados, d.metricas);
+  LIMS = {n: JSON.parse(JSON.stringify(c.limites)), j: JSON.parse(JSON.stringify(c.limites_jogo))};
+  RECS = {n: d.recomendados, j: d.recomendados_jogo}; TIPOS = d.metricas; modoLim = 'n';
+  $('aj-jogo-lim').checked = c.jogo.limites; $('aj-jogo-leve').checked = c.jogo.leve;
+  $('aj-caixa').checked = c.caixa; $('aj-dica').checked = c.dica;
+  montarLimites();
   $('aj-log').checked = c.registro.ligado; $('aj-pasta').value = c.registro.pasta;
   $('aj-int').value = c.registro.intervalo; $('aj-dias').value = c.registro.dias;
   $('aj-m-live').checked = c.modulos.live; $('aj-m-zomboid').checked = c.modulos.zomboid; $('aj-reserva').value = c.ram_reserva;
@@ -1273,14 +1586,24 @@ async function abrirAjustes() {
   if (!$('ajustes').open) $('ajustes').showModal();
 }
 // thresholds table: one row per alert, three levels each
+// two sets: n = normal, j = while a game runs (on/off and the one-off alerts only exist in n)
 const recDe = (r, m) => m === 'temp_ssd' ? r[m]._ : r[m];
-function montarLimites(lim, rec, tipos) {
-  const corpo = $('lim-corpo');
+let LIMS = null, RECS = null, TIPOS = null, modoLim = 'n';
+function trocarModoLim(m) {
+  LIMS[modoLim] = Object.assign(LIMS[modoLim], lerLimites());
+  modoLim = m;
+  montarLimites();
+}
+function montarLimites() {
+  const corpo = $('lim-corpo'), jogo = modoLim === 'j', lim = LIMS[modoLim], rec = RECS[modoLim], tipos = TIPOS;
+  for (const b of $('lim-modo').querySelectorAll('button')) b.setAttribute('aria-pressed', b.dataset.modo === modoLim);
   corpo.replaceChildren();
   for (const m in tipos) {
+    if (jogo && !lim[m]) continue;
     const x = lim[m], tr = el('tr'), on = el('input');
     tr.dataset.m = m; tr.dataset.tipo = tipos[m];
-    on.type = 'checkbox'; on.className = 'lim-on'; on.checked = x.on;
+    on.type = 'checkbox'; on.className = 'lim-on'; on.checked = jogo ? LIMS.n[m].on : x.on; on.disabled = jogo;
+    if (jogo) on.title = T('l_jogo_n');
     const c1 = el('td', '', T('lm_' + m)), c2 = el('td');
     c2.append(on);
     tr.append(c1, c2);
@@ -1306,6 +1629,7 @@ function montarLimites(lim, rec, tipos) {
       const mostrar = () => {
         const usar = r.checked || !x.v ? recDe(rec, m) : x.v;
         caixas.forEach((inp, i) => { inp.value = usar[i] ?? ''; inp.disabled = r.checked || !on.checked; });
+        r.disabled = !on.checked;
       };
       r.addEventListener('change', () => { if (!r.checked) x.v = caixas.map(c => c.value === '' ? null : +c.value); mostrar(); });
       on.addEventListener('change', mostrar);
@@ -1315,19 +1639,19 @@ function montarLimites(lim, rec, tipos) {
   }
   const f = Object.entries(rec.fonte || {}).map(([m, v]) => T('lm_' + m).replace(/ \(.*\)$/, '') + ' ' + v);
   const ssd = Object.entries(rec.temp_ssd).map(([k, v]) => (k === '_' ? T('l_padrao') : k) + ' ' + v.filter(y => y != null).join('/'));
-  $('lim-fonte').textContent = (f.length ? T('l_fonte', f.join(', ')) + ' ' : '') + T('l_ssd', ssd.join(', '));
+  $('lim-fonte').textContent = (jogo ? T('l_jogo_n') + ' ' : '') + (f.length ? T('l_fonte', f.join(', ')) + ' ' : '') + T('l_ssd', ssd.join(', '));
   $('lim-rec').onclick = () => {
     for (const tr of corpo.children) {
-      tr.querySelector('.lim-on').checked = true;
+      if (!jogo) tr.querySelector('.lim-on').checked = true;
       const r = tr.querySelector('.lim-rec');
-      if (r) { r.checked = true; r.dispatchEvent(new Event('change')); }
+      if (r && !r.disabled) { r.checked = true; r.dispatchEvent(new Event('change')); }
     }
   };
 }
 function lerLimites() {
   const out = {};
   for (const tr of $('lim-corpo').children) {
-    const m = tr.dataset.m, x = {on: tr.querySelector('.lim-on').checked};
+    const m = tr.dataset.m, x = modoLim === 'j' ? {} : {on: tr.querySelector('.lim-on').checked};
     if (tr.dataset.tipo === 'evento') x.nv = tr.querySelector('.lim-nv').value;
     else {
       x.rec = tr.querySelector('.lim-rec').checked;
@@ -1343,10 +1667,13 @@ async function salvarAjustes() {
   const corpo = {idioma: $('aj-idioma').value, tema: $('aj-tema').value, cor: $('aj-cor').value, fonte: +$('aj-fonte').value,
     perfil: $('aj-perfil').value, encaixe: $('aj-encaixe').checked, passo: +$('aj-passo').value, ping_alvo: $('aj-ping').value,
     avisar: {desktop: $('aj-desktop').checked, som: $('aj-som').checked, nivel: $('aj-nivel').value},
-    alertas: {fundo: $('aj-fundo').checked, cada: +$('aj-cada').value}, limites: lerLimites(),
+    alertas: {fundo: $('aj-fundo').checked, cada: +$('aj-cada').value},
+    jogo: {limites: $('aj-jogo-lim').checked, leve: $('aj-jogo-leve').checked}, caixa: $('aj-caixa').checked, dica: $('aj-dica').checked,
     modulos: {live: $('aj-m-live').checked, zomboid: $('aj-m-zomboid').checked}, ram_reserva: +$('aj-reserva').value || 0,
     registro: {ligado: $('aj-log').checked, pasta: $('aj-pasta').value, intervalo: +$('aj-int').value, dias: +$('aj-dias').value}};
   if (proprio) corpo.cartoes = cartoes;
+  LIMS[modoLim] = Object.assign(LIMS[modoLim], lerLimites());
+  corpo.limites = LIMS.n; corpo.limites_jogo = LIMS.j;
   try {
     const d = await pedir('/config', corpo);
     if (d.erro) { $('aj-erro').textContent = d.erro; return; }
@@ -1525,6 +1852,8 @@ async function medirFans() {
 }
 
 $('btn-tab').addEventListener('click', abrirTabela);
+for (const b of $('h-abas').children) b.addEventListener('click', () => mostrarAba(b.dataset.aba));
+new ResizeObserver(() => { if (abaH === '24' && $('tabela').open) desenhar24(); }).observe($('h24-g'));
 $('btn-ev').addEventListener('click', abrirEventos);
 $('btn-ev2').addEventListener('click', abrirEventos);
 $('btn-aj').addEventListener('click', abrirAjustes);
@@ -1538,6 +1867,7 @@ $('aj-perfil').addEventListener('change', marcarPerfil);
 $('aj-ver-btn').addEventListener('click', procurarVersao);
 $('aj-atualizar').addEventListener('click', atualizarPainel);
 $('aj-salvar').addEventListener('click', salvarAjustes);
+for (const b of $('lim-modo').querySelectorAll('button')) b.addEventListener('click', () => trocarModoLim(b.dataset.modo));
 $('fa-aplicar').addEventListener('click', aplicarFans);
 $('fa-medir').addEventListener('click', medirFans);
 $('btn-ocultos').addEventListener('click', () => { rolar = !rolar; arranjar(true); desenhar(); });
@@ -1550,7 +1880,8 @@ relogioDados = setInterval(ciclo, 2000);
 setInterval(relogio, 1000);
 relogio();
 ciclo().then(() => {
-  const abrir = {'#ajustes': abrirAjustes, '#fans': abrirFans, '#eventos': abrirEventos, '#historico': abrirTabela, '#sensores': abrirSensores}[location.hash];
+  const abrir = {'#ajustes': abrirAjustes, '#fans': abrirFans, '#eventos': abrirEventos, '#historico': abrirTabela, '#sensores': abrirSensores,
+    '#24h': () => abrirTabela('24'), '#sessoes': () => abrirTabela('ses'), '#caixa': () => abrirTabela('cx')}[location.hash];
   if (abrir) abrir();
 });
 </script>

@@ -10,8 +10,10 @@ ExecStart=@BIN@
 ExecStopPost=@BIN@ --on-stop
 Restart=on-failure
 RestartSec=5
-# never compete with a game
+# never compete with a game: only runs on idle processor and disk time
 Nice=19
+CPUSchedulingPolicy=idle
+IOSchedulingClass=idle
 MemoryMax=200M
 
 [Install]

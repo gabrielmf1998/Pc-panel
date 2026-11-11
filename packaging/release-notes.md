@@ -1,3 +1,32 @@
+## 0.4.0: black box, 24 h history, game sessions, SSD health
+
+- **Black box.** A summary of every sample goes to a small file of fixed size (180 KiB, the last 30
+  to 60 minutes) that is written in place and synced, so it survives a freeze or a power cut. When
+  the PC stops without a normal shutdown, the next boot raises an alert with the time it stopped and
+  History, Black box shows the last minutes (temperatures, clocks, power, VRAM, free RAM, swap, RAM
+  pressure, disk wait, ping, top program, game).
+- **24 h history.** One row per minute, saved every 15 minutes, as a chart per metric (processor,
+  graphics card, temperatures, power, VRAM, free RAM, swap, ping) with the minutes a game ran marked.
+- **Game sessions.** When a game closes its duration, average use, peak temperatures and power, VRAM
+  peak, lowest free RAM, game RAM and alerts are saved; the Game card shows the running session.
+- **SSD health** through SMART (UDisks2, no root): NVMe life used, spare, data written, hours, unsafe
+  shutdowns and media errors; SATA SMART status, spare, bad sectors. New alerts for life used, a
+  health problem reported by the drive, and any new read/write error.
+- **Gaming thresholds.** A second set of thresholds applies while a game runs (VRAM 95/98 %,
+  processor 95/99 % recommended), edited in the same table with a Normal / Gaming switch.
+- **Silence alerts** for 15 min, 1 h or 3 h, one alert or all, from the banner or the Events window.
+- **Tray tooltip readings** (processor, graphics card, VRAM, free RAM, ping, game time), at most
+  every 30 s and only when they changed. Optional.
+- **Full screen shows everything**: on a 4 column window rows get shorter before any card is hidden;
+  smaller windows still keep the most important cards. List rows that do not fit whole are hidden
+  instead of cut in half.
+- **Never competes with a game.** The service now runs with the SCHED_IDLE processor class and the
+  idle disk class (only idle time), and with a game running the open page refreshes every 5 s at
+  most and the program list every 10 s.
+- **Measured cost** (120 s runs, share of one processor core): page closed 0.075 % before and after,
+  memory 66 to 68 MiB; page open 0.45 % before, 0.30 % now (partly run to run noise); page open with
+  a game running 0.16 %. The black box writes 512 bytes every 5 to 15 s, about 3 to 6 KiB a minute.
+
 ## 0.3.3: fix
 
 - **Programs card kept losing the "CPU by program" column** when the window got narrower. Now the
