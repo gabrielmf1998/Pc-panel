@@ -1,3 +1,9 @@
+## 0.3.3: fix
+
+- **Programs card kept losing the "CPU by program" column** when the window got narrower. Now the
+  three lists stay side by side and only the bars are left out to make room; on a very narrow card
+  the lists stack.
+
 ## 0.3.2: fixes
 
 - **Tray icon could turn into a blank page on an alert.** Plasma did not load the colored icon by

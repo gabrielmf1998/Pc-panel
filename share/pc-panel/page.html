@@ -106,7 +106,8 @@ h3{margin:0;font-size:.86rem;font-weight:500;color:var(--apagado);white-space:no
 @container (max-height:9.2rem) and (min-height:6.7rem){.fino{display:block}}
 
 .duas{flex:1 1 0;min-height:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}
-@container (max-width:720px){.duas{grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.col.c3{display:none}}
+@container (max-width:720px){.duas{gap:14px}.duas .lin{grid-template-columns:minmax(0,1fr) auto}.duas .barra{display:none}}
+@container (max-width:400px){.duas{grid-template-columns:minmax(0,1fr);grid-template-rows:repeat(3,minmax(0,1fr));gap:8px}}
 .col{min-width:0;min-height:0;display:flex;flex-direction:column;gap:4px}
 .lista{flex:1 1 0;min-height:0;overflow:hidden}
 .lin{display:grid;grid-template-columns:minmax(0,40%) minmax(10px,1fr) 4.6rem;align-items:center;gap:8px;height:var(--lin)}

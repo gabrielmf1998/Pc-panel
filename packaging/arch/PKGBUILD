@@ -1,6 +1,6 @@
 # Maintainer: PC Panel contributors
 pkgname=pc-panel
-pkgver=0.3.2
+pkgver=0.3.3
 pkgrel=1
 pkgdesc="Local web dashboard to monitor and control a Linux PC (RAM, VRAM, CPU, network, disks, fans), with a tray icon"
 arch=('x86_64' 'aarch64')
