@@ -1,3 +1,16 @@
+## 0.3.1: lighter
+
+The dashboard now sleeps until its next task is due, and the page opening wakes it at once,
+instead of checking twice a second. Measured on the same PC over 2 minutes with the page closed:
+
+| | 0.3.0 | 0.3.1 |
+|---|---|---|
+| Background watch on (default, every 10 s) | 7.5 wakeups/s, 0.10 % of one core | 1.9 wakeups/s, 0.08 % of one core |
+| Background watch off | 6.7 wakeups/s | 0.35 wakeups/s, 0.00 % |
+
+Memory is unchanged (about 34 MiB, or about 60 MiB once the NVIDIA library is loaded). Opening the
+page now also refreshes the program list and fans at once instead of up to 30 s later.
+
 ## Alerts you can see
 
 The tray icon now changes color when something needs attention: **yellow** for a warning,

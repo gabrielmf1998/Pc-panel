@@ -1,6 +1,6 @@
 %global debug_package %{nil}
 Name:           pc-panel
-Version:        0.3.0
+Version:        0.3.1
 Release:        1
 Summary:        Local web dashboard to monitor and control a Linux PC, with a tray icon
 License:        MIT
@@ -55,6 +55,9 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install
 %{_unitdir}/pc-panel-fans.service
 
 %changelog
+* Tue Nov 10 2026 PC Panel contributors - 0.3.1-1
+- Lighter: the dashboard sleeps until the next task instead of checking twice a second
+
 * Tue Nov 10 2026 PC Panel contributors - 0.3.0-1
 - Alerts: tray icon turns yellow, orange or red, configurable thresholds with hardware based recommended values
 

@@ -32,7 +32,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 
-VERSAO = "0.3.0"
+VERSAO = "0.3.1"
 REPO = "gabrielmf1998/pc-panel"         # owner/repository on GitHub, used only to look for a new version
 PASTA_CFG = os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"), "pc-panel")
 
@@ -251,6 +251,19 @@ FREQS = sorted(glob.glob("/sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_cur_
 trava = threading.Lock()
 novo = threading.Condition()
 acordar = threading.Event()
+sino = threading.Condition()            # wakes the slower loops when the page opens or settings change
+
+
+def despertar():
+    acordar.set()
+    with sino:
+        sino.notify_all()
+
+
+def cochilar(seg):
+    # sleep up to seg seconds, or less when the page opens or the settings change
+    with sino:
+        sino.wait(seg)
 hist = collections.deque(maxlen=700)        # 11 minutes even when sampling every 1 s
 seq = 0
 estado = {"t": 0}
@@ -1810,7 +1823,7 @@ def laco_medir():
         passo = ritmo()[0]
         if passo is None:
             dormindo = True
-            acordar.wait(5)
+            acordar.wait(30)            # a page request or a settings change sets it
             acordar.clear()
             continue
         try:
@@ -1850,11 +1863,17 @@ def laco_lento():
             return True
         return False
 
+    era_aberta = False
     while True:
         passo, aberta = ritmo()
         if passo is None:
-            time.sleep(1)
+            cochilar(30)
             continue
+        if aberta and not era_aberta:
+            # the page just opened: refresh what the background watch reads slowly
+            for nome in ("fans", "procs", "sis"):
+                venc[nome] = 0.0
+        era_aberta = aberta
         try:
             if vence("fontes", 60):
                 achar_fontes()
@@ -1873,7 +1892,8 @@ def laco_lento():
                 info_saude()
         except Exception as e:
             avisar("lento", e)
-        time.sleep(0.5)
+        # sleep until the next task is due instead of checking twice a second
+        cochilar(min(30.0, max(0.5, min(venc.values()) - time.monotonic())))
 
 
 def um_ping(socks, ip, n, espera=1.0):
@@ -1908,15 +1928,17 @@ def laco_ping():
     while True:
         passo = ritmo()[0]
         if passo is None:
-            time.sleep(1)
+            cochilar(30)
             continue
-        passo = max(2.0, passo)             # ping at most every 2 s
         inicio, n = time.monotonic(), n + 1
         for chave, ip in (("gw", rota["gw"]), ("net", cfg["ping_alvo"])):
             pings[chave] = (time.time(), um_ping(socks, ip, n) if ip else None)
-        fim = inicio + passo
-        while time.monotonic() < fim and ritmo()[0] is not None:
-            time.sleep(min(1.0, max(0.05, fim - time.monotonic())))
+        while True:
+            passo = ritmo()[0]
+            resto = inicio + max(2.0, passo or 0) - time.monotonic()   # ping at most every 2 s
+            if passo is None or resto <= 0:
+                break
+            cochilar(resto)
 
 
 def laco_live():
@@ -1928,7 +1950,7 @@ def laco_live():
         else:
             if not extra["obs"]:
                 extra["live"] = {"obs": False}
-            time.sleep(1)
+            cochilar(5)
 
 
 # ---------------------------------------------------------------- web server
@@ -1971,8 +1993,12 @@ class Pedido(BaseHTTPRequestHandler):
                 desde = 0
             if qs.get("i", [""])[0] != INSTANCIA:
                 desde = 0
+            abriu = not assistindo()
             visto[0] = time.time()
-            acordar.set()
+            if abriu:
+                despertar()         # the page just opened: every loop switches to the fast pace
+            else:
+                acordar.set()
             if time.time() - estado["t"] > cfg["passo"] * 2 + 1:
                 with novo:
                     novo.wait(3.0)      # it was sleeping or slow, wait for a fresh sample
@@ -2030,7 +2056,7 @@ class Pedido(BaseHTTPRequestHandler):
                 except OSError as e:
                     falha = ("Não consegui salvar a configuração (%s)" % e.strerror,
                              "Could not save the settings (%s)" % e.strerror)
-            acordar.set()
+            despertar()
             if falha:
                 erro(falha)
             else:
@@ -2079,7 +2105,7 @@ class Pedido(BaseHTTPRequestHandler):
                 erro(("A escolha foi gravada, mas o ajudante das fans não respondeu.",
                       "The choice was saved, but the fan helper did not answer."))
                 return
-            acordar.set()
+            despertar()
             self.json({"escolha": cfg["fans"], "aplicado": fans["aplicado"], "nomes": cfg["nomes_fans"]})
         elif caminho == "/fans/calibrar":
             if not fans["pode"] or cfg["fans"] is None or not cfg["canais"]:
@@ -2152,4 +2178,5 @@ if __name__ == "__main__":
     signal.signal(signal.SIGTERM, sair)
     for laco in (laco_medir, laco_lento, laco_ping, laco_live):
         threading.Thread(target=laco, daemon=True).start()
-    ThreadingHTTPServer((ENDERECO, PORTA), Pedido).serve_forever()
+    # SIGTERM exits through sair(), never through shutdown(), so the server needs no polling
+    ThreadingHTTPServer((ENDERECO, PORTA), Pedido).serve_forever(poll_interval=3600)
