@@ -3,7 +3,7 @@
 - **Alerts stand out again.** Metric colors were moved away from the alert colors (no more pink or
   green lines that look like a status). A card in alert gets a filled badge (HIGH, CRITICAL), its
   chart line turns the level color, the part of the chart above the alert limit is shaded red, and a
-  critical card pulses slowly (still when the system asks for reduced motion). The processor and
+  critical card pulses slowly (it stays still when the system asks for reduced motion). The processor and
   graphics card cards also follow their temperature level. VRAM, processor and ping charts show
   their alert limit, and a limit just above the data is pulled into view.
 - **Disks on two lines**: name and free space, then health, years left, temperature, read and write
