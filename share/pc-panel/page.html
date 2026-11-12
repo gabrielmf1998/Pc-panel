@@ -8,7 +8,8 @@
 <style>
 :root{color-scheme:dark;--plano:#0d0d0d;--sup:#1a1a19;--sup2:#262624;--tinta:#f0efec;--tinta2:#c3c2b7;
   --apagado:#898781;--grade:#2c2c2a;--eixo:#383835;--borda:rgba(255,255,255,.10);
-  --s1:#3987e5;--s2:#d95926;--bom:#2fbf4a;--aviso:#f5bd3a;--serio:#f08a5d;--critico:#ef5a5a;--lin:1.64rem;--topo-h:46px}
+  --s1:#3987e5;--s2:#d95926;--bom:#2fbf4a;--aviso:#f5bd3a;--serio:#f08a5d;--critico:#ef5a5a;--lin:1.64rem;--topo-h:46px;
+  --m-ram:#9085e9;--m-vram:#d55181;--m-gpu:#1fa67a;--m-cpu:#3987e5;--m-fps:#2ea8c7}
 body[data-tema="preto"]{--plano:#000;--sup:#0b0b0b;--sup2:#1a1a19;--grade:#222220;--borda:rgba(255,255,255,.14)}
 body[data-tema="noite"]{--plano:#090e1a;--sup:#111a2c;--sup2:#1b2740;--grade:#1f2b45;--eixo:#2f3d5e;--tinta2:#c2c9d8;--apagado:#8490a8}
 body[data-tema="contraste"]{--plano:#000;--sup:#000;--sup2:#1a1a19;--tinta:#fff;--tinta2:#fff;--apagado:#c3c2b7;
@@ -16,7 +17,8 @@ body[data-tema="contraste"]{--plano:#000;--sup:#000;--sup2:#1a1a19;--tinta:#fff;
   --bom:#3ddc4a;--aviso:#ffd23f;--serio:#ff9a3c;--critico:#ff5c5c}
 body[data-tema="claro"]{color-scheme:light;--plano:#f0efec;--sup:#fcfcfb;--sup2:#f0efec;--tinta:#0b0b0b;--tinta2:#52514e;
   --apagado:#898781;--grade:#e1e0d9;--eixo:#c3c2b7;--borda:rgba(11,11,11,.12);--s1:#2a78d6;--s2:#eb6834;
-  --bom:#14801a;--aviso:#a35f00;--serio:#c2410c;--critico:#b42318}
+  --bom:#14801a;--aviso:#a35f00;--serio:#c2410c;--critico:#b42318;
+  --m-ram:#6250d6;--m-vram:#c23c72;--m-gpu:#13805c;--m-cpu:#2a78d6;--m-fps:#13819c}
 body[data-cor="agua"]{--s1:#199e70}body[data-cor="violeta"]{--s1:#9085e9}body[data-cor="magenta"]{--s1:#d55181}
 body[data-tema="claro"][data-cor="agua"]{--s1:#1baf7a}body[data-tema="claro"][data-cor="violeta"]{--s1:#6250d6}
 body[data-tema="claro"][data-cor="magenta"]{--s1:#e87ba4}
@@ -41,6 +43,10 @@ button.principal:hover{filter:brightness(1.12);background:var(--s1);color:#fff}
 .al-aviso{--al:var(--aviso)}.al-serio{--al:var(--serio)}.al-critico{--al:var(--critico)}
 .topo nav{display:flex;gap:8px}
 .chip{font-size:.86rem;padding:3px 9px;border-radius:999px}
+#mods{display:flex;gap:6px;min-width:0;overflow:hidden}
+.mod{font-size:.82rem;color:var(--apagado);border:1px solid var(--borda);border-radius:999px;padding:2px 9px;white-space:nowrap}
+.mod b{font-weight:500;color:var(--tinta2)}
+body[data-estreito] #mods{display:none}
 
 .app{display:grid;gap:10px;padding:10px 12px 12px;height:calc(100vh - var(--topo-h))}
 body.rolar .app{height:auto;min-height:calc(100vh - var(--topo-h))}
@@ -53,6 +59,11 @@ body.semdados .cartao{opacity:.45}
 .cartao.al-serio,.cartao.al-critico{background:color-mix(in srgb,var(--al) 15%,var(--sup))}
 .cartao.al-aviso .pilula,.cartao.al-serio .pilula,.cartao.al-critico .pilula{font-size:.93rem;font-weight:600;color:var(--tinta)}
 #c-chat{padding:0}
+#c-ram{--mc:var(--m-ram)}#c-vram{--mc:var(--m-vram)}#c-gpu{--mc:var(--m-gpu)}#c-cpu{--mc:var(--m-cpu)}#c-rede{--mc:var(--s1)}#c-jogo{--mc:var(--m-fps)}
+.cartao[data-acento]>header h2::before,#c-jogo .l1 h2::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;
+  background:var(--mc);margin-right:7px;vertical-align:1px}
+.num b{transition:color .4s}
+.num b.nv-aviso{color:var(--aviso)}.num b.nv-serio{color:var(--serio)}.num b.nv-critico{color:var(--critico)}
 
 .cartao>header{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:18px;flex:none}
 h2{margin:0;font-size:.93rem;font-weight:500;color:var(--tinta2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -73,12 +84,14 @@ h3{margin:0;font-size:.86rem;font-weight:500;color:var(--apagado);white-space:no
 .sub dt{color:var(--apagado);font-size:.86rem}
 .sub dd{margin:0;font-variant-numeric:tabular-nums}
 @container (min-height:21.4rem){.sub{max-height:2.9rem}}
+#c-jogo .sub{max-height:2.9rem}
 
 .graf{flex:1 1 0;min-height:0;min-width:0;position:relative}
 .graf svg{position:absolute;inset:0;width:100%;height:100%;display:block}
 .grade{stroke:var(--grade);stroke-width:1}.eixo{stroke:var(--eixo);stroke-width:1}
 .rot{fill:var(--apagado);font-size:.75rem;font-variant-numeric:tabular-nums}
 .limite{stroke:var(--apagado);stroke-width:1;stroke-dasharray:4 4}
+.pico{fill:var(--tinta2);font-size:.75rem;font-variant-numeric:tabular-nums}
 .mira{stroke:var(--apagado);stroke-width:1}
 .linha{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
 .dica{position:absolute;top:2px;pointer-events:none;background:var(--sup2);border:1px solid var(--borda);
@@ -100,10 +113,10 @@ h3{margin:0;font-size:.86rem;font-weight:500;color:var(--apagado);white-space:no
 .nucleos i{flex:1 1 0;max-width:24px;background:var(--s1);border-radius:4px 4px 0 0;min-height:1px}
 .med{height:6px;border-radius:3px;background:color-mix(in srgb,var(--c,var(--s1)) 24%,transparent);overflow:hidden;flex:none}
 .med i{display:block;height:100%;background:var(--c,var(--s1));border-radius:3px;transition:width .5s}
-.fino{display:none}
+.fino{height:4px}
 @container (max-height:14.3rem){.nucleos{display:none}}
 @container (max-height:9.2rem){.graf,.redegraf{display:none}.resumo{flex-direction:column;gap:4px}.sub div:not(:first-child){display:none}}
-@container (max-height:9.2rem) and (min-height:6.7rem){.fino{display:block}}
+@container (max-height:6.7rem){.fino{display:none}}
 
 .duas{flex:1 1 0;min-height:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px}
 @container (max-width:720px){.duas{gap:14px}.duas .lin{grid-template-columns:minmax(0,1fr) auto}.duas .barra{display:none}}
@@ -137,6 +150,27 @@ h3{margin:0;font-size:.86rem;font-weight:500;color:var(--apagado);white-space:no
 @container (max-height:3.2rem){.mini .d{display:none}}
 .mini .d2{display:none;font-size:.86rem;color:var(--apagado);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 @container (min-height:4.6rem){.mini .d2{display:block}}
+#c-jogo .full{display:none}
+#c-jogo.grande{justify-content:flex-start;padding:11px 14px 12px;gap:6px}
+#c-jogo.grande .full{display:flex;flex-direction:column;gap:6px;flex:1 1 0;min-height:0}
+#c-jogo.grande .l1 h2{font-size:.93rem;color:var(--tinta2);font-weight:500}
+#c-jogo.grande .p{font-size:.93rem;font-weight:600;color:var(--tinta)}
+#c-jogo.grande .d,#c-jogo.grande .d2{display:none}
+#c-jogo .full .info{font-size:.86rem;color:var(--tinta2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:none}
+#c-jogo .full .info2{font-size:.86rem;color:var(--apagado);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:none}
+#c-jogo .full .dica-fps{font-size:.86rem;color:var(--apagado);flex:none}
+@container (max-height:12rem){#c-jogo .full .info2{display:none}}
+@container (max-height:9.5rem){#c-jogo .full .graf{display:none}}
+.fpsv{font-variant-numeric:tabular-nums}
+/* events: the last 24 h as a strip under the list */
+#c-eventos .lista{flex:1 1 0}
+.tl{flex:none;display:flex;flex-direction:column;gap:3px}
+.tl .r{font-size:.82rem;color:var(--apagado);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tl .r b{font-weight:500;color:var(--tinta2)}
+.tl svg{display:block;width:100%;height:30px}
+.tl .faixa{fill:var(--m-fps);opacity:.35}
+.tl .fundo{fill:var(--sup2)}
+@container (max-height:7.5rem){.tl{display:none}}
 .abas{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
 .abas button[aria-pressed="true"]{background:var(--sup2);color:var(--tinta);border-color:var(--s1)}
 .g24{position:relative;height:280px;width:min(940px,88vw);margin-top:8px}
@@ -237,6 +271,7 @@ body[data-estreito] .hora{font-size:1.29rem}
     <span class="pilula" id="geral-st"></span><span id="geral-tx" data-i="conectando"></span></button>
   <button type="button" class="chip" id="btn-mudo" hidden></button>
   <button type="button" class="chip" id="btn-ocultos" hidden></button>
+  <span id="mods"></span>
   <nav>
     <button type="button" id="btn-rede" class="so-grande" data-i="b_rede"></button>
     <button type="button" id="btn-fans" class="so-grande" data-i="b_fans"></button>
@@ -247,7 +282,7 @@ body[data-estreito] .hora{font-size:1.29rem}
 </header>
 
 <main class="app" id="app">
-  <section class="cartao" id="c-ram">
+  <section class="cartao" id="c-ram" data-acento>
     <header><h2 data-i="c_ram"></h2><span class="pilula" id="ram-st"></span></header>
     <div class="resumo">
       <div class="num"><b id="ram-v">0</b><span id="ram-de">GiB</span></div>
@@ -262,7 +297,7 @@ body[data-estreito] .hora{font-size:1.29rem}
     <div class="graf" id="g-ram"></div>
   </section>
 
-  <section class="cartao" id="c-vram">
+  <section class="cartao" id="c-vram" data-acento>
     <header><h2>VRAM<small id="gpu-nome"></small></h2><span class="pilula" id="vram-st"></span></header>
     <div class="resumo">
       <div class="num"><b id="vram-v">0</b><span id="vram-de">GiB</span></div>
@@ -275,7 +310,7 @@ body[data-estreito] .hora{font-size:1.29rem}
     <div class="graf" id="g-vram"></div>
   </section>
 
-  <section class="cartao" id="c-gpu">
+  <section class="cartao" id="c-gpu" data-acento>
     <header><h2 data-i="c_gpu"></h2><span class="pilula" id="gpu-st"></span></header>
     <div class="resumo">
       <div class="num"><b id="gpu-v">0</b><span data-i="uso_pct"></span></div>
@@ -291,7 +326,7 @@ body[data-estreito] .hora{font-size:1.29rem}
     <div class="graf" id="g-gpu"></div>
   </section>
 
-  <section class="cartao" id="c-cpu">
+  <section class="cartao" id="c-cpu" data-acento>
     <header><h2><span data-i="c_cpu"></span><small id="cpu-nome"></small></h2><span class="pilula" id="cpu-st"></span></header>
     <div class="resumo">
       <div class="num"><b id="cpu-v">0</b><span data-i="uso_pct"></span></div>
@@ -307,7 +342,7 @@ body[data-estreito] .hora{font-size:1.29rem}
     <div class="graf" id="g-cpu"></div>
   </section>
 
-  <section class="cartao" id="c-rede">
+  <section class="cartao" id="c-rede" data-acento>
     <header><h2><span data-i="c_rede"></span><small id="rede-if"></small></h2><span class="hd-dir"><button type="button" class="elo" id="btn-rede2" data-i="rd_mais"></button><span class="pilula" id="rede-st"></span></span></header>
     <div class="resumo">
       <div class="num"><b id="ping-v">0</b><span data-i="ms_ping"></span></div>
@@ -359,9 +394,25 @@ body[data-estreito] .hora{font-size:1.29rem}
   <section class="cartao" id="c-eventos">
     <header><h2 data-i="c_eventos"></h2><button type="button" class="elo" id="btn-ev2" data-i="ver_todos"></button></header>
     <div class="lista" id="l-ev"></div>
+    <div class="tl" id="ev-tl" hidden><div class="r" id="tl-r"></div><svg id="tl-svg" role="img"></svg></div>
   </section>
 
-  <section class="cartao mini" id="c-jogo"><div class="l1"><h2 data-i="c_jogo"></h2><div class="p" id="jogo-p"></div></div><div class="d" id="jogo-d"></div><div class="d2" id="jogo-d2"></div></section>
+  <section class="cartao mini" id="c-jogo"><div class="l1"><h2 data-i="c_jogo"></h2><div class="p" id="jogo-p"></div></div><div class="d" id="jogo-d"></div><div class="d2" id="jogo-d2"></div>
+    <div class="full">
+      <div class="resumo">
+        <div class="num"><b id="fps-v" class="fpsv">?</b><span>FPS</span></div>
+        <dl class="sub">
+          <div data-it="fps_ft_t"><dt>Frametime</dt><dd id="fps-ft"></dd></div>
+          <div data-it="fps_pior_t"><dt data-i="fps_pior"></dt><dd id="fps-max"></dd></div>
+          <div data-it="fps_med_t"><dt data-i="fps_med"></dt><dd id="fps-med"></dd></div>
+          <div data-it="fps_low_t"><dt>1 % low</dt><dd id="fps-low"></dd></div>
+        </dl>
+      </div>
+      <div class="dica-fps" id="fps-dica" hidden></div>
+      <div class="graf" id="g-fps"></div>
+      <div class="info" id="jogo-info"></div>
+      <div class="info2" id="jogo-info2"></div>
+    </div></section>
   <section class="cartao mini" id="c-live"><div class="l1"><h2>Live</h2><div class="p" id="live-p"></div></div><div class="d" id="live-d"></div></section>
   <section class="cartao mini" id="c-pz"><div class="l1"><h2 data-i="c_pz"></h2><div class="p" id="pz-p"></div></div><div class="d" id="pz-d"></div></section>
   <section class="cartao mini" id="c-sis"><div class="l1"><h2 data-i="c_sis"></h2><div class="p" id="sis-p"></div></div><div class="d" id="sis-d"></div></section>
@@ -696,7 +747,7 @@ en: {conectando: 'connecting', nv_bom: 'ok', nv_aviso: 'warning', nv_serio: 'hig
 Object.assign(TX.pt, {
   h_a10: 'Últimos 10 min', h_a24: 'Últimas 24 h', h_ases: 'Sessões de jogo', h_acx: 'Caixa preta',
   h24_cpu: 'Processador %', h24_tc: 'Processador °C', h24_gpu: 'Placa %', h24_tg: 'Placa °C', h24_w: 'Placa W',
-  h24_vram: 'VRAM GiB', h24_ram: 'RAM livre GiB', h24_swap: 'Swap GiB', h24_ping: 'Ping ms',
+  h24_vram: 'VRAM GiB', h24_ram: 'RAM livre GiB', h24_swap: 'Swap GiB', h24_ping: 'Ping ms', h24_fps: 'FPS',
   h24_nota: 'Uma linha por minuto: média para uso e ping, pico para temperatura, consumo, VRAM e swap, mínimo para a RAM livre. Faixa clara = jogo aberto. Buracos são minutos sem medida (PC desligado ou serviço dormindo).',
   h24_vazio: 'Ainda não há minutos guardados. O histórico enche sozinho enquanto o serviço mede.', h24_jogo: 'jogo aberto', h24_off: 'A caixa preta e o histórico de 24 h estão desligados nos Ajustes.',
   th_jogo2: 'Jogo', th_cpu_max: 'Proc. máx °C', th_gpu_max: 'Placa máx °C', th_w_max: 'Placa máx W', th_vram_pico: 'VRAM pico',
@@ -724,6 +775,15 @@ Object.assign(TX.pt, {
   a_jogo_lim: 'Usar limites próprios enquanto um jogo está aberto', l_editar: 'Editando os limites:', l_normal: 'Normal', l_jogo: 'Jogando',
   l_jogo_n: 'Limites de jogo: ligar e desligar cada alerta vale para os dois modos.',
   lm_ssd_desgaste: 'Vida útil gasta do SSD (%)', lm_parou: 'PC parou sem desligar (caixa preta)', lm_ssd_saude: 'Problema de saúde do SSD (SMART)',
+  fps_ft_t: 'Tempo de quadro médio das amostras desde a última leitura', fps_pior: 'Pior quadro',
+  fps_pior_t: 'O quadro mais demorado entre as amostras desde a última leitura: picos aqui são as travadinhas',
+  fps_med: 'Média', fps_med_t: 'FPS médio desta sessão de jogo',
+  fps_low_t: 'FPS do 1 % de quadros mais lentos desta sessão, pelos quadros que o MangoHud amostrou', fps_pior_d: 'pior quadro {0} ms',
+  fps_sem: 'Sem FPS: este jogo não está com o MangoHud, ou o log dele foi parado.',
+  fps_como: 'Para ver o FPS, ligue o log do MangoHud (output_folder e autostart_log no MangoHud.conf, veja o README).',
+  s_pot: 'consumo ~{0} W (processador {1} W, placa {2} W)', s_pot_gpu: 'placa de vídeo {0} W',
+  tl_24: 'Últimas 24 h:', tl_jog: '{0} jogando', tl_tc: 'processador até {0} °C', tl_tg: 'placa até {0} °C', tl_al: '{0} com alerta',
+  tl_t: 'Faixas: jogo aberto. Riscos: minutos com alerta, na cor do nível.', tl_24h: '24 h atrás', tl_12h: '12 h',
   lm_jitter: 'Oscilação do ping (ms)', b_rede: 'Rede', rd_mais: 'detalhes', rd_titulo: 'Rede', rd_internet: 'Internet', rd_perdas: 'ping perdido',
   rd_g_ping: 'Ping, últimos 10 minutos', rd_g_net: 'Tráfego, últimos 10 minutos', rd_qual: 'Qualidade da conexão', rd_con: 'Conexão',
   rd_qual_n: 'Mediana e pior 5 % dos últimos 10 minutos. Oscilação é a variação média de um ping para o seguinte: quanto menor, mais estável.',
@@ -752,7 +812,7 @@ Object.assign(TX.pt, {
 Object.assign(TX.en, {
   h_a10: 'Last 10 min', h_a24: 'Last 24 h', h_ases: 'Game sessions', h_acx: 'Black box',
   h24_cpu: 'CPU %', h24_tc: 'CPU °C', h24_gpu: 'GPU %', h24_tg: 'GPU °C', h24_w: 'GPU W',
-  h24_vram: 'VRAM GiB', h24_ram: 'Free RAM GiB', h24_swap: 'Swap GiB', h24_ping: 'Ping ms',
+  h24_vram: 'VRAM GiB', h24_ram: 'Free RAM GiB', h24_swap: 'Swap GiB', h24_ping: 'Ping ms', h24_fps: 'FPS',
   h24_nota: 'One row per minute: average for usage and ping, peak for temperature, power, VRAM and swap, minimum for free RAM. Light band = game running. Gaps are minutes without samples (PC off or service sleeping).',
   h24_vazio: 'No minutes saved yet. The history fills by itself while the service measures.', h24_jogo: 'game running', h24_off: 'The black box and the 24 h history are off in Settings.',
   th_jogo2: 'Game', th_cpu_max: 'CPU max °C', th_gpu_max: 'GPU max °C', th_w_max: 'GPU max W', th_vram_pico: 'VRAM peak',
@@ -780,6 +840,15 @@ Object.assign(TX.en, {
   a_jogo_lim: 'Use separate thresholds while a game is running', l_editar: 'Editing thresholds:', l_normal: 'Normal', l_jogo: 'Gaming',
   l_jogo_n: 'Gaming thresholds: turning each alert on or off applies to both modes.',
   lm_ssd_desgaste: 'SSD life used (%)', lm_parou: 'PC stopped without shutting down (black box)', lm_ssd_saude: 'SSD health problem (SMART)',
+  fps_ft_t: 'Average frame time of the samples since the last reading', fps_pior: 'Worst frame',
+  fps_pior_t: 'The slowest frame among the samples since the last reading: spikes here are the stutters',
+  fps_med: 'Average', fps_med_t: 'Average FPS of this game session',
+  fps_low_t: 'FPS of the slowest 1 % of frames this session, from the frames MangoHud sampled', fps_pior_d: 'worst frame {0} ms',
+  fps_sem: 'No FPS: this game is not running with MangoHud, or its log was stopped.',
+  fps_como: 'To see FPS, turn on MangoHud logging (output_folder and autostart_log in MangoHud.conf, see the README).',
+  s_pot: 'drawing ~{0} W (processor {1} W, graphics card {2} W)', s_pot_gpu: 'graphics card {0} W',
+  tl_24: 'Last 24 h:', tl_jog: '{0} gaming', tl_tc: 'processor up to {0} °C', tl_tg: 'graphics card up to {0} °C', tl_al: '{0} with an alert',
+  tl_t: 'Bands: a game was open. Ticks: minutes with an alert, in the level color.', tl_24h: '24 h ago', tl_12h: '12 h',
   lm_jitter: 'Ping jitter (ms)', b_rede: 'Network', rd_mais: 'details', rd_titulo: 'Network', rd_internet: 'Internet', rd_perdas: 'lost ping',
   rd_g_ping: 'Ping, last 10 minutes', rd_g_net: 'Traffic, last 10 minutes', rd_qual: 'Connection quality', rd_con: 'Connection',
   rd_qual_n: 'Median and worst 5 % of the last 10 minutes. Jitter is the average change from one ping to the next: the lower, the steadier.',
@@ -811,7 +880,7 @@ const NS = 'http://www.w3.org/2000/svg';
 const JANELA = 600;
 const GL = {bom: '●', aviso: '▲', serio: '◆', critico: '■'};
 const ORD = ['bom', 'aviso', 'serio', 'critico'];
-const COR = {bom: 'var(--s1)', aviso: 'var(--aviso)', serio: 'var(--serio)', critico: 'var(--critico)'};
+const COR = {bom: 'var(--bom)', aviso: 'var(--aviso)', serio: 'var(--serio)', critico: 'var(--critico)'};
 const CARTOES = ['ram', 'vram', 'gpu', 'cpu', 'rede', 'prog', 'temp', 'disc', 'saude', 'eventos', 'jogo', 'live', 'pz', 'sis'];
 const PERFIS = {tudo: CARTOES, jogo: ['ram', 'vram', 'gpu', 'cpu', 'rede', 'temp', 'prog', 'jogo'],
   live: ['ram', 'vram', 'gpu', 'cpu', 'rede', 'live', 'jogo', 'eventos', 'temp'],
@@ -868,6 +937,19 @@ function medidor(e, pct, nv) {
   e.style.setProperty('--c', COR[nv || 'bom']);
   e.firstElementChild.style.width = Math.max(2, Math.min(100, pct)) + '%';
 }
+// a readable range around the data: z.span = smallest range shown, z.zero = always start at 0
+const PASSOS = [0.1, 0.2, 0.25, 0.5, 1, 2, 2.5, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000];
+function faixa(lo, hi, z, teto) {
+  if (lo == null) return [0, teto || z.span];
+  if (z.zero) lo = 0;
+  const st = PASSOS.find(p => Math.max(hi - lo, z.span) / p <= 4) || 10000;
+  let a = z.zero ? 0 : Math.floor(lo / st) * st, b = Math.ceil(hi / st) * st;
+  if (b - hi < (b - a) * 0.08) b += st;                     // room above the line
+  while (b - a < z.span) { if (!z.zero && a - st >= 0) a -= st; if (b - a < z.span) b += st; }
+  if (teto != null && b > teto) { b = teto; a = Math.max(0, Math.min(a, b - z.span)); }
+  return [Math.max(0, a), b];
+}
+function nivelNum(id, nv) { $(id).className = nv && nv !== 'bom' ? 'nv-' + nv : ''; }
 function bonito(m) {
   for (const p of [1, 2, 4, 10, 20, 40, 100, 200, 400, 1000, 2000, 4000, 10000]) if (m <= p) return p;
   return m;
@@ -897,7 +979,7 @@ const nomeFan = (n, i) => (CFG && CFG.nomes_fans[n]) || T('fan_n', i + 1);
 
 class Grafico {
   constructor(alvo, o) {
-    this.el = alvo; this.o = o; this.mx = null;
+    this.el = alvo; this.o = o; this.mx = null; this.uid = 'gr' + (Grafico.n = (Grafico.n || 0) + 1);
     this.svg = sv('svg', {role: 'img'}, alvo);
     this.dica = el('div', 'dica'); this.dica.hidden = true; alvo.appendChild(this.dica);
     new ResizeObserver(() => this.desenhar()).observe(alvo);
@@ -910,32 +992,43 @@ class Grafico {
     const esq = 32 * f, dir = 8, topo = 7, baixo = Ht >= 84 * f ? 16 * f : 3;
     const pw = W - esq - dir, ph = Ht - topo - baixo, t1 = A.t, t0 = t1 - JANELA;
     const buraco = Math.max(passo * 3.5, (A.espaco || passo) * 1.7);
-    let max = o.max ? o.max() : 0;
-    if (!o.max) {
+    let max = o.max ? o.max() : 0, min = 0;
+    if (o.zoom) {
+      let lo = null, hi = null;
+      for (const l of H) if (l[0] >= t0) for (const s of o.series) {
+        const v = l[s.i];
+        if (v != null && v >= 0) { if (lo == null || v < lo) lo = v; if (hi == null || v > hi) hi = v; }
+      }
+      [min, max] = faixa(lo, hi, o.zoom, o.max ? max : null);
+    } else if (!o.max) {
       let m = 0;
       for (const l of H) for (const s of o.series) if (l[s.i] != null && l[s.i] > m) m = l[s.i];
       max = bonito(Math.max(m, o.piso || 1));
     }
     const X = t => esq + (t - t0) / JANELA * pw;
-    const Y = v => topo + ph - Math.max(0, Math.min(v, max)) / max * ph;
+    const Y = v => topo + ph - (Math.max(min, Math.min(v, max)) - min) / (max - min) * ph;
     const y0 = (topo + ph).toFixed(1);
     this.esc = {X, Y, t0, esq, pw, W, topo, ph};
     svg.setAttribute('viewBox', '0 0 ' + W + ' ' + Ht);
     svg.setAttribute('aria-label', o.series.map(s => T(s.nome)).join(', '));
     svg.replaceChildren();
-    for (const v of ph >= 90 ? [0, max / 2, max] : [0, max]) {
-      sv('line', {x1: esq, x2: W - dir, y1: Y(v), y2: Y(v), class: v ? 'grade' : 'eixo'}, svg);
+    const defs = sv('defs', {}, svg);
+    for (const v of ph >= 90 ? [min, (min + max) / 2, max] : [min, max]) {
+      sv('line', {x1: esq, x2: W - dir, y1: Y(v), y2: Y(v), class: v > min ? 'grade' : 'eixo'}, svg);
       sv('text', {x: esq - 6, y: Y(v) + 3.5, class: 'rot', 'text-anchor': 'end'}, svg).textContent =
         Number.isInteger(v) ? String(v) : nf(v);
     }
     if (baixo > 3) {
-      sv('text', {x: esq, y: Ht - 2, class: 'rot'}, svg).textContent = T('g_10');
-      sv('text', {x: esq + pw / 2, y: Ht - 2, class: 'rot', 'text-anchor': 'middle'}, svg).textContent = T('g_5');
+      if (pw >= 110) sv('text', {x: esq, y: Ht - 2, class: 'rot'}, svg).textContent = T('g_10');
+      if (pw >= 190) sv('text', {x: esq + pw / 2, y: Ht - 2, class: 'rot', 'text-anchor': 'middle'}, svg).textContent = T('g_5');
       sv('text', {x: W - dir, y: Ht - 2, class: 'rot', 'text-anchor': 'end'}, svg).textContent = T('agora');
     }
     const pontas = [];
-    for (const s of o.series) {
-      const cor = s.cor || 'var(--s1)', segs = [];
+    o.series.forEach((s, k) => {
+      const cor = s.cor || 'var(--s1)', segs = [], gid = this.uid + 'g' + k;
+      const lg = sv('linearGradient', {id: gid, x1: 0, y1: 0, x2: 0, y2: 1}, defs);
+      sv('stop', {offset: 0, style: 'stop-color:' + cor + ';stop-opacity:.34'}, lg);
+      sv('stop', {offset: 1, style: 'stop-color:' + cor + ';stop-opacity:0'}, lg);
       let seg = null, tant = 0;
       for (const l of H) {
         const t = l[0], v = l[s.i];
@@ -951,19 +1044,20 @@ class Grafico {
         if (p.length < 2) { sv('circle', {cx: p[0][0], cy: p[0][1], r: 1.5, style: 'fill:' + cor}, svg); continue; }
         const d = 'M' + p.map(q => q[0].toFixed(1) + ',' + q[1].toFixed(1)).join('L');
         sv('path', {d: d + 'L' + p[p.length - 1][0].toFixed(1) + ',' + y0 + 'L' + p[0][0].toFixed(1) + ',' + y0 + 'Z',
-          style: 'fill:' + cor + ';opacity:.1'}, svg);
+          style: 'fill:url(#' + gid + ')'}, svg);
         sv('path', {d, class: 'linha', style: 'stroke:' + cor}, svg);
       }
       const us = segs[segs.length - 1];
       if (us && us[us.length - 1][2] > t1 - buraco) pontas.push([us[us.length - 1], cor]);
-    }
+    });
     if (o.perdas) for (const l of H) if (l[5] === -1 && l[0] >= t0)
       sv('line', {x1: X(l[0]), x2: X(l[0]), y1: topo, y2: topo + 8, style: 'stroke:var(--critico);stroke-width:2'}, svg);
     const lim = o.limite && o.limite();
-    if (lim && lim.v < max) {
+    if (lim && lim.v < max && lim.v > min) {
       sv('line', {x1: esq, x2: W - dir, y1: Y(lim.v), y2: Y(lim.v), class: 'limite'}, svg);
       sv('text', {x: W - dir, y: Y(lim.v) - 4, class: 'rot', 'text-anchor': 'end'}, svg).textContent = lim.rotulo;
-    }
+    } else if (lim && lim.v >= max && ph >= 60)       // above the zoomed range: say where it is
+      sv('text', {x: W - dir, y: topo + 10, class: 'rot', 'text-anchor': 'end'}, svg).textContent = '↑ ' + lim.rotulo + ' ' + o.fmt(lim.v);
     for (const [q, cor] of pontas)
       sv('circle', {cx: q[0], cy: q[1], r: 4, style: 'fill:' + cor + ';stroke:var(--sup);stroke-width:2'}, svg);
     this.gm = sv('g', {}, svg);
@@ -990,6 +1084,8 @@ class Grafico {
       if (v != null && v >= 0)
         sv('circle', {cx: x, cy: Y(v), r: 4, style: 'fill:' + cor + ';stroke:var(--sup);stroke-width:2'}, g);
     }
+    const mais = this.o.extra && this.o.extra(perto);
+    if (mais) d.append(el('div', 'h', mais));
     d.hidden = false;
     const lw = d.offsetWidth;
     d.style.left = Math.max(0, Math.min(W - lw, x + 12 + lw > W ? x - 12 - lw : x + 12)) + 'px';
@@ -997,12 +1093,14 @@ class Grafico {
 }
 
 const graficos = [
-  new Grafico($('g-ram'), {series: [{i: 1, nome: 'g_ram'}], max: () => Math.ceil(A.ram.total / 1048576 / 8) * 8,
+  new Grafico($('g-ram'), {series: [{i: 1, nome: 'g_ram', cor: 'var(--m-ram)'}], max: () => A.ram.total / 1048576, zoom: {span: 4},
     fmt: v => nf(v) + ' GiB', limite: () => A.ram.reserva ? {v: (A.ram.total - A.ram.reserva) / 1048576, rotulo: T('left_zero')} : null}),
-  new Grafico($('g-vram'), {series: [{i: 2, nome: 'g_vram'}], max: () => A.gpu.ok ? Math.ceil(A.gpu.vram_total / 1024) : 8,
-    fmt: v => nf(v) + ' GiB'}),
-  new Grafico($('g-gpu'), {series: [{i: 3, nome: 'g_gpu'}], max: () => 100, fmt: v => int(v) + ' %'}),
-  new Grafico($('g-cpu'), {series: [{i: 4, nome: 'g_cpu'}], max: () => 100, fmt: v => int(v) + ' %'}),
+  new Grafico($('g-vram'), {series: [{i: 2, nome: 'g_vram', cor: 'var(--m-vram)'}], max: () => A.gpu.ok ? A.gpu.vram_total / 1024 : 8,
+    zoom: {span: 1}, fmt: v => nf(v) + ' GiB'}),
+  new Grafico($('g-gpu'), {series: [{i: 3, nome: 'g_gpu', cor: 'var(--m-gpu)'}], max: () => 100, zoom: {span: 20, zero: true}, fmt: v => int(v) + ' %'}),
+  new Grafico($('g-cpu'), {series: [{i: 4, nome: 'g_cpu', cor: 'var(--m-cpu)'}], max: () => 100, zoom: {span: 20, zero: true}, fmt: v => int(v) + ' %'}),
+  new Grafico($('g-fps'), {series: [{i: 11, nome: 'FPS', cor: 'var(--m-fps)'}], zoom: {span: 20}, fmt: v => nf(v, v < 100 ? 1 : 0) + ' FPS',
+    extra: l => l[12] != null ? T('fps_pior_d', nf(l[12])) : ''}),
   new Grafico($('g-ping'), {series: [{i: 5, nome: 'Ping'}], piso: 40, fmt: v => nf(v) + ' ms', perdas: true}),
   new Grafico($('g-net'), {series: [{i: 6, nome: 'Download'}, {i: 7, nome: 'Upload', cor: 'var(--s2)'}], piso: 1,
     fmt: v => nf(v, v < 10 ? 2 : 1) + ' Mbit/s'}),
@@ -1022,6 +1120,7 @@ function cRam() {
   $('ram-cache').textContent = tam(r.cache);
   $('ram-psi').textContent = nf(r.psi, r.psi < 10 ? 1 : 0) + ' %';
   pilula($('ram-st'), A.nv.ram);
+  nivelNum('ram-v', A.nv.ram);
   medidor($('ram-m'), 100 * r.usada / r.total, A.nv.ram);
 }
 function cPlaca() {
@@ -1040,6 +1139,7 @@ function cPlaca() {
   $('vram-livre').textContent = tamMib(g.vram_total - g.vram);
   $('vram-top').textContent = top ? top.nome + ' ' + tamMib(top.mib) : '';
   medidor($('vram-m'), 100 * g.vram / g.vram_total, A.nv.vram);
+  nivelNum('vram-v', A.nv.vram); nivelNum('gpu-v', A.nv.gpu);
   $('gpu-v').textContent = int(g.uso);
   $('gpu-temp').textContent = g.temp == null ? '' : g.temp + ' °C';
   $('gpu-w').textContent = g.watts == null ? '' : g.watts_max ? T('w_de', g.watts, g.watts_max) : g.watts + ' W';
@@ -1057,6 +1157,7 @@ function cCpu() {
   $('cpu-carga').textContent = nf(c.carga);
   $('cpu-psi').textContent = nf(c.psi, c.psi < 10 ? 1 : 0) + ' %';
   pilula($('cpu-st'), A.nv.cpu);
+  nivelNum('cpu-v', A.nv.cpu);
   medidor($('cpu-m'), c.uso || 0, A.nv.cpu);
   const alvo = $('cpu-nuc');
   if (alvo.children.length !== c.nucleos.length) alvo.replaceChildren(...c.nucleos.map(() => el('i')));
@@ -1078,6 +1179,7 @@ function cRede() {
   $('net-rx').textContent = mbit(r.rx == null ? null : r.rx * 8 / 1e6);
   $('net-tx').textContent = mbit(r.tx == null ? null : r.tx * 8 / 1e6);
   pilula($('rede-st'), A.nv.rede);
+  nivelNum('ping-v', A.nv.rede);
   const dg = r.diag, x = $('rede-diag'), mostra = r.n >= 10 && (dg === 'roteador' || dg === 'internet' || dg === 'pc');
   x.hidden = !mostra;
   if (mostra) { const nv = dg === 'roteador' ? 'serio' : 'aviso'; x.replaceChildren(el('i', 'g ' + nv, GL[nv]), ' ' + T('dgc_' + dg)); }
@@ -1250,15 +1352,34 @@ function chat(ligar) {
   chatLigado = ligar;
   $('chat-f').src = ligar ? 'http://' + location.hostname + ':47821/chat' : 'about:blank';
 }
+const fpsTxt = v => v == null ? '?' : nf(v, v < 10 ? 1 : 0);
+let jogoAgora = null;
+function cJogo() {
+  // the big game card (FPS from MangoHud's log), filled after the layout decided its size
+  if (!$('c-jogo').classList.contains('grande') || !jogoAgora) return;
+  const {nome, info, d2} = jogoAgora, f = A.fps, ss = A.sessao;
+  $('jogo-p').textContent = nome;
+  $('fps-v').textContent = f ? fpsTxt(f.fps) : '?';
+  $('fps-ft').textContent = f ? nf(f.ft) + ' ms' : '';
+  $('fps-max').textContent = f ? nf(f.ft_max) + ' ms' : '';
+  $('fps-med').textContent = ss && ss.fps != null ? fpsTxt(ss.fps) : '';
+  $('fps-low').textContent = ss && ss.fps_low != null ? fpsTxt(ss.fps_low) : '';
+  const dica = f ? '' : A.fps_log ? T('fps_sem') : T('fps_como');
+  $('fps-dica').hidden = !dica; $('fps-dica').textContent = dica;
+  $('g-fps').hidden = !f && !H.some(l => l[11] != null && l[0] >= A.t - JANELA);
+  $('jogo-info').textContent = info; $('jogo-info').title = info;
+  $('jogo-info2').textContent = d2; $('jogo-info2').title = d2;
+}
 function cFaixa() {
-  const j = A.jogos || [], ss = A.sessao, q = v => v == null ? '?' : int(v);
+  const j = A.jogos || [], ss = A.sessao, q = v => v == null ? '?' : int(v), f = A.fps;
+  const nome = j.length ? j[0].nome + (j.length > 1 ? T('j_mais', j.length - 1) : '') : '';
+  const info = j.length ? [T('j_aberto', dur(A.t - j[0].desde)), 'RAM ' + tam(j[0].kb), j[0].vram ? 'VRAM ' + tamMib(j[0].vram) : null].filter(Boolean).join(', ') : '';
   if (!j.length) por('jogo', T('j_nenhum'), '');
-  else por('jogo', j[0].nome + (j.length > 1 ? T('j_mais', j.length - 1) : ''),
-    [T('j_aberto', dur(A.t - j[0].desde)), 'RAM ' + tam(j[0].kb), j[0].vram ? 'VRAM ' + tamMib(j[0].vram) : null].filter(Boolean).join(', '), true);
+  else por('jogo', nome + (f ? ' · ' + fpsTxt(f.fps) + ' FPS' : ''), info, true);
   const d2 = ss && j.length ? T('j_sessao', q(ss.tc_max), q(ss.tg_max), ss.vram_max == null ? '?' : tamMib(ss.vram_max), tamMib(ss.ram_min || 0)) : '';
   $('jogo-d2').textContent = d2; $('jogo-d2').title = d2;
   $('c-jogo').title = A.jogando ? T('j_limites') : '';
-
+  jogoAgora = {nome, info, d2};
   const lv = A.live || {obs: false};
   if (!lv.obs) por('live', T('l_fechado'), '');
   else if (!lv.ok) por('live', T('l_aberto'), T('l_semresp'), true);
@@ -1281,8 +1402,19 @@ function cFaixa() {
     if (n) $('pz-p').title = z.jogadores.join(', ');
   }
 
-  const s = A.sis, b = s.bateria;
-  por('sis', T('s_ligado', dur(s.ligado)), ['kernel ' + s.kernel, s.driver ? 'NVIDIA ' + s.driver : null,
+  // modules that are on but have nothing to show become small chips in the top bar
+  const mods = [];
+  if (CFG && CFG.modulos.live && visivel('live') && !lv.obs) mods.push(['Live', T('l_fechado')]);
+  if (CFG && CFG.modulos.zomboid && visivel('pz') && !z) mods.push([T('c_pz'), T('z_desl')]);
+  const chave = JSON.stringify(mods);
+  if ($('mods').dataset.k !== chave) {
+    $('mods').dataset.k = chave;
+    $('mods').replaceChildren(...mods.map(([a, b]) => { const e = el('span', 'mod', a + ' '); e.append(el('b', '', b)); return e; }));
+  }
+
+  const s = A.sis, b = s.bateria, gw = A.gpu.ok ? A.gpu.watts : null, cw = A.cpu.watts;
+  const pot = cw != null && gw != null ? T('s_pot', int(cw + gw), int(cw), int(gw)) : gw != null ? T('s_pot_gpu', int(gw)) : null;
+  por('sis', T('s_ligado', dur(s.ligado)), [pot, 'kernel ' + s.kernel, s.driver ? 'NVIDIA ' + s.driver : null,
     b ? b.nome + ' ' + b.pct + ' %' + (b.carregando ? ' ' + T('carregando') : '') : null,
     A.registro ? T('s_registro') : null].filter(Boolean).join(', '));
 }
@@ -1330,6 +1462,59 @@ function cTopo() {
   const agora = new Set(a.map(x => x.c + x.nv));
   if (CFG && CFG.avisar.som && [...agora].some(x => !avisosAntes.has(x))) bip();
   avisosAntes = agora;
+}
+// events card: the last 24 h as a strip (from the per-minute history), fetched every 5 minutes
+const T24 = {t: 0, d: null, ocupado: false, chave: ''};
+async function buscar24() {
+  T24.ocupado = true;
+  try { T24.d = await pedir('/historico24'); } catch (e) { T24.d = null; }
+  T24.t = Date.now(); T24.ocupado = false;
+  cLinha24();
+}
+function cLinha24() {
+  const box = $('ev-tl');
+  if ($('c-eventos').classList.contains('fora') || document.hidden) return;
+  if (Date.now() - T24.t > 300000 && !T24.ocupado) { buscar24(); return; }
+  const D = T24.d, svg = $('tl-svg');
+  if (!D || !D.linhas.length) { box.hidden = true; return; }
+  const W = box.clientWidth || $('c-eventos').clientWidth - 28, chave = T24.t + '|' + W + '|' + L;
+  box.hidden = false;
+  if (chave === T24.chave) return;
+  T24.chave = chave;
+  const c = k => D.cols.indexOf(k), ij = c('jogo'), inv = c('nv'), itc = c('tc_max'), itg = c('tg_max');
+  const t1 = Date.now() / 1000, t0 = t1 - 86400, linhas = D.linhas.filter(l => l[0] >= t0);
+  let jog = 0, al = 0, tc = null, tg = null;
+  for (const l of linhas) {
+    if (l[ij]) jog++;
+    if (l[inv] > 0) al++;
+    if (l[itc] != null && (tc == null || l[itc] > tc)) tc = l[itc];
+    if (l[itg] != null && (tg == null || l[itg] > tg)) tg = l[itg];
+  }
+  const r = $('tl-r'), b = x => el('b', '', x), partes = [];
+  if (jog) partes.push(T('tl_jog', dur(jog * 60)));
+  if (tc != null) partes.push(T('tl_tc', int(tc)));
+  if (tg != null) partes.push(T('tl_tg', int(tg)));
+  if (al) partes.push(T('tl_al', dur(al * 60)));
+  r.replaceChildren(T('tl_24'), ' ', b(partes.join(' · ')));
+  r.title = r.textContent;
+  const X = t => Math.max(0, Math.min(W, (t - t0) / 86400 * W));
+  svg.setAttribute('viewBox', '0 0 ' + W + ' 30');
+  svg.replaceChildren();
+  sv('title', {}, svg).textContent = T('tl_t');
+  sv('rect', {x: 0, y: 2, width: W, height: 12, rx: 3, class: 'fundo'}, svg);
+  let ini = null, fim = null;
+  const faixa = () => { if (ini != null) sv('rect', {x: X(ini), y: 2, width: Math.max(2, X(fim + 60) - X(ini)), height: 12, rx: 2, class: 'faixa'}, svg); };
+  for (const l of linhas) {
+    if (!l[ij]) continue;
+    if (fim != null && l[0] - fim <= 120) fim = l[0];
+    else { faixa(); ini = fim = l[0]; }
+  }
+  faixa();
+  for (const l of linhas) if (l[inv] > 0)
+    sv('rect', {x: X(l[0]), y: 1, width: 2, height: 14, style: 'fill:' + COR[ORD[Math.min(3, l[inv])]]}, svg);
+  sv('text', {x: 0, y: 27, class: 'rot'}, svg).textContent = T('tl_24h');
+  sv('text', {x: W / 2, y: 27, class: 'rot', 'text-anchor': 'middle'}, svg).textContent = T('tl_12h');
+  sv('text', {x: W, y: 27, class: 'rot', 'text-anchor': 'end'}, svg).textContent = T('agora');
 }
 function cEventos() {
   const alvo = $('l-ev');
@@ -1382,7 +1567,9 @@ function arranjar(forcar) {
   if (estreito) b.dataset.estreito = '1'; else delete b.dataset.estreito;
   b.classList.toggle('rolar', !encaixe);
   document.documentElement.style.setProperty('--topo-h', $('topo').offsetHeight + 'px');
-  const candidatos = [...CARTOES, 'chat'].filter(id => id === 'chat' ? vivo && cols === 2 && !estreito : visivel(id));
+  // game, live and Zomboid cards only take room while there is something to show
+  const candidatos = [...CARTOES, 'chat'].filter(id => id === 'chat' ? vivo && cols === 2 && !estreito :
+    visivel(id) && (!['jogo', 'live', 'pz'].includes(id) || ativo(id)));
   const prio = id => alerta.has(id) ? PRIO[id] / 100 : ['jogo', 'live', 'pz'].includes(id) ? (ativo(id) ? 10 : 50) + PRIO[id] / 100 : PRIO[id];
   const porPrio = candidatos.slice().sort((x, y) => prio(x) - prio(y));
   const gap = estreito ? 8 : 10, padV = estreito ? 16 : 22;
@@ -1395,7 +1582,7 @@ function arranjar(forcar) {
   for (;;) {
     un = Math.round((estreito ? 38 : 46) * FONTE * k);
     const N = encaixe ? Math.max(3, Math.floor((Hh - $('topo').offsetHeight - padV + gap) / (un + gap))) : 999;
-    const tamDe = id => id === 'jogo' && ativo('jogo') && !compacto ? [1, 2] : (compacto && TAM[id].c) || TAM[id][chave] || TAM[id].m;
+    const tamDe = id => id === 'jogo' && ativo('jogo') && !compacto ? [1, 4] : (compacto && TAM[id].c) || TAM[id][chave] || TAM[id].m;
     // in narrow mode only cards with a compact form get in, plus any card with a problem
     let dentro = porPrio.filter(id => !estreito || alerta.has(id) || (TAM[id].c && (!['jogo', 'live', 'pz'].includes(id) || ativo(id))));
     const cabe = encaixar(dentro, cols, N, tamDe);
@@ -1420,6 +1607,8 @@ function arranjar(forcar) {
     if (p) { c.style.gridRow = (p[0] + 1) + ' / span ' + p[3]; c.style.gridColumn = (p[1] + 1) + ' / span ' + p[2]; }
     else if (candidatos.includes(id) && id !== 'chat' && !(estreito && !TAM[id].c)) ocultos.push(T('c_' + id));
   }
+  const pj = res.pos.jogo;
+  $('c-jogo').classList.toggle('grande', !!pj && pj[3] >= 3);
   if (lateral) { const c = $('c-chat'); c.classList.remove('fora'); c.style.gridColumn = '5'; c.style.gridRow = '1 / span ' + Math.max(1, res.linhas); }
   const chip = $('btn-ocultos');
   chip.hidden = !(ocultos.length || rolar);
@@ -1440,7 +1629,7 @@ function desenhar() {
   if (!A) return;
   cRam(); cPlaca(); cCpu(); cRede(); cFaixa(); cTopo();
   arranjar();
-  cProg(); cTemp(); cDisc(); cSaude(); cEventos();
+  cJogo(); cProg(); cTemp(); cDisc(); cSaude(); cEventos(); cLinha24();
   cortarListas();
   for (const g of graficos) g.desenhar();
   if ($('fans').open) {
@@ -1528,7 +1717,7 @@ function tabela10() {
 const M24 = [['cpu', 'h24_cpu', 100], ['tc_max', 'h24_tc'], ['gpu', 'h24_gpu', 100], ['tg_max', 'h24_tg'], ['w_max', 'h24_w'],
   ['vram_max', 'h24_vram', null, v => v / 1024], ['ram_min', 'h24_ram', null, v => v / 1024], ['swap_max', 'h24_swap', null, v => v / 1024],
   ['ping', 'h24_ping'], ['perda_max', 'h24_perda', null, null, 1], ['jit', 'h24_jit', null, null, 1], ['rx', 'h24_rx', null, null, 2],
-  ['tx', 'h24_tx', null, null, 2]];
+  ['tx', 'h24_tx', null, null, 2], ['fps', 'h24_fps']];
 async function aba24() {
   $('h24-m').replaceChildren(...M24.map(m => {
     const b = el('button', '', T(m[1]));

@@ -16,7 +16,9 @@ The interface is available in English and Portuguese.
 - Programs ranked by RAM, VRAM and CPU
 - Temperatures and fans, disks with free space, wait time and busy share
 - System health: kernel errors, crashed programs, pending reboot, pending updates (pacman or dnf; packages from outside the official repositories, such as the AUR, are counted and listed but never checked)
-- The running Steam game, an events list, optional CSV logging
+- The running Steam game with FPS and frame time (through MangoHud logs, see below), an events list
+  with a 24 h strip, optional CSV logging
+- An estimate of power drawn by the graphics card, and by the processor when its energy counter is readable
 - Optional modules, off by default: OBS live card and Project Zomboid server card
 
 ## What it controls
@@ -26,6 +28,23 @@ four point temperature curve stored in the fan chip itself. NVIDIA graphics card
 automatic, fixed, or follow a custom curve.
 
 Fan control needs one step with the administrator password and is **off until you enable it**.
+
+## Game FPS (MangoHud)
+
+The panel does not hook into games. It reads the log file MangoHud writes, so FPS shows only for games
+started with MangoHud and with logging on. Add to `~/.config/MangoHud/MangoHud.conf`:
+
+```
+autostart_log=1
+log_interval=100
+output_folder=/tmp/mangohud-log
+```
+
+`autostart_log=1` starts the log one second after the game opens, `log_interval=100` writes a line
+every 100 ms (about 1 KiB a second), and a folder under `/tmp` keeps the log in RAM. While logging,
+MangoHud draws a small dot at the top right of its overlay; that is normal. The panel reads only the
+new lines once per sample and deletes logs older than an hour from a folder under `/tmp` or
+`$XDG_RUNTIME_DIR`; it never deletes anything from other folders. Remove the three lines to stop.
 
 ## Network view
 
@@ -110,8 +129,8 @@ report it as a whole number.
 - **24 h history**: one row per minute (averages and peaks), saved every 15 minutes, shown as a chart
   per metric with the minutes a game was running marked.
 - **Game sessions**: when a game closes (after at least 2 minutes) its duration, average use, peak
-  temperatures and power, VRAM peak, lowest free RAM, game RAM and alert count are saved. The Game
-  card shows the running session.
+  temperatures and power, VRAM peak, lowest free RAM, game RAM, average FPS, 1 % low and alert count
+  are saved. The Game card shows the running session.
 
 The black box and the history keep the service sampling every 10 s with the page closed (the same
 pace as the background alerts). Both can be turned off in Settings, Measuring.

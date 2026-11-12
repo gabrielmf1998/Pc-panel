@@ -1,3 +1,26 @@
+## 0.5.0: game FPS, livelier charts, 24 h strip
+
+- **Game FPS from MangoHud.** When MangoHud logging is on (see the README), the Game card shows FPS,
+  frame time and the worst frame of the last reading, the session average and 1 % low, and a 10 minute
+  FPS chart where the tooltip gives the worst frame of each point. The panel reads only the new lines
+  of the log the game is writing, and deletes its old logs when they sit in a temporary folder. FPS
+  also goes into the 24 h history (average and lowest per minute) and into game sessions.
+- **Charts zoom to the data.** RAM, VRAM, graphics card and processor charts fit their range to what
+  happened in the last 10 minutes instead of 0 to 100 %, so small changes are visible. Each metric
+  has its own color (with a gradient under the line) and a matching mark next to the card title;
+  a limit line outside the range turns into a small note.
+- **Numbers change color by level**: the big number on RAM, VRAM, graphics card, processor and
+  network turns yellow, orange or red with the alert level.
+- **Idle modules become chips.** With the OBS or Project Zomboid module on but OBS closed or the
+  server off, the card is replaced by a small chip in the top bar, leaving room for the rest.
+- **Events card with the last 24 h**: a strip with the time a game was open and the minutes with an
+  alert in the level color, plus one line with time gaming and the peak temperatures. Fetched every
+  5 minutes, only while the card is visible.
+- **Power estimate.** The System line shows the graphics card power, and the processor plus graphics
+  card total when the processor energy counter (RAPL) is readable by your user.
+- **Narrow windows**: the compact Game card shows "game · FPS" in one line, chips hide below 700 px,
+  and chart axis labels drop the ones that would overlap.
+
 ## 0.4.3: packages outside the repositories
 
 - **The update check now says what it cannot check.** On Arch, packages from outside the official

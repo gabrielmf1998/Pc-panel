@@ -11,6 +11,7 @@
 # curve, fixed fan speed) the service sleeps and costs nothing.
 # The tray icon (pc-panel-tray) starts and stops this service and sets the port.
 # MIT license. Identifiers are still in Portuguese; the interface has English and Portuguese.
+import bisect
 import collections
 import csv
 import ctypes
@@ -35,7 +36,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 
-VERSAO = "0.4.3"
+VERSAO = "0.5.0"
 REPO = "gabrielmf1998/pc-panel"         # owner/repository on GitHub, used only to look for a new version
 PASTA_CFG = os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"), "pc-panel")
 
@@ -269,6 +270,10 @@ BOOT = int(re.search(r"^btime (\d+)", ler("/proc/stat") or "btime 0", re.M).grou
 NOME_CPU = re.sub(r"^AMD |^Intel\(R\) Core\(TM\) | \d+-Core Processor.*$", "",
                   (re.search(r"model name\s*:\s*(.+)", ler("/proc/cpuinfo") or "") or [None, "Processador"])[1]).strip()
 FREQS = sorted(glob.glob("/sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_cur_freq"))
+# processor package energy (RAPL, also on AMD). Most systems keep it readable by root only,
+# then the processor power is simply not shown.
+RAPL = next((x for x in sorted(glob.glob("/sys/class/powercap/intel-rapl:[0-9]/energy_uj")) if os.access(x, os.R_OK)), None)
+RAPL_MAX = (ler_int(os.path.dirname(RAPL) + "/max_energy_range_uj") or 0) if RAPL else 0
 
 # ---------------------------------------------------------------- state
 
@@ -769,7 +774,8 @@ def resumo_amostra(a):
             "gpu": g.get("uso"), "tg": g.get("temp"), "w": g.get("watts"),
             "vr": g.get("vram"), "vt": g.get("vram_total"), "ram": r["left"] // 1024, "sw": r["swap"] // 1024,
             "swr": r["swap_mibs"], "pm": r["psi"], "pio": a["psi_io"], "ping": a["rede"]["ping"],
-            "pl": a["rede"]["perda"], "jt": a["rede"]["osc"],
+            "pl": a["rede"]["perda"], "jt": a["rede"]["osc"], "fps": (a.get("fps") or {}).get("fps"),
+            "cw": c.get("watts"),
             "rx": None if a["rede"]["rx"] is None else round(a["rede"]["rx"] * 8 / 1e6, 2),
             "tx": None if a["rede"]["tx"] is None else round(a["rede"]["tx"] * 8 / 1e6, 2),
             "j": (a["jogos"][0]["nome"][:32] if a["jogos"] else None),
@@ -931,7 +937,7 @@ def caixa_ok():
 class Historico24:
     # one line per minute for the last 24 hours (averages and peaks), saved every 15 minutes
     COLS = ["t", "cpu", "cpu_max", "tc_max", "gpu", "gpu_max", "tg_max", "w_max", "vram_max", "ram_min",
-            "swap_max", "ping", "ping_max", "jogo", "nv", "perda_max", "jit", "rx", "tx"]
+            "swap_max", "ping", "ping_max", "jogo", "nv", "perda_max", "jit", "rx", "tx", "fps", "fps_min"]
 
     def __init__(self):
         self.linhas = collections.deque(maxlen=1440)
@@ -960,7 +966,7 @@ class Historico24:
             if self.minuto != m:
                 self.fechar()
                 self.minuto, self.acc = m, collections.defaultdict(list)
-            for k in ("cpu", "tc", "gpu", "tg", "w", "vr", "ram", "sw", "ping", "nv", "pl", "jt", "rx", "tx"):
+            for k in ("cpu", "tc", "gpu", "tg", "w", "vr", "ram", "sw", "ping", "nv", "pl", "jt", "rx", "tx", "fps"):
                 if r[k] is not None and r[k] >= 0:
                     self.acc[k].append(r[k])
             if r["j"]:
@@ -974,7 +980,8 @@ class Historico24:
         mx = lambda k: max(x[k]) if x[k] else None
         self.linhas.append([self.minuto, media("cpu"), mx("cpu"), mx("tc"), media("gpu"), mx("gpu"), mx("tg"), mx("w"),
                             mx("vr"), min(x["ram"]) if x["ram"] else None, mx("sw"), media("ping"), mx("ping"),
-                            (x["j"] or [None])[0], mx("nv") or 0, mx("pl"), media("jt"), media("rx"), media("tx")])
+                            (x["j"] or [None])[0], mx("nv") or 0, mx("pl"), media("jt"), media("rx"), media("tx"),
+                            media("fps"), min(x["fps"]) if x["fps"] else None])
         self.acc = None
         self.mudou = True
 
@@ -998,7 +1005,7 @@ class Sessoes:
     def __init__(self):
         self.atual = None
 
-    def anotar(self, a):
+    def anotar(self, a, ft_lista=()):
         j = a["jogos"][0] if a["jogos"] else None
         if self.atual and (not j or j["nome"] != self.atual["nome"]):
             self.fechar()
@@ -1009,7 +1016,8 @@ class Sessoes:
             s = self.atual = {"nome": j["nome"], "ini": round(j["desde"]), "fim": round(a["t"]), "n": 0, "cpu": 0.0, "gpu": 0.0,
                               "tc_max": None, "tg_max": None, "w_max": None, "vram_max": None, "vram_jogo": 0,
                               "ram_min": None, "ram_jogo": 0, "swap_max": 0, "ping_max": None,
-                              "ping_s": 0.0, "ping_n": 0, "perda_max": None, "jit_s": 0.0, "jit_n": 0}
+                              "ping_s": 0.0, "ping_n": 0, "perda_max": None, "jit_s": 0.0, "jit_n": 0,
+                              "fps_s": 0.0, "fps_n": 0, "ft": [0] * (len(self.BINS) + 1)}
         g, c, r = a["gpu"], a["cpu"], a["ram"]
         mx = lambda k, v: s.update({k: v if s[k] is None or (v is not None and v > s[k]) else s[k]})
         s["fim"] = round(a["t"])
@@ -1035,11 +1043,34 @@ class Sessoes:
         s["ram_jogo"] = max(s["ram_jogo"], j["kb"])
         s["vram_jogo"] = max(s["vram_jogo"], j["vram"] or 0)
         s["swap_max"] = max(s["swap_max"], r["swap"] // 1024)
+        q = a.get("fps")
+        if q:
+            s["fps_s"] += q["fps"]
+            s["fps_n"] += 1
+        for v in ft_lista:
+            s["ft"][bisect.bisect_left(self.BINS, v)] += 1
+
+    # frame time histogram (ms): fine steps where games live, coarse above
+    BINS = [x / 4 for x in range(1, 201)] + [50 + x for x in range(1, 151)] + [200 + 10 * x for x in range(1, 81)]
+
+    def baixa_1(self, s):
+        # "1 % low": the frame time 99 % of the sampled frames beat, as FPS
+        tot = sum(s["ft"])
+        if tot < 50:
+            return None
+        alvo, acc = tot * 0.99, 0
+        for i, n in enumerate(s["ft"]):
+            acc += n
+            if acc >= alvo:
+                return round(1000 / (self.BINS[min(i, len(self.BINS) - 1)]), 1)
+        return None
 
     def resumo(self, s):
         if not s:
             return None
-        x = {k: v for k, v in s.items() if k not in ("cpu", "gpu", "n", "ping_s", "ping_n", "jit_s", "jit_n")}
+        x = {k: v for k, v in s.items() if k not in ("cpu", "gpu", "n", "ping_s", "ping_n", "jit_s", "jit_n", "fps_s", "fps_n", "ft")}
+        x["fps"] = round(s["fps_s"] / s["fps_n"], 1) if s.get("fps_n") else None
+        x["fps_low"] = self.baixa_1(s) if s.get("ft") else None
         x["ping"] = round(s["ping_s"] / s["ping_n"], 1) if s["ping_n"] else None
         x["jit"] = round(s["jit_s"] / s["jit_n"], 1) if s["jit_n"] else None
         x["cpu"] = round(s["cpu"] / s["n"]) if s["n"] else None
@@ -2278,6 +2309,118 @@ class RedeProgs:
 rede_progs = RedeProgs()
 
 
+class LeitorFps:
+    # FPS and frame times of the running game, read from the CSV log MangoHud writes when
+    # MangoHud.conf has output_folder (and autostart_log). Each sample reads only the new
+    # lines; with no game nothing is opened. MangoHud writes and flushes one line per
+    # log_interval, columns fps,frametime,... after a few header lines.
+    def __init__(self):
+        self.pasta = None
+        self.f = self.arq = None
+        self.resto = b""
+        self.cresceu = 0.0
+        self.ult = None
+
+    def achar_pasta(self):
+        conf = os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"), "MangoHud", "MangoHud.conf")
+        pasta = None
+        for linha in (ler(conf) or "").splitlines():
+            k, _, v = linha.partition("=")
+            if k.strip() == "output_folder" and v.split("#")[0].strip():
+                pasta = os.path.expanduser(v.split("#")[0].strip())
+        if pasta and not os.path.isdir(pasta) and self.temporaria(pasta):
+            try:
+                os.makedirs(pasta, exist_ok=True)      # /tmp is emptied at boot; MangoHud does not create it
+            except OSError:
+                pasta = None
+        self.pasta = pasta if pasta and os.path.isdir(pasta) else None
+
+    @staticmethod
+    def temporaria(pasta):
+        r = os.path.realpath(pasta) + os.sep
+        return r.startswith(("/tmp/", (os.environ.get("XDG_RUNTIME_DIR") or "/run/user/%d" % os.getuid()) + os.sep))
+
+    def fechar(self):
+        if self.f:
+            self.f.close()
+        self.f = self.arq = self.ult = None
+        self.resto = b""
+
+    def mais_novo(self, desde):
+        melhor, mt = None, desde - 5
+        try:
+            with os.scandir(self.pasta) as it:
+                for e in it:
+                    if e.name.endswith(".csv") and not e.name.endswith("_summary.csv"):
+                        m = e.stat().st_mtime
+                        if m > mt:
+                            melhor, mt = e.path, m
+        except OSError:
+            return None
+        return melhor if melhor and time.time() - mt < 15 else None
+
+    def ler(self, jogo):
+        # returns {"fps", "ft", "ft_max", "ft_lista"} for the time since the last call, or None
+        if not jogo or not self.pasta:
+            self.fechar()
+            return None
+        agora = time.time()
+        if self.f is None or agora - self.cresceu > 15:
+            novo = self.mais_novo(jogo["desde"])
+            if novo and novo != self.arq:
+                self.fechar()
+                try:
+                    self.f, self.arq, self.cresceu = open(novo, "rb"), novo, agora
+                except OSError:
+                    return None
+        if self.f is None:
+            return None
+        try:
+            dados = self.f.read(4 << 20)
+        except OSError:
+            self.fechar()
+            return None
+        if dados:
+            self.cresceu = agora
+        linhas = (self.resto + dados).split(b"\n")
+        self.resto = linhas.pop()[-4096:]
+        fps, ft = [], []
+        for l in linhas:
+            p = l.split(b",", 2)
+            if len(p) < 3:
+                continue
+            try:
+                a, b = float(p[0]), float(p[1])
+            except ValueError:
+                continue                    # header lines
+            if a > 0 and 0 < b < 10000:
+                fps.append(a)
+                ft.append(b)
+        if agora - self.cresceu > 6:
+            self.ult = None                 # logging stopped (key pressed) or the game is paused
+            return None
+        if fps:
+            self.ult = {"fps": round(sum(fps) / len(fps), 1), "ft": round(sum(ft) / len(ft), 2),
+                        "ft_max": round(max(ft), 1), "ft_lista": ft}
+            return self.ult
+        return dict(self.ult, ft_lista=[]) if self.ult else None
+
+    def limpar(self):
+        # finished logs in a temporary folder take RAM (tmpfs): drop those idle for an hour
+        if not self.pasta or not self.temporaria(self.pasta):
+            return
+        try:
+            with os.scandir(self.pasta) as it:
+                for e in it:
+                    if e.name.endswith(".csv") and e.path != self.arq and time.time() - e.stat().st_mtime > 3600:
+                        os.remove(e.path)
+        except OSError:
+            pass
+
+
+leitor_fps = LeitorFps()
+
+
 def info_live():
     try:
         c = http.client.HTTPConnection("127.0.0.1", PORTA_ESPECTADORES, timeout=8)
@@ -2303,6 +2446,7 @@ class Medidor:
         self.usos = collections.deque(maxlen=64)     # (time, processor use) for the 30 s average
         self.ult_ping = 0.0
         self.custo = collections.deque(maxlen=45)
+        self.ft_lista = []
 
     def contadores(self):
         c = {"t": time.monotonic(), "cpu": [], "rede": None, "disco": {}}
@@ -2314,6 +2458,7 @@ class Medidor:
                 c["cpu"].append((sum(v) - v[3] - v[4], sum(v)))
         m = re.search(r"^pswpin (\d+)\npswpout (\d+)", ler("/proc/vmstat") or "", re.M)
         c["swap"] = int(m.group(1)) + int(m.group(2)) if m else 0
+        c["ej"] = ler_int(RAPL) if RAPL else None
         if rota["iface"]:
             for linha in (ler("/proc/net/dev") or "").splitlines():
                 nome, _, resto = linha.partition(":")
@@ -2370,7 +2515,13 @@ class Medidor:
         tcpu = grau(fontes["cpu"])
         cpu = {"nome": NOME_CPU, "uso": usos[0] if usos else None, "nucleos": usos[1:], "temp": tcpu,
                "ghz": round(max(mhz) / 1e6, 2) if mhz else None, "carga": round(os.getloadavg()[0], 1),
-               "psi": psi("cpu")}
+               "psi": psi("cpu"), "watts": None}
+        if a and dt > 0 and c["ej"] is not None and a["ej"] is not None:
+            de = c["ej"] - a["ej"]
+            if de < 0 and RAPL_MAX:
+                de += RAPL_MAX              # the counter wrapped
+            if de >= 0:
+                cpu["watts"] = round(de / 1e6 / dt, 1)
         nv["cpu"] = nivel(tcpu, limite("temp_cpu"))
         if cpu["uso"] is not None:
             self.usos.append((t, cpu["uso"]))
@@ -2572,6 +2723,8 @@ class Medidor:
         # what is running
         jogos, pz, sis, sd = extra["jogos"], extra["pz"], extra["sis"], extra["saude"]
         jogo = jogos[0]["nome"] if jogos else None
+        quadros = leitor_fps.ler(jogos[0] if jogos else None)
+        self.ft_lista = quadros.pop("ft_lista") if quadros else []
         if pz:
             if pz["ticks"] is not None:
                 av("pz-ticks", "pz", nivel_min(pz["ticks"], (8.5, 6, 4)), "Servidor do Zomboid a %.1f ticks/s" % pz["ticks"],
@@ -2608,14 +2761,16 @@ class Medidor:
                  "saude": dict(sd, falhas=len(sis["falhas"]), npac=len(upd["pacotes"]),
                                upd={k: upd[k] for k in ("quando", "flatpak", "fora", "erro", "rodando")}),
                  "nv": nv, "avisos": avisos, "silencio": mudos,
-                 "jogando": jogando(), "sessao": sessoes.resumo(sessoes.atual),
+                 "jogando": jogando(), "sessao": sessoes.resumo(sessoes.atual), "fps": quadros,
+                 "fps_log": leitor_fps.pasta is not None,
                  "rede_progs": extra["rede_progs"] if time.monotonic() - rede_pedida[0] < 15 else None,
                  "ev": ev_seq[0], "cfg": cfg_seq[0], "registro": cfg["registro"]["ligado"],
                  "espaco": lento[0] or float(cfg["passo"])}
         linha = [round(t, 1), round(ram["usada"] / 1048576, 2),
                  round(gpu["vram"] / 1024, 2) if gpu["ok"] else None, gpu.get("uso"), cpu["uso"],
                  ping, round(rx * 8 / 1e6, 3) if rx is not None else None,
-                 round(tx * 8 / 1e6, 3) if tx is not None else None, tcpu, gpu.get("temp"), gw]
+                 round(tx * 8 / 1e6, 3) if tx is not None else None, tcpu, gpu.get("temp"), gw,
+                 quadros["fps"] if quadros else None, quadros["ft_max"] if quadros else None]
         registro.medida(agora)
         return linha, agora
 
@@ -2647,7 +2802,7 @@ def laco_medir():
             if cfg["caixa"]:
                 caixa.anotar(agora)
                 h24.anotar(agora)
-            sessoes.anotar(agora)
+            sessoes.anotar(agora, m.ft_lista)
             escrever_dica(agora)
         except Exception as e:              # never die because of one reading
             avisar("medir", e)
@@ -2689,6 +2844,9 @@ def laco_lento():
             if vence("fontes", 60):
                 achar_fontes()
                 preparar_fans()
+                leitor_fps.achar_pasta()
+            if vence("fps_limpa", 600):
+                leitor_fps.limpar()
             if vence("rota", 30):
                 achar_rota()
             if vence("discos", 30):
