@@ -1,6 +1,6 @@
 %global debug_package %{nil}
 Name:           pc-panel
-Version:        0.4.2
+Version:        0.4.3
 Release:        1
 Summary:        Local web dashboard to monitor and control a Linux PC, with a tray icon
 License:        MIT
@@ -55,6 +55,9 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install
 %{_unitdir}/pc-panel-fans.service
 
 %changelog
+* Wed Nov 11 2026 PC Panel contributors - 0.4.3-1
+- Update check lists packages from outside the official repositories
+
 * Wed Nov 11 2026 PC Panel contributors - 0.4.2-1
 - Network view (router vs internet diagnosis, quality table, programs on the network), jitter alert
 - SSD life forecast, incident report, desktop notifications off by default

@@ -467,7 +467,7 @@ body[data-estreito] .hora{font-size:1.29rem}
     <p class="nota" data-i="a_log_n"></p></fieldset>
   <fieldset><legend data-i="a_sistema"></legend>
     <label class="campo"><span id="aj-upd" class="nota"></span><button type="button" id="aj-upd-btn" data-i="a_upd_btn"></button></label>
-    <p class="nota" id="aj-upd-lista" style="max-height:6.5rem;overflow:auto"></p>
+    <p class="nota" id="aj-upd-lista" style="max-height:6.5rem;overflow:auto;white-space:pre-line"></p>
     <p class="nota" data-i="a_upd_n"></p></fieldset>
   <fieldset><legend data-i="a_modulos"></legend>
     <label><input type="checkbox" id="aj-m-live"> <span data-i="a_m_live"></span></label>
@@ -533,7 +533,9 @@ pt: {conectando: 'conectando', nv_bom: 'ok', nv_aviso: 'atenção', nv_serio: 'a
   ocupado_d: 'ocupado {0} %', espera_disco: 'espera de disco {0} %',
   psi_io_t: 'Parte dos últimos 10 segundos em que algum programa ficou esperando o disco', tip_disco: '{0} ({1}), {2} % ocupado',
   s_kerr: 'Erros do kernel desde o boot', s_trav: 'Programas que travaram hoje', s_reinicio: 'Reinício pendente', sim: 'sim', nao: 'não',
-  s_atualizado: 'Última atualização completa', ha: 'há {0}', s_upd: 'Atualizações pendentes', s_nao_verif: 'não verificado',
+  s_atualizado: 'Última atualização completa', ha: 'há {0}', s_upd: 'Atualizações pendentes', s_nao_verif: 'não verificado', s_fora: 'Fora dos repositórios',
+  s_fora_t: 'A verificação não cobre estes pacotes (AUR ou feitos à mão), atualize por conta própria: {0}',
+  a_upd_fora: '{0} pacote(s) fora dos repositórios oficiais não são verificados (AUR ou feitos à mão): {1}.',
   s_verificando: 'verificando', s_verificar: 'verificar atualizações', s_falhas: 'Serviços com falha', s_ultimo: 'O último foi {0}',
   s_reinicio_t: 'Um kernel novo foi instalado e o PC ainda não reiniciou',
   j_nenhum: 'Nenhum jogo aberto', j_aberto: 'aberto há {0}', j_mais: ' e mais {0}', l_fechado: 'OBS fechado', l_aberto: 'OBS aberto',
@@ -628,7 +630,9 @@ en: {conectando: 'connecting', nv_bom: 'ok', nv_aviso: 'warning', nv_serio: 'hig
   ocupado_d: 'busy {0} %', espera_disco: 'disk wait {0} %',
   psi_io_t: 'Share of the last 10 seconds in which some program waited for the disk', tip_disco: '{0} ({1}), {2} % full',
   s_kerr: 'Kernel errors since boot', s_trav: 'Programs that crashed today', s_reinicio: 'Reboot pending', sim: 'yes', nao: 'no',
-  s_atualizado: 'Last full update', ha: '{0} ago', s_upd: 'Pending updates', s_nao_verif: 'not checked',
+  s_atualizado: 'Last full update', ha: '{0} ago', s_upd: 'Pending updates', s_nao_verif: 'not checked', s_fora: 'Outside the repositories',
+  s_fora_t: 'The check does not cover these packages (AUR or built by hand), update them yourself: {0}',
+  a_upd_fora: '{0} package(s) outside the official repositories are not checked (AUR or built by hand): {1}.',
   s_verificando: 'checking', s_verificar: 'check updates', s_falhas: 'Failed services', s_ultimo: 'The last one was {0}',
   s_reinicio_t: 'A new kernel was installed and the PC has not rebooted yet',
   j_nenhum: 'No game running', j_aberto: 'open for {0}', j_mais: ' and {0} more', l_fechado: 'OBS closed', l_aberto: 'OBS open',
@@ -1232,6 +1236,7 @@ function cSaude() {
   lin(T('s_atualizado'), s.atualizado ? T('ha', dur(A.t - s.atualizado)) : '?');
   lin(T('s_upd'), u.rodando ? T('s_verificando') : u.quando == null ? T('s_nao_verif') : u.erro ? '?' : int(s.npac) + (u.flatpak ? ' + ' + u.flatpak + ' Flatpak' : ''),
     null, u.quando ? T('ha', dur(A.t - u.quando)) : '');
+  if (u.fora && u.fora.length) lin(T('s_fora'), int(u.fora.length), null, T('s_fora_t', u.fora.join(', ')));
   lin(T('s_falhas'), int(s.falhas), s.falhas ? 'aviso' : null);
   $('l-saude').replaceChildren(...linhas);
 }
@@ -1741,7 +1746,7 @@ function infoAjustes(d) {
   if (r.erro) alvo.append(T('a_ult_erro', r.erro));
   $('aj-upd').textContent = u.rodando ? T('s_verificando') : u.quando == null ? T('a_upd_nunca') :
     u.erro ? T('a_upd_erro', u.erro[L === 'en' ? 1 : 0]) : T('a_upd_res', u.pacotes.length, u.flatpak == null ? '?' : u.flatpak, dur(Date.now() / 1000 - u.quando));
-  $('aj-upd-lista').textContent = u.pacotes.join(', ');
+  $('aj-upd-lista').textContent = u.pacotes.join(', ') + (u.fora && u.fora.length ? (u.pacotes.length ? '\n' : '') + T('a_upd_fora', u.fora.length, u.fora.join(', ')) : '');
   const n = d.novidade;
   $('aj-versao').dataset.versao = d.versao;
   $('aj-versao').textContent = T('a_versao', d.versao) + (n.rodando ? ' ' + T('s_verificando') : n.erro ? T('a_ver_erro', n.erro[L === 'en' ? 1 : 0]) :

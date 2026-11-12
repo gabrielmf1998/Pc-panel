@@ -1,3 +1,10 @@
+## 0.4.3: packages outside the repositories
+
+- **The update check now says what it cannot check.** On Arch, packages from outside the official
+  repositories (AUR, built by hand) are listed in System health, "Outside the repositories", with
+  their names in the tooltip and in Settings. The panel never contacts the AUR; it only reads the
+  local package list (`pacman -Qm`) when you click check updates.
+
 ## 0.4.2: network view, SSD forecast, incident report
 
 - **Network view.** The Network card says in one line whether the connection is good and where the

@@ -15,7 +15,7 @@ The interface is available in English and Portuguese.
 - Network ping, loss, jitter, download and upload, link speed and errors, and a full network view
 - Programs ranked by RAM, VRAM and CPU
 - Temperatures and fans, disks with free space, wait time and busy share
-- System health: kernel errors, crashed programs, pending reboot, pending updates (pacman or dnf)
+- System health: kernel errors, crashed programs, pending reboot, pending updates (pacman or dnf; packages from outside the official repositories, such as the AUR, are counted and listed but never checked)
 - The running Steam game, an events list, optional CSV logging
 - Optional modules, off by default: OBS live card and Project Zomboid server card
 

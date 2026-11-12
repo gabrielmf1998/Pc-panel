@@ -35,7 +35,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 
-VERSAO = "0.4.2"
+VERSAO = "0.4.3"
 REPO = "gabrielmf1998/pc-panel"         # owner/repository on GitHub, used only to look for a new version
 PASTA_CFG = os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"), "pc-panel")
 
@@ -304,7 +304,7 @@ extra = {"progs": None, "jogos": [], "live": {"obs": False}, "pz": None, "obs": 
          "saude": {"kerr": None, "kult": "", "trav": None, "tult": "", "reinicio": False, "atualizado": None}}
 fans = {"pode": False, "aplicado": None, "calibrando": None, "velho": False}
 curva_gpu = {"alvo": None, "quando": 0.0}
-upd = {"quando": None, "pacotes": [], "flatpak": None, "erro": None, "rodando": False}
+upd = {"quando": None, "pacotes": [], "flatpak": None, "fora": [], "erro": None, "rodando": False}
 novidade = {"quando": None, "versao": None, "nova": False, "erro": None, "rodando": False, "arquivos": {}}
 eventos = collections.deque(maxlen=300)
 silencio = {}                       # alert id (or "*" for all) -> silenced until this time
@@ -1782,7 +1782,7 @@ def verificar_atualizacoes():
     upd["rodando"] = True
     tmp = tempfile.mkdtemp(prefix="pc-panel-db-")
     try:
-        erro, pacotes, flat = None, [], None
+        erro, pacotes, flat, fora = None, [], None, []
         if not shutil.which("pacman") and shutil.which("dnf"):
             # Fedora: dnf checks with the user's own cache, no root and no install
             r = subprocess.run(["nice", "-n", "19", "dnf", "check-update", "-q"], capture_output=True, text=True, timeout=300)
@@ -1794,6 +1794,8 @@ def verificar_atualizacoes():
         elif not shutil.which("fakeroot"):
             erro = ("falta o programa fakeroot", "the fakeroot program is missing")
         else:
+            # packages from outside the official repositories (AUR, built by hand): pacman cannot check them
+            fora = (rodar(["pacman", "-Qmq"], 30) or "").split()[:200]
             os.symlink("/var/lib/pacman/local", tmp + "/local")
             r = subprocess.run(["nice", "-n", "19", "fakeroot", "--", "pacman", "-Sy", "--disable-sandbox",
                                 "--dbpath", tmp, "--logfile", "/dev/null"],
@@ -1806,10 +1808,10 @@ def verificar_atualizacoes():
         if shutil.which("flatpak"):
             saida = rodar(["flatpak", "remote-ls", "--updates", "--system", "--columns=application"], 90)
             flat = None if saida is None else len([x for x in saida.splitlines() if x.strip()])
-        upd.update(quando=time.time(), pacotes=pacotes, flatpak=flat, erro=erro)
+        upd.update(quando=time.time(), pacotes=pacotes, flatpak=flat, fora=fora, erro=erro)
         os.makedirs(PASTA_CFG, exist_ok=True)
         with open(ARQ_UPD, "w") as f:
-            json.dump({k: upd[k] for k in ("quando", "pacotes", "flatpak", "erro")}, f)
+            json.dump({k: upd[k] for k in ("quando", "pacotes", "flatpak", "fora", "erro")}, f)
     except (OSError, subprocess.SubprocessError) as e:
         upd.update(quando=time.time(), erro=(str(e), str(e)))
     finally:
@@ -2604,7 +2606,7 @@ class Medidor:
                  "progs": extra["progs"], "jogos": jogos, "live": extra["live"], "pz": pz,
                  "sis": dict(sis, ligado=ligado, driver=gpu.get("driver"), painel=proprio),
                  "saude": dict(sd, falhas=len(sis["falhas"]), npac=len(upd["pacotes"]),
-                               upd={k: upd[k] for k in ("quando", "flatpak", "erro", "rodando")}),
+                               upd={k: upd[k] for k in ("quando", "flatpak", "fora", "erro", "rodando")}),
                  "nv": nv, "avisos": avisos, "silencio": mudos,
                  "jogando": jogando(), "sessao": sessoes.resumo(sessoes.atual),
                  "rede_progs": extra["rede_progs"] if time.monotonic() - rede_pedida[0] < 15 else None,
