@@ -159,6 +159,7 @@ h3{margin:0;font-size:.86rem;font-weight:500;color:var(--apagado);white-space:no
 .disco .med{grid-column:1/-1}
 .disco .io{grid-column:1/-1;color:var(--apagado);font-size:.86rem;display:flex;gap:12px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden}
 @container (max-height:8.5rem){.disco .det{display:none}}
+#l-disc.aperto .det{display:none}
 
 .mini{padding:6px 14px;gap:1px;justify-content:center}
 .mini.al-aviso,.mini.al-serio,.mini.al-critico{padding:5px 13px}
@@ -1795,6 +1796,10 @@ function arranjar(forcar) {
 
 // a row that does not fit whole is hidden instead of cut in half (reads first, then writes)
 function cortarListas() {
+  // disks that do not all fit drop their detail line first, so no disk disappears
+  const ld = $('l-disc');
+  ld.classList.remove('aperto');
+  if (!$('c-disc').classList.contains('fora') && ld.scrollHeight > ld.clientHeight + 1) ld.classList.add('aperto');
   const esconder = [];
   for (const l of document.querySelectorAll('.cartao:not(.fora) .lista')) {
     const fim = l.getBoundingClientRect().bottom + 1;

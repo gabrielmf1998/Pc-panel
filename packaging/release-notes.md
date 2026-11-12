@@ -1,3 +1,8 @@
+## 0.5.3: every disk on short windows
+
+- When the Disks card is too short for all disks, the health and activity line under each disk is dropped
+  first, so no disk disappears from the list. It comes back when there is room (hover a disk for everything).
+
 ## 0.5.2: notebooks, integrated graphics, battery
 
 - **Intel integrated graphics** (i915 and xe drivers): usage and video engine use from the programs'
