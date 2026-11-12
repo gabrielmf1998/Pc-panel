@@ -211,5 +211,5 @@ Already installed? Settings, "Check for a new version", then "Update now".
 Quick install for one user, no root:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/gabrielmf1998/pc-panel/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/gabrielmf1998/Pc-panel/main/install.sh | sh
 ```
