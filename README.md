@@ -14,11 +14,11 @@ The interface is available in English and Portuguese.
 - Processor usage per core, temperature, clock, load
 - Network ping, loss, jitter, download and upload, link speed and errors, and a full network view
 - Programs ranked by RAM, VRAM and CPU
-- Temperatures and fans, disks with free space, wait time and busy share
+- Temperatures and fans (with the highest reading of the last 24 h), disks with health, temperature, speed and busy share
 - System health: kernel errors, crashed programs, pending reboot, pending updates (pacman or dnf; packages from outside the official repositories, such as the AUR, are counted and listed but never checked)
-- The running Steam game with FPS and frame time (through MangoHud logs, see below), an events list
+- The running Steam game with FPS, frame time and what limits it (graphics card, processor or an FPS cap), an events list
   with a 24 h strip, optional CSV logging
-- An estimate of power drawn by the graphics card, and by the processor when its energy counter is readable
+- An estimate of power drawn by the graphics card, and by the processor when its energy counter is readable; internet used today
 - Optional modules, off by default: OBS live card and Project Zomboid server card
 
 ## What it controls

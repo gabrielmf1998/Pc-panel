@@ -9,7 +9,7 @@
 :root{color-scheme:dark;--plano:#0d0d0d;--sup:#1a1a19;--sup2:#262624;--tinta:#f0efec;--tinta2:#c3c2b7;
   --apagado:#898781;--grade:#2c2c2a;--eixo:#383835;--borda:rgba(255,255,255,.10);
   --s1:#3987e5;--s2:#d95926;--bom:#2fbf4a;--aviso:#f5bd3a;--serio:#f08a5d;--critico:#ef5a5a;--lin:1.64rem;--topo-h:46px;
-  --m-ram:#9085e9;--m-vram:#d55181;--m-gpu:#1fa67a;--m-cpu:#3987e5;--m-fps:#2ea8c7}
+  --m-ram:#9085e9;--m-vram:#c06bd6;--m-gpu:#25afc2;--m-cpu:#3987e5;--m-fps:#b5bfd0}
 body[data-tema="preto"]{--plano:#000;--sup:#0b0b0b;--sup2:#1a1a19;--grade:#222220;--borda:rgba(255,255,255,.14)}
 body[data-tema="noite"]{--plano:#090e1a;--sup:#111a2c;--sup2:#1b2740;--grade:#1f2b45;--eixo:#2f3d5e;--tinta2:#c2c9d8;--apagado:#8490a8}
 body[data-tema="contraste"]{--plano:#000;--sup:#000;--sup2:#1a1a19;--tinta:#fff;--tinta2:#fff;--apagado:#c3c2b7;
@@ -18,7 +18,7 @@ body[data-tema="contraste"]{--plano:#000;--sup:#000;--sup2:#1a1a19;--tinta:#fff;
 body[data-tema="claro"]{color-scheme:light;--plano:#f0efec;--sup:#fcfcfb;--sup2:#f0efec;--tinta:#0b0b0b;--tinta2:#52514e;
   --apagado:#898781;--grade:#e1e0d9;--eixo:#c3c2b7;--borda:rgba(11,11,11,.12);--s1:#2a78d6;--s2:#eb6834;
   --bom:#14801a;--aviso:#a35f00;--serio:#c2410c;--critico:#b42318;
-  --m-ram:#6250d6;--m-vram:#c23c72;--m-gpu:#13805c;--m-cpu:#2a78d6;--m-fps:#13819c}
+  --m-ram:#6250d6;--m-vram:#9b3fb8;--m-gpu:#0e7f91;--m-cpu:#2a78d6;--m-fps:#5a6578}
 body[data-cor="agua"]{--s1:#199e70}body[data-cor="violeta"]{--s1:#9085e9}body[data-cor="magenta"]{--s1:#d55181}
 body[data-tema="claro"][data-cor="agua"]{--s1:#1baf7a}body[data-tema="claro"][data-cor="violeta"]{--s1:#6250d6}
 body[data-tema="claro"][data-cor="magenta"]{--s1:#e87ba4}
@@ -47,6 +47,7 @@ button.principal:hover{filter:brightness(1.12);background:var(--s1);color:#fff}
 .mod{font-size:.82rem;color:var(--apagado);border:1px solid var(--borda);border-radius:999px;padding:2px 9px;white-space:nowrap}
 .mod b{font-weight:500;color:var(--tinta2)}
 body[data-estreito] #mods{display:none}
+@media (max-width:1180px){#mods,.data{display:none}}
 
 .app{display:grid;gap:10px;padding:10px 12px 12px;height:calc(100vh - var(--topo-h))}
 body.rolar .app{height:auto;min-height:calc(100vh - var(--topo-h))}
@@ -57,7 +58,16 @@ body.semdados .cartao{opacity:.45}
 .cartao.al-aviso,.cartao.al-serio,.cartao.al-critico{border-color:var(--al);border-width:2px;padding:10px 13px 11px;
   background:color-mix(in srgb,var(--al) 9%,var(--sup))}
 .cartao.al-serio,.cartao.al-critico{background:color-mix(in srgb,var(--al) 15%,var(--sup))}
-.cartao.al-aviso .pilula,.cartao.al-serio .pilula,.cartao.al-critico .pilula{font-size:.93rem;font-weight:600;color:var(--tinta)}
+.cartao.al-aviso>header .pilula,.cartao.al-serio>header .pilula,.cartao.al-critico>header .pilula{background:var(--al);color:#141414;
+  padding:1px 9px;border-radius:999px;font-size:.78rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.cartao.al-aviso>header .pilula i,.cartao.al-serio>header .pilula i,.cartao.al-critico>header .pilula i{color:inherit}
+.cartao.al-aviso>header h2::before,.cartao.al-serio>header h2::before,.cartao.al-critico>header h2::before,
+#c-jogo.al-aviso .l1 h2::before,#c-jogo.al-serio .l1 h2::before,#c-jogo.al-critico .l1 h2::before{background:var(--al)}
+.cartao.al-critico{position:relative}
+.cartao.al-critico::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;will-change:opacity;
+  box-shadow:inset 0 0 22px color-mix(in srgb,var(--critico) 45%,transparent);animation:pulso 1.6s ease-in-out infinite alternate}
+@keyframes pulso{from{opacity:.15}to{opacity:1}}
+@media (prefers-reduced-motion:reduce){.cartao.al-critico::after{animation:none;opacity:.7}}
 #c-chat{padding:0}
 #c-ram{--mc:var(--m-ram)}#c-vram{--mc:var(--m-vram)}#c-gpu{--mc:var(--m-gpu)}#c-cpu{--mc:var(--m-cpu)}#c-rede{--mc:var(--s1)}#c-jogo{--mc:var(--m-fps)}
 .cartao[data-acento]>header h2::before,#c-jogo .l1 h2::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;
@@ -90,7 +100,8 @@ h3{margin:0;font-size:.86rem;font-weight:500;color:var(--apagado);white-space:no
 .graf svg{position:absolute;inset:0;width:100%;height:100%;display:block}
 .grade{stroke:var(--grade);stroke-width:1}.eixo{stroke:var(--eixo);stroke-width:1}
 .rot{fill:var(--apagado);font-size:.75rem;font-variant-numeric:tabular-nums}
-.limite{stroke:var(--apagado);stroke-width:1;stroke-dasharray:4 4}
+.limite{stroke:var(--critico);stroke-width:1;stroke-dasharray:4 4;opacity:.8}
+.zona{fill:var(--critico);opacity:.08}
 .pico{fill:var(--tinta2);font-size:.75rem;font-variant-numeric:tabular-nums}
 .mira{stroke:var(--apagado);stroke-width:1}
 .linha{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
@@ -128,18 +139,25 @@ h3{margin:0;font-size:.86rem;font-weight:500;color:var(--apagado);white-space:no
 .lin .n small{color:var(--apagado);font-size:.82rem}
 .lin .v{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
 .lin.t2{grid-template-columns:minmax(0,38%) minmax(10px,1fr) 5.2rem}
+.lin.t3{grid-template-columns:minmax(0,36%) minmax(10px,1fr) 4.4rem 3.6rem}
+.lin .mx{color:var(--apagado);font-size:.82rem;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+@container (max-width:330px){.lin.t3{grid-template-columns:minmax(0,1fr) 4.4rem 3.6rem}.lin.t3 .med{display:none}}
 .lin.s{grid-template-columns:minmax(0,1fr) auto}
 .barra{height:6px}
 .barra i{display:block;height:100%;background:var(--s1);border-radius:0 4px 4px 0;min-width:2px}
 .vazio{color:var(--apagado);font-size:.89rem;padding-top:2px}
 
-.disco{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 10px;align-items:baseline;padding:4px 0}
-.disco .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.disco .n small{color:var(--apagado);margin-left:6px}
+.disco{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 10px;align-items:baseline;padding:2px 0 4px}
+.disco .med{height:4px}
+.disco .n{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500}
+.disco .det{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:0 12px;max-height:1.25rem;overflow:hidden;color:var(--apagado);
+  font-size:.82rem;font-variant-numeric:tabular-nums;white-space:nowrap}
+.disco .det b{font-weight:500;color:var(--tinta2)}
+.disco .det .aviso b,.disco .det .serio b,.disco .det .critico b{color:inherit}
 .disco .v{font-variant-numeric:tabular-nums;white-space:nowrap}
 .disco .med{grid-column:1/-1}
 .disco .io{grid-column:1/-1;color:var(--apagado);font-size:.86rem;display:flex;gap:12px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden}
-@container (max-height:15.4rem){.disco .io{display:none}.disco{padding:3px 0}}
+@container (max-height:8.5rem){.disco .det{display:none}}
 
 .mini{padding:6px 14px;gap:1px;justify-content:center}
 .mini.al-aviso,.mini.al-serio,.mini.al-critico{padding:5px 13px}
@@ -160,17 +178,23 @@ h3{margin:0;font-size:.86rem;font-weight:500;color:var(--apagado);white-space:no
 #c-jogo .full .info2{font-size:.86rem;color:var(--apagado);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:none}
 #c-jogo .full .dica-fps{font-size:.86rem;color:var(--apagado);flex:none}
 @container (max-height:12rem){#c-jogo .full .info2{display:none}}
-@container (max-height:9.5rem){#c-jogo .full .graf{display:none}}
+@container (max-height:9.5rem){#c-jogo .full .fpsgraf{display:none}}
+.fpsgraf{flex:1 1 0;min-height:0;display:flex;flex-direction:column;gap:8px}
+.fpsgraf>div{flex:1 1 0;min-height:0;min-width:0;display:flex;flex-direction:column;gap:2px}
+@container (max-height:24rem){.fpsgraf{flex-direction:row;gap:12px}}
+#c-jogo .full .garg{font-size:.89rem;color:var(--tinta2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:none}
+#c-jogo .full .garg b{color:var(--tinta);font-weight:600}
 .fpsv{font-variant-numeric:tabular-nums}
 /* events: the last 24 h as a strip under the list */
 #c-eventos .lista{flex:1 1 0}
 .tl{flex:none;display:flex;flex-direction:column;gap:3px}
 .tl .r{font-size:.82rem;color:var(--apagado);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tl .r b{font-weight:500;color:var(--tinta2)}
-.tl svg{display:block;width:100%;height:30px}
+.tl svg{display:block;width:100%;height:52px}
+.tl .tt{fill:none;stroke:var(--m-cpu);stroke-width:1.5;stroke-linejoin:round}
 .tl .faixa{fill:var(--m-fps);opacity:.35}
 .tl .fundo{fill:var(--sup2)}
-@container (max-height:7.5rem){.tl{display:none}}
+@container (max-height:9rem){.tl{display:none}}
 .abas{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
 .abas button[aria-pressed="true"]{background:var(--sup2);color:var(--tinta);border-color:var(--s1)}
 .g24{position:relative;height:280px;width:min(940px,88vw);margin-top:8px}
@@ -409,13 +433,17 @@ body[data-estreito] .hora{font-size:1.29rem}
         </dl>
       </div>
       <div class="dica-fps" id="fps-dica" hidden></div>
-      <div class="graf" id="g-fps"></div>
+      <div class="garg" id="jogo-garg" hidden></div>
+      <div class="fpsgraf" id="fps-gs">
+        <div><h3>FPS</h3><div class="graf" id="g-fps"></div></div>
+        <div><h3 data-i="ft_g"></h3><div class="graf" id="g-ft"></div></div>
+      </div>
       <div class="info" id="jogo-info"></div>
       <div class="info2" id="jogo-info2"></div>
     </div></section>
   <section class="cartao mini" id="c-live"><div class="l1"><h2>Live</h2><div class="p" id="live-p"></div></div><div class="d" id="live-d"></div></section>
   <section class="cartao mini" id="c-pz"><div class="l1"><h2 data-i="c_pz"></h2><div class="p" id="pz-p"></div></div><div class="d" id="pz-d"></div></section>
-  <section class="cartao mini" id="c-sis"><div class="l1"><h2 data-i="c_sis"></h2><div class="p" id="sis-p"></div></div><div class="d" id="sis-d"></div></section>
+  <section class="cartao mini" id="c-sis"><div class="l1"><h2 data-i="c_sis"></h2><div class="p" id="sis-p"></div></div><div class="d" id="sis-d"></div><div class="d2" id="sis-d2"></div></section>
 
   <section class="cartao fora" id="c-chat"><iframe id="chat-f" title="Chat" src="about:blank"></iframe></section>
 </main>
@@ -783,7 +811,13 @@ Object.assign(TX.pt, {
   fps_como: 'Para ver o FPS, ligue o log do MangoHud (output_folder e autostart_log no MangoHud.conf, veja o README).',
   s_pot: 'consumo ~{0} W (processador {1} W, placa {2} W)', s_pot_gpu: 'placa de vídeo {0} W',
   tl_24: 'Últimas 24 h:', tl_jog: '{0} jogando', tl_tc: 'processador até {0} °C', tl_tg: 'placa até {0} °C', tl_al: '{0} com alerta',
-  tl_t: 'Faixas: jogo aberto. Riscos: minutos com alerta, na cor do nível.', tl_24h: '24 h atrás', tl_12h: '12 h',
+  tl_t: 'Faixas: jogo aberto. Linha: temperatura máxima do processador a cada minuto. Riscos embaixo: minutos com alerta, na cor do nível.',
+  lim_alerta: 'alerta', ft_g: 'Pior quadro (ms)', ft_med_d: 'quadro médio {0} ms',
+  ga: 'Gargalo:', ga_gpu: 'placa de vídeo', ga_gpu_d: 'em {0} % de uso', ga_cpu: 'processador',
+  ga_cpu_d: 'a thread {1} do jogo usa {0} % de um núcleo', ga_lim: 'limite de FPS', ga_lim_d: 'quadros constantes com a placa em {0} % (vsync ou limitador)',
+  ga_livre: 'nenhum claro', ga_livre_d: 'placa em {0} %, thread mais ocupada do jogo em {1} %',
+  ga_t: 'Placa acima de 95 % = limitado pela placa. Uma thread do jogo acima de 85 % de um núcleo = limitado pelo processador. Quadros muito constantes sem nenhum dos dois = limite de FPS. A thread é lida a cada 10 s.',
+  t_max24_t: 'Máxima das últimas 24 h: {0} °C', s_net: 'internet hoje ↓ {0} ↑ {1}', d_io: 'L/G', d_ocup: 'ocupado', tl_24h: '24 h atrás', tl_12h: '12 h',
   lm_jitter: 'Oscilação do ping (ms)', b_rede: 'Rede', rd_mais: 'detalhes', rd_titulo: 'Rede', rd_internet: 'Internet', rd_perdas: 'ping perdido',
   rd_g_ping: 'Ping, últimos 10 minutos', rd_g_net: 'Tráfego, últimos 10 minutos', rd_qual: 'Qualidade da conexão', rd_con: 'Conexão',
   rd_qual_n: 'Mediana e pior 5 % dos últimos 10 minutos. Oscilação é a variação média de um ping para o seguinte: quanto menor, mais estável.',
@@ -848,7 +882,13 @@ Object.assign(TX.en, {
   fps_como: 'To see FPS, turn on MangoHud logging (output_folder and autostart_log in MangoHud.conf, see the README).',
   s_pot: 'drawing ~{0} W (processor {1} W, graphics card {2} W)', s_pot_gpu: 'graphics card {0} W',
   tl_24: 'Last 24 h:', tl_jog: '{0} gaming', tl_tc: 'processor up to {0} °C', tl_tg: 'graphics card up to {0} °C', tl_al: '{0} with an alert',
-  tl_t: 'Bands: a game was open. Ticks: minutes with an alert, in the level color.', tl_24h: '24 h ago', tl_12h: '12 h',
+  tl_t: 'Bands: a game was open. Line: highest processor temperature of each minute. Ticks at the bottom: minutes with an alert, in the level color.',
+  lim_alerta: 'alert', ft_g: 'Worst frame (ms)', ft_med_d: 'average frame {0} ms',
+  ga: 'Bottleneck:', ga_gpu: 'graphics card', ga_gpu_d: 'at {0} % usage', ga_cpu: 'processor',
+  ga_cpu_d: 'game thread {1} uses {0} % of one core', ga_lim: 'FPS cap', ga_lim_d: 'steady frames with the card at {0} % (vsync or a limiter)',
+  ga_livre: 'none clear', ga_livre_d: 'card at {0} %, busiest game thread at {1} %',
+  ga_t: 'Card above 95 % = limited by the card. A game thread above 85 % of one core = limited by the processor. Very steady frames with neither = an FPS cap. The thread is read every 10 s.',
+  t_max24_t: 'Highest in the last 24 h: {0} °C', s_net: 'internet today ↓ {0} ↑ {1}', d_io: 'R/W', d_ocup: 'busy', tl_24h: '24 h ago', tl_12h: '12 h',
   lm_jitter: 'Ping jitter (ms)', b_rede: 'Network', rd_mais: 'details', rd_titulo: 'Network', rd_internet: 'Internet', rd_perdas: 'lost ping',
   rd_g_ping: 'Ping, last 10 minutes', rd_g_net: 'Traffic, last 10 minutes', rd_qual: 'Connection quality', rd_con: 'Connection',
   rd_qual_n: 'Median and worst 5 % of the last 10 minutes. Jitter is the average change from one ping to the next: the lower, the steadier.',
@@ -890,7 +930,7 @@ const TAM = {ram: {l: [1, 5], m: [1, 3], c: [1, 2]}, vram: {l: [1, 5], m: [1, 3]
   cpu: {l: [1, 5], m: [1, 3], c: [1, 2]}, rede: {l: [1, 6], m: [1, 4], c: [1, 2]}, prog: {l: [2, 6], m: [1, 4]},
   temp: {l: [1, 4], m: [1, 5]}, disc: {l: [1, 3], m: [1, 3]}, saude: {l: [1, 3], m: [1, 3]}, eventos: {l: [1, 3], m: [1, 3]},
   jogo: {l: [1, 1], m: [1, 1], c: [1, 1]}, live: {l: [1, 1], m: [1, 1], c: [1, 1]}, pz: {l: [1, 1], m: [1, 1], c: [1, 1]},
-  sis: {l: [1, 1], m: [1, 1]}, chat: {l: [1, 1], m: [2, 6]}};
+  sis: {l: [1, 2], m: [1, 1]}, chat: {l: [1, 1], m: [2, 6]}};
 const PRIO = {ram: 1, vram: 2, gpu: 3, cpu: 4, rede: 5, chat: 6, temp: 30, prog: 31, disc: 32, saude: 33, eventos: 34, sis: 35, jogo: 40, live: 41, pz: 42};
 const ESSENCIAIS = ['ram', 'vram', 'gpu', 'cpu', 'rede'];
 
@@ -993,16 +1033,20 @@ class Grafico {
     const pw = W - esq - dir, ph = Ht - topo - baixo, t1 = A.t, t0 = t1 - JANELA;
     const buraco = Math.max(passo * 3.5, (A.espaco || passo) * 1.7);
     let max = o.max ? o.max() : 0, min = 0;
+    const lim = o.limite && o.limite(), nvc = o.nv && o.nv(), corNv = nvc && nvc !== 'bom' ? COR[nvc] : null;
     if (o.zoom) {
       let lo = null, hi = null;
       for (const l of H) if (l[0] >= t0) for (const s of o.series) {
         const v = l[s.i];
         if (v != null && v >= 0) { if (lo == null || v < lo) lo = v; if (hi == null || v > hi) hi = v; }
       }
+      // a limit just above the data is pulled into view, so the distance to it shows
+      if (lim && hi != null && lim.v > hi && lim.v - hi <= Math.max(o.zoom.span, hi - lo) * 0.6) hi = lim.v;
       [min, max] = faixa(lo, hi, o.zoom, o.max ? max : null);
     } else if (!o.max) {
       let m = 0;
       for (const l of H) for (const s of o.series) if (l[s.i] != null && l[s.i] > m) m = l[s.i];
+      if (lim && lim.v > m && lim.v - m <= m * 0.6) m = lim.v;
       max = bonito(Math.max(m, o.piso || 1));
     }
     const X = t => esq + (t - t0) / JANELA * pw;
@@ -1023,9 +1067,11 @@ class Grafico {
       if (pw >= 190) sv('text', {x: esq + pw / 2, y: Ht - 2, class: 'rot', 'text-anchor': 'middle'}, svg).textContent = T('g_5');
       sv('text', {x: W - dir, y: Ht - 2, class: 'rot', 'text-anchor': 'end'}, svg).textContent = T('agora');
     }
+    if (lim && lim.v <= max)          // the alert zone, the whole chart when the data is all above the limit
+      sv('rect', {x: esq, y: topo, width: pw, height: Math.max(0, Y(Math.max(lim.v, min)) - topo), class: 'zona'}, svg);
     const pontas = [];
     o.series.forEach((s, k) => {
-      const cor = s.cor || 'var(--s1)', segs = [], gid = this.uid + 'g' + k;
+      const cor = corNv || s.cor || 'var(--s1)', segs = [], gid = this.uid + 'g' + k;
       const lg = sv('linearGradient', {id: gid, x1: 0, y1: 0, x2: 0, y2: 1}, defs);
       sv('stop', {offset: 0, style: 'stop-color:' + cor + ';stop-opacity:.34'}, lg);
       sv('stop', {offset: 1, style: 'stop-color:' + cor + ';stop-opacity:0'}, lg);
@@ -1052,8 +1098,7 @@ class Grafico {
     });
     if (o.perdas) for (const l of H) if (l[5] === -1 && l[0] >= t0)
       sv('line', {x1: X(l[0]), x2: X(l[0]), y1: topo, y2: topo + 8, style: 'stroke:var(--critico);stroke-width:2'}, svg);
-    const lim = o.limite && o.limite();
-    if (lim && lim.v < max && lim.v > min) {
+    if (lim && lim.v <= max && lim.v > min) {
       sv('line', {x1: esq, x2: W - dir, y1: Y(lim.v), y2: Y(lim.v), class: 'limite'}, svg);
       sv('text', {x: W - dir, y: Y(lim.v) - 4, class: 'rot', 'text-anchor': 'end'}, svg).textContent = lim.rotulo;
     } else if (lim && lim.v >= max && ph >= 60)       // above the zoomed range: say where it is
@@ -1076,8 +1121,9 @@ class Grafico {
     const x = X(perto[0]);
     sv('line', {x1: x, x2: x, y1: topo, y2: topo + ph, class: 'mira'}, g);
     d.replaceChildren(el('div', 'h', hora(perto[0])));
+    const nvc = this.o.nv && this.o.nv(), corNv = nvc && nvc !== 'bom' ? COR[nvc] : null;
     for (const s of this.o.series) {
-      const v = perto[s.i], cor = s.cor || 'var(--s1)', r = el('div', 'r'), k = el('i');
+      const v = perto[s.i], cor = corNv || s.cor || 'var(--s1)', r = el('div', 'r'), k = el('i');
       k.style.background = cor;
       r.append(k, el('b', '', v == null ? T('sem_medida') : v < 0 ? T('perdido') : this.o.fmt(v)), el('span', '', T(s.nome)));
       d.append(r);
@@ -1093,15 +1139,21 @@ class Grafico {
 }
 
 const graficos = [
-  new Grafico($('g-ram'), {series: [{i: 1, nome: 'g_ram', cor: 'var(--m-ram)'}], max: () => A.ram.total / 1048576, zoom: {span: 4},
+  new Grafico($('g-ram'), {series: [{i: 1, nome: 'g_ram', cor: 'var(--m-ram)'}], max: () => A.ram.total / 1048576, zoom: {span: 4}, nv: () => A.nv.ram,
     fmt: v => nf(v) + ' GiB', limite: () => A.ram.reserva ? {v: (A.ram.total - A.ram.reserva) / 1048576, rotulo: T('left_zero')} : null}),
   new Grafico($('g-vram'), {series: [{i: 2, nome: 'g_vram', cor: 'var(--m-vram)'}], max: () => A.gpu.ok ? A.gpu.vram_total / 1024 : 8,
-    zoom: {span: 1}, fmt: v => nf(v) + ' GiB'}),
-  new Grafico($('g-gpu'), {series: [{i: 3, nome: 'g_gpu', cor: 'var(--m-gpu)'}], max: () => 100, zoom: {span: 20, zero: true}, fmt: v => int(v) + ' %'}),
-  new Grafico($('g-cpu'), {series: [{i: 4, nome: 'g_cpu', cor: 'var(--m-cpu)'}], max: () => 100, zoom: {span: 20, zero: true}, fmt: v => int(v) + ' %'}),
+    zoom: {span: 1}, fmt: v => nf(v) + ' GiB', nv: () => A.nv.vram,
+    limite: () => A.lims && A.lims.vram && A.gpu.ok ? {v: A.lims.vram / 100 * A.gpu.vram_total / 1024, rotulo: T('lim_alerta')} : null}),
+  new Grafico($('g-gpu'), {series: [{i: 3, nome: 'g_gpu', cor: 'var(--m-gpu)'}], max: () => 100, zoom: {span: 20, zero: true}, fmt: v => int(v) + ' %',
+    nv: () => A.nv.gpu}),
+  new Grafico($('g-cpu'), {series: [{i: 4, nome: 'g_cpu', cor: 'var(--m-cpu)'}], max: () => 100, zoom: {span: 20, zero: true}, fmt: v => int(v) + ' %',
+    nv: () => A.nv.cpu, limite: () => A.lims && A.lims.cpu ? {v: A.lims.cpu, rotulo: T('lim_alerta')} : null}),
   new Grafico($('g-fps'), {series: [{i: 11, nome: 'FPS', cor: 'var(--m-fps)'}], zoom: {span: 20}, fmt: v => nf(v, v < 100 ? 1 : 0) + ' FPS',
     extra: l => l[12] != null ? T('fps_pior_d', nf(l[12])) : ''}),
-  new Grafico($('g-ping'), {series: [{i: 5, nome: 'Ping'}], piso: 40, fmt: v => nf(v) + ' ms', perdas: true}),
+  new Grafico($('g-ft'), {series: [{i: 12, nome: 'fps_pior', cor: 'var(--m-fps)'}], zoom: {span: 4, zero: true}, fmt: v => nf(v) + ' ms',
+    extra: l => l[13] != null ? T('ft_med_d', nf(l[13])) : ''}),
+  new Grafico($('g-ping'), {series: [{i: 5, nome: 'Ping'}], piso: 40, fmt: v => nf(v) + ' ms', perdas: true, nv: () => A.nv.rede,
+    limite: () => A.lims && A.lims.ping ? {v: A.lims.ping, rotulo: T('lim_alerta')} : null}),
   new Grafico($('g-net'), {series: [{i: 6, nome: 'Download'}, {i: 7, nome: 'Upload', cor: 'var(--s2)'}], piso: 1,
     fmt: v => nf(v, v < 10 ? 2 : 1) + ' Mbit/s'}),
   new Grafico($('rd-gping'), {series: [{i: 5, nome: 'rd_internet'}, {i: 10, nome: 'roteador', cor: 'var(--s2)'}], piso: 40,
@@ -1264,33 +1316,37 @@ function cProg() {
 function modoFan(x) {
   return !x ? '' : x.modo === 'max' ? T('m_max') : x.modo === 'auto' ? T('m_auto') : x.modo === 'curva' ? T('m_curva') : T('m_fixo', x.pct);
 }
-function linhaMed(nome, pct, nv, valor, dica) {
-  const lin = el('div', 'lin t2'), m = el('div', 'med'), v = el('span', 'v');
+function linhaMed(nome, pct, nv, valor, dica, mx) {
+  const lin = el('div', mx === undefined ? 'lin t2' : 'lin t3'), m = el('div', 'med'), v = el('span', 'v');
   m.append(el('i'));
   medidor(m, pct, nv);
   if (nv && nv !== 'bom') v.append(el('i', 'g ' + nv, GL[nv]), ' ');
   v.append(valor);
   if (dica) lin.title = dica;
   lin.append(el('span', 'n', nome), m, v);
+  if (mx !== undefined) lin.append(el('span', 'mx', mx || ''));
   return lin;
 }
 function cTemp() {
   const linhas = [], f = A.fans, e = f.escolha;
+  // the bar fills up to the first alert limit, so a full bar means "about to alert"
   for (const t of A.temps)
-    linhas.push(linhaMed(nomeTemp(t), (t.c - 20) / 80 * 100, t.nv, nf(t.c, 0) + ' °C', T('tip_temp', nomeTemp(t), nf(t.c), T('nv_' + t.nv), t.lim)));
+    linhas.push(linhaMed(nomeTemp(t), t.lim ? (t.c - 25) / (t.lim - 25) * 100 : (t.c - 20) / 80 * 100, t.nv, nf(t.c, 0) + ' °C',
+      T('tip_temp', nomeTemp(t), nf(t.c), T('nv_' + t.nv), t.lim) + (t.max24 != null ? '\n' + T('t_max24_t', nf(t.max24, 0)) : ''),
+      t.max24 != null ? '↑' + nf(t.max24, 0) : ''));
   if (A.gpu.ok && A.gpu.fan != null)
     linhas.push(linhaMed(T('fan_gpu'), A.gpu.fan, 'bom', A.gpu.rpm.length ? int(Math.max(...A.gpu.rpm)) + ' rpm' : A.gpu.fan + ' %',
-      T('fan_gpu') + ', ' + A.gpu.fan + ' %' + (A.gpu.rpm.length ? ', ' + A.gpu.rpm.map(int).join(' / ') + ' rpm' : '') + (e ? ', ' + modoFan(e.gpu) : '')));
+      T('fan_gpu') + ', ' + A.gpu.fan + ' %' + (A.gpu.rpm.length ? ', ' + A.gpu.rpm.map(int).join(' / ') + ' rpm' : '') + (e ? ', ' + modoFan(e.gpu) : ''), ''));
   f.canais.forEach((c, i) => linhas.push(linhaMed(nomeFan(c.n, i), c.pct == null ? 0 : c.pct, c.rpm ? 'bom' : 'serio', int(c.rpm) + ' rpm',
-    nomeFan(c.n, i) + ' (' + T('canal', c.n) + '), ' + int(c.rpm) + ' rpm, ' + (c.pct == null ? '?' : c.pct) + ' %' + (e && e.placa[c.n] ? ', ' + modoFan(e.placa[c.n]) : ''))));
+    nomeFan(c.n, i) + ' (' + T('canal', c.n) + '), ' + int(c.rpm) + ' rpm, ' + (c.pct == null ? '?' : c.pct) + ' %' + (e && e.placa[c.n] ? ', ' + modoFan(e.placa[c.n]) : ''), '')));
   $('l-temp').replaceChildren(...linhas);
 }
 function cDisc() {
   $('disc-psi').textContent = A.psi_io >= 1 ? T('espera_disco', nf(A.psi_io, 0)) : '';
+  // two lines per disk: name and free space, then health, temperature and activity
   $('l-disc').replaceChildren(...A.discos.map(d => {
-    const caixa = el('div', 'disco'), n = el('span', 'n', nomeDisco(d.nome)), m = el('div', 'med'), io = el('div', 'io'), v = el('span', 'v');
-    const modelo = el('small', '', d.modelo);
-    n.append(modelo);
+    const caixa = el('div', 'disco'), n = el('span', 'n', nomeDisco(d.nome)), m = el('div', 'med'), v = el('span', 'v'), det = el('div', 'det');
+    const item = (rot, val, cls) => { const x = el('span', cls || ''); if (rot) x.append(rot + ' '); x.append(el('b', '', val)); det.append(x); return x; };
     m.append(el('i'));
     medidor(m, d.usado, d.nv);
     if (d.nv !== 'bom') v.append(el('i', 'g ' + d.nv, GL[d.nv]), ' ');
@@ -1298,11 +1354,9 @@ function cDisc() {
     const sd = d.saude;
     let dicaSd = '';
     if (sd) {
-      const x = el('span', sd.nv !== 'bom' ? sd.nv : '');
-      if (sd.nv !== 'bom') x.append(el('i', 'g ' + sd.nv, GL[sd.nv]), ' ');
-      x.append(sd.problema ? T('d_problema') : sd.saude != null ? T('d_saude', sd.saude) : T('d_smart_ok'));
-      if (sd.erros) x.append(', ' + T('d_erros', int(sd.erros)));
-      modelo.prepend(x, ', ');
+      const x = item('', sd.problema ? T('d_problema') : sd.saude != null ? T('d_saude', sd.saude) : T('d_smart_ok'), sd.nv !== 'bom' ? sd.nv : '');
+      if (sd.nv !== 'bom') x.prepend(el('i', 'g ' + sd.nv, GL[sd.nv]), ' ');
+      if (sd.erros) item('', T('d_erros', int(sd.erros)), 'serio');
       dicaSd = [sd.problema ? sd.problema[L === 'en' ? 1 : 0] : null, sd.gasto != null ? T('ds_gasto', sd.gasto) : null,
         sd.reserva != null ? T('ds_reserva', sd.reserva) : null, sd.escrito != null ? T('ds_escrito', nf(sd.escrito / 1e12)) : null,
         sd.horas != null ? T('ds_horas', int(sd.horas)) : null, sd.inseguros != null ? T('ds_inseguros', int(sd.inseguros)) : null,
@@ -1311,14 +1365,19 @@ function cDisc() {
       if (pv && pv.restam_tb != null) {
         dicaSd += '\n' + T('ds_prev', int(pv.restam_tb), nf(pv.tb_pct)) + (pv.aprox ? ' (' + T('ds_aprox') + ')' : '') + '. ' +
           (pv.tb_dia != null ? T('ds_ritmo', nf(pv.tb_dia, pv.tb_dia < 0.1 ? 3 : 2), nf(pv.dias, 0), pv.anos == null ? '?' : nf(pv.anos, pv.anos < 10 ? 1 : 0)) : T('ds_ritmo0')) + '.';
-        if (pv.anos != null && !pv.aprox) x.append(', ' + T('d_anos', pv.anos >= 100 ? '100+' : nf(pv.anos, pv.anos < 10 ? 1 : 0)));
+        if (pv.anos != null && !pv.aprox) item('', T('d_anos', pv.anos >= 100 ? '100+' : nf(pv.anos, pv.anos < 10 ? 1 : 0)));
       }
     }
-    if (d.ler != null) io.append(el('span', '', T('leitura') + ' ' + nf(d.ler / 1048576) + ' MiB/s'), el('span', '', T('gravacao') + ' ' + nf(d.gravar / 1048576) + ' MiB/s'),
-      el('span', '', T('espera', nf(d.espera, d.espera < 10 ? 1 : 0))), el('span', '', T('ocupado_d', nf(d.ocupado, 0))));
+    const tp = A.temps.find(t => t.id === 'ssd' && t.nome === d.nome);
+    if (tp) item('', nf(tp.c, 0) + ' °C', tp.nv !== 'bom' ? tp.nv : '');
+    if (d.ler != null) {
+      const mb = x => x >= 10485760 ? int(x / 1048576) : nf(x / 1048576);
+      item(T('d_io'), mb(d.ler) + ' / ' + mb(d.gravar) + ' MiB/s');
+      item(T('d_ocup'), nf(d.ocupado, 0) + ' %');
+    }
     caixa.title = T('tip_disco', nomeDisco(d.nome), d.modelo, int(d.usado)) + (d.espera != null ? ', ' + T('espera', nf(d.espera)) + ', ' + T('ocupado_d', nf(d.ocupado, 0)) : '') +
       (dicaSd ? '\n' + dicaSd : '');
-    caixa.append(n, v, m, io);
+    caixa.append(n, v, m, det);
     return caixa;
   }));
 }
@@ -1366,7 +1425,16 @@ function cJogo() {
   $('fps-low').textContent = ss && ss.fps_low != null ? fpsTxt(ss.fps_low) : '';
   const dica = f ? '' : A.fps_log ? T('fps_sem') : T('fps_como');
   $('fps-dica').hidden = !dica; $('fps-dica').textContent = dica;
-  $('g-fps').hidden = !f && !H.some(l => l[11] != null && l[0] >= A.t - JANELA);
+  $('fps-gs').hidden = !f && !H.some(l => l[11] != null && l[0] >= A.t - JANELA);
+  const g = A.gargalo, gx = $('jogo-garg');
+  gx.hidden = !g;
+  if (g) {
+    const uso = A.gpu.ok ? int(A.gpu.uso) : '?', fio = g.fio == null ? '?' : int(g.fio);
+    const [a, b] = g.tipo === 'gpu' ? [T('ga_gpu'), T('ga_gpu_d', uso)] : g.tipo === 'cpu' ? [T('ga_cpu'), T('ga_cpu_d', fio, g.fio_nome || '?')] :
+      g.tipo === 'limite' ? [T('ga_lim'), T('ga_lim_d', uso)] : [T('ga_livre'), T('ga_livre_d', uso, fio)];
+    gx.replaceChildren(T('ga'), ' ', el('b', '', a), ', ' + b);
+    gx.title = T('ga_t');
+  }
   $('jogo-info').textContent = info; $('jogo-info').title = info;
   $('jogo-info2').textContent = d2; $('jogo-info2').title = d2;
 }
@@ -1414,9 +1482,11 @@ function cFaixa() {
 
   const s = A.sis, b = s.bateria, gw = A.gpu.ok ? A.gpu.watts : null, cw = A.cpu.watts;
   const pot = cw != null && gw != null ? T('s_pot', int(cw + gw), int(cw), int(gw)) : gw != null ? T('s_pot_gpu', int(gw)) : null;
-  por('sis', T('s_ligado', dur(s.ligado)), [pot, 'kernel ' + s.kernel, s.driver ? 'NVIDIA ' + s.driver : null,
-    b ? b.nome + ' ' + b.pct + ' %' + (b.carregando ? ' ' + T('carregando') : '') : null,
-    A.registro ? T('s_registro') : null].filter(Boolean).join(', '));
+  const hj = A.rede.hoje;
+  por('sis', T('s_ligado', dur(s.ligado)), [pot, hj ? T('s_net', tamB(hj.rx), tamB(hj.tx)) : null,
+    b ? b.nome + ' ' + b.pct + ' %' + (b.carregando ? ' ' + T('carregando') : '') : null].filter(Boolean).join(', '));
+  const sd2 = ['kernel ' + s.kernel, s.driver ? 'NVIDIA ' + s.driver : null, A.registro ? T('s_registro') : null].filter(Boolean).join(', ');
+  $('sis-d2').textContent = sd2; $('sis-d2').title = sd2;
 }
 let iconeAntes = '';
 function icone(nv) {
@@ -1443,7 +1513,11 @@ function cTopo() {
   const pior = a.length ? a[0].nv : 'bom';
   g.classList.remove('al-aviso', 'al-serio', 'al-critico');
   for (const c of document.querySelectorAll('.cartao')) c.classList.remove('al-aviso', 'al-serio', 'al-critico');
-  for (const x of a.slice().reverse()) { const c = $('c-' + x.c); if (c) { c.classList.remove('al-aviso', 'al-serio', 'al-critico'); c.classList.add('al-' + x.nv); } }
+  // each card takes the worst level among its alerts and its own level (the processor card turns red with its temperature)
+  const pc = {};
+  for (const x of a) if (!pc[x.c] || ORD.indexOf(x.nv) > ORD.indexOf(pc[x.c])) pc[x.c] = x.nv;
+  for (const [k, v] of Object.entries(A.nv)) if (v !== 'bom' && (!pc[k] || ORD.indexOf(v) > ORD.indexOf(pc[k]))) pc[k] = v;
+  for (const [k, v] of Object.entries(pc)) { const c = $('c-' + k); if (c && ORD.includes(v) && v !== 'bom') c.classList.add('al-' + v); }
   if (!a.length) { pilula($('geral-st'), 'bom', T('tudo_certo')); $('geral-tx').textContent = ''; }
   else {
     g.classList.add('al-' + pior);
@@ -1497,24 +1571,34 @@ function cLinha24() {
   if (al) partes.push(T('tl_al', dur(al * 60)));
   r.replaceChildren(T('tl_24'), ' ', b(partes.join(' · ')));
   r.title = r.textContent;
-  const X = t => Math.max(0, Math.min(W, (t - t0) / 86400 * W));
-  svg.setAttribute('viewBox', '0 0 ' + W + ' 30');
+  const X = t => Math.max(0, Math.min(W, (t - t0) / 86400 * W)), B = 38;
+  svg.setAttribute('viewBox', '0 0 ' + W + ' 52');
   svg.replaceChildren();
   sv('title', {}, svg).textContent = T('tl_t');
-  sv('rect', {x: 0, y: 2, width: W, height: 12, rx: 3, class: 'fundo'}, svg);
+  sv('rect', {x: 0, y: 0, width: W, height: B, rx: 3, class: 'fundo'}, svg);
   let ini = null, fim = null;
-  const faixa = () => { if (ini != null) sv('rect', {x: X(ini), y: 2, width: Math.max(2, X(fim + 60) - X(ini)), height: 12, rx: 2, class: 'faixa'}, svg); };
+  const faixa = () => { if (ini != null) sv('rect', {x: X(ini), y: 0, width: Math.max(2, X(fim + 60) - X(ini)), height: B, class: 'faixa'}, svg); };
   for (const l of linhas) {
     if (!l[ij]) continue;
     if (fim != null && l[0] - fim <= 120) fim = l[0];
     else { faixa(); ini = fim = l[0]; }
   }
   faixa();
+  // processor temperature, scaled to its own range in these 24 h
+  const pt = linhas.filter(l => l[itc] != null);
+  if (pt.length > 1) {
+    const lo = Math.min(...pt.map(l => l[itc])), hi = Math.max(lo + 10, ...pt.map(l => l[itc]));
+    const Yt = v => (B - 8 - (v - lo) / (hi - lo) * (B - 14)).toFixed(1);
+    let d = '', ant = null;
+    for (const l of pt) { d += (ant != null && l[0] - ant <= 180 ? 'L' : 'M') + X(l[0]).toFixed(1) + ',' + Yt(l[itc]); ant = l[0]; }
+    sv('path', {d, class: 'tt'}, svg);
+    sv('text', {x: 4, y: 11, class: 'rot'}, svg).textContent = int(hi) + ' °C';
+  }
   for (const l of linhas) if (l[inv] > 0)
-    sv('rect', {x: X(l[0]), y: 1, width: 2, height: 14, style: 'fill:' + COR[ORD[Math.min(3, l[inv])]]}, svg);
-  sv('text', {x: 0, y: 27, class: 'rot'}, svg).textContent = T('tl_24h');
-  sv('text', {x: W / 2, y: 27, class: 'rot', 'text-anchor': 'middle'}, svg).textContent = T('tl_12h');
-  sv('text', {x: W, y: 27, class: 'rot', 'text-anchor': 'end'}, svg).textContent = T('agora');
+    sv('rect', {x: X(l[0]), y: B - 5, width: 2, height: 5, style: 'fill:' + COR[ORD[Math.min(3, l[inv])]]}, svg);
+  sv('text', {x: 0, y: 50, class: 'rot'}, svg).textContent = T('tl_24h');
+  sv('text', {x: W / 2, y: 50, class: 'rot', 'text-anchor': 'middle'}, svg).textContent = T('tl_12h');
+  sv('text', {x: W, y: 50, class: 'rot', 'text-anchor': 'end'}, svg).textContent = T('agora');
 }
 function cEventos() {
   const alvo = $('l-ev');

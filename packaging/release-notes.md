@@ -1,3 +1,24 @@
+## 0.5.1: alerts that stand out, disks, bottleneck
+
+- **Alerts stand out again.** Metric colors were moved away from the alert colors (no more pink or
+  green lines that look like a status). A card in alert gets a filled badge (HIGH, CRITICAL), its
+  chart line turns the level color, the part of the chart above the alert limit is shaded red, and a
+  critical card pulses slowly (still when the system asks for reduced motion). The processor and
+  graphics card cards also follow their temperature level. VRAM, processor and ping charts show
+  their alert limit, and a limit just above the data is pulled into view.
+- **Disks on two lines**: name and free space, then health, years left, temperature, read and write
+  speed and busy share. The model moved to the tooltip, and the activity line no longer disappears.
+- **Game bottleneck.** The Game card says whether the game is limited by the graphics card (above
+  95 % use), by the processor (a game thread above 85 % of one core) or by an FPS cap (very steady
+  frames with neither busy). The game's threads are read every 10 s.
+- **Frame time chart** next to the FPS chart: the worst frame of each reading, where stutters show.
+- **Temperatures**: the bar now fills up to the first alert limit, and the highest reading of the last
+  24 h is shown next to each sensor (kept across restarts).
+- **System card**: two lines with power, internet used today (download and upload, kept across
+  restarts), battery, kernel and driver.
+- **Events strip** is taller and draws the processor temperature of each minute over the 24 h.
+- Measured with VRChat open and the page closed: 0.09 % of one core.
+
 ## 0.5.0: game FPS, livelier charts, 24 h strip
 
 - **Game FPS from MangoHud.** When MangoHud logging is on (see the README), the Game card shows FPS,

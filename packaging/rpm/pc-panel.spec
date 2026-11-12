@@ -1,6 +1,6 @@
 %global debug_package %{nil}
 Name:           pc-panel
-Version:        0.5.0
+Version:        0.5.1
 Release:        1
 Summary:        Local web dashboard to monitor and control a Linux PC, with a tray icon
 License:        MIT
@@ -55,6 +55,9 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install
 %{_unitdir}/pc-panel-fans.service
 
 %changelog
+* Thu Nov 12 2026 PC Panel contributors - 0.5.1-1
+- Stronger alert look, two line disks, game bottleneck and frame time chart, 24 h max temperatures, internet used today
+
 * Wed Nov 11 2026 PC Panel contributors - 0.5.0-1
 - Game FPS from MangoHud logs, zoomed charts with per metric colors, 24 h strip in Events, idle modules as chips
 

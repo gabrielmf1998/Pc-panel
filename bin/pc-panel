@@ -36,7 +36,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 
-VERSAO = "0.5.0"
+VERSAO = "0.5.1"
 REPO = "gabrielmf1998/pc-panel"         # owner/repository on GitHub, used only to look for a new version
 PASTA_CFG = os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"), "pc-panel")
 
@@ -759,6 +759,7 @@ ARQ_CAIXA = PASTA_ESTADO + "/caixa-preta.bin"
 ARQ_CAIXA_OK = PASTA_ESTADO + "/caixa-preta.ok"
 ARQ_INCIDENTES = PASTA_ESTADO + "/incidentes.json"
 ARQ_H24 = PASTA_ESTADO + "/historico-24h.json"
+ARQ_HOJE = PASTA_ESTADO + "/hoje.json"
 ARQ_SSD = PASTA_ESTADO + "/ssd.json"
 ARQ_SSD_RITMO = PASTA_ESTADO + "/ssd-ritmo.json"
 ARQ_SESSOES = PASTA_DADOS + "/sessoes.jsonl"
@@ -1111,6 +1112,114 @@ class Sessoes:
 
 caixa = CaixaPreta()
 h24 = Historico24()
+
+
+class Hoje:
+    # internet used today and the hottest reading of each sensor per hour (for "24 h max"), saved with the history
+    def __init__(self):
+        self.trava = threading.Lock()
+        self.dia, self.rx, self.tx, self.tot = None, 0, 0, None
+        self.tmax = {}              # "id:name" -> [[hour, °C], ...] for the last 25 hours
+
+    def carregar(self):
+        try:
+            d = json.loads(ler(ARQ_HOJE) or "null")
+            if isinstance(d, dict):
+                self.dia, self.rx, self.tx = d.get("dia"), int(d.get("rx") or 0), int(d.get("tx") or 0)
+                self.tmax = {k: v for k, v in (d.get("tmax") or {}).items() if isinstance(v, list)}
+        except (ValueError, TypeError):
+            pass
+
+    def anotar(self, t, temps, rede):
+        dia = time.strftime("%Y-%m-%d", time.localtime(t))
+        hora = int(t // 3600)
+        with self.trava:
+            if dia != self.dia:
+                self.dia, self.rx, self.tx = dia, 0, 0
+            tot = (rede.get("rx_tot"), rede.get("tx_tot"))
+            if self.tot and None not in tot and None not in self.tot:
+                drx, dtx = tot[0] - self.tot[0], tot[1] - self.tot[1]
+                if drx >= 0 and dtx >= 0:        # negative: another interface or a counter reset
+                    self.rx += drx
+                    self.tx += dtx
+            self.tot = tot
+            for x in temps:
+                k = x["id"] + ":" + x["nome"]
+                h = self.tmax.setdefault(k, [])
+                if h and h[-1][0] == hora:
+                    h[-1][1] = max(h[-1][1], round(x["c"], 1))
+                else:
+                    h.append([hora, round(x["c"], 1)])
+                    del h[:-25]
+                x["max24"] = max(v for (q, v) in h if q > hora - 24)
+            rede["hoje"] = {"rx": self.rx, "tx": self.tx}
+
+    def salvar(self):
+        try:
+            with self.trava:
+                d = {"dia": self.dia, "rx": self.rx, "tx": self.tx, "tmax": self.tmax}
+            gravar_json(ARQ_HOJE, d)
+        except OSError as e:
+            avisar("hoje", e)
+
+
+hoje = Hoje()
+
+
+class Gargalo:
+    # what limits the game: the busiest thread of the game process, read every 10 s (one small file per thread)
+    def __init__(self):
+        self.pid, self.ant, self.t, self.quando = None, {}, 0.0, 0.0
+        self.top = None             # (percent of one core, thread name)
+
+    def medir(self, pid):
+        agora = time.monotonic()
+        if pid != self.pid:
+            self.pid, self.ant, self.top = pid, {}, None
+        if not pid or agora - self.quando < 9.5:
+            return self.top
+        self.quando = agora
+        novo = {}
+        try:
+            tids = os.listdir("/proc/%d/task" % pid)
+        except OSError:
+            self.pid, self.ant, self.top = None, {}, None
+            return None
+        for tid in tids:
+            st = ler("/proc/%d/task/%s/stat" % (pid, tid))
+            if not st:
+                continue
+            nome, _, resto = st.rpartition(")")
+            campos = resto.split()
+            try:
+                novo[tid] = (int(campos[11]) + int(campos[12]), nome.partition("(")[2])
+            except (IndexError, ValueError):
+                continue
+        dt = agora - self.t
+        if self.ant and dt > 0:
+            melhor = max(((novo[k][0] - self.ant[k][0], novo[k][1]) for k in novo if k in self.ant), default=None)
+            self.top = (round(100.0 * melhor[0] / HZ / dt, 1), melhor[1]) if melhor else None
+        self.ant, self.t = novo, agora
+        return self.top
+
+
+gargalo = Gargalo()
+
+
+def classificar_gargalo(gpu, top, ft_lista):
+    # gpu: usage %, top: (busiest thread %, name), ft_lista: frame times since the last reading
+    uso = gpu.get("uso") if gpu.get("ok") else None
+    if uso is not None and uso >= 95:
+        return "gpu"
+    if top and top[0] >= 85:
+        return "cpu"
+    if len(ft_lista) >= 10 and (uso is None or uso < 90):
+        # steady frames: the middle half of the frame times within 6 % of the median (a stutter does not count)
+        o = sorted(ft_lista)
+        q1, med, q3 = o[len(o) // 4], o[len(o) // 2], o[3 * len(o) // 4]
+        if med > 0 and (q3 - q1) / med < 0.06:
+            return "limite"
+    return "livre" if uso is not None and ft_lista else None
 sessoes = Sessoes()
 dica = {"t": 0.0, "txt": None}
 
@@ -2159,12 +2268,12 @@ def varredura():
             continue                    # still starting, or only the launcher
         maior = max(membros, key=lambda x: procs[x]["kb"])
         jogos.append({"nome": nome_app(appid, raiz) or nomes[maior], "desde": BOOT + procs[pid]["inicio"] / HZ,
-                      "kb": kb, "vram": sum(vram.get(x, 0) for x in membros)})
+                      "kb": kb, "pid": maior, "vram": sum(vram.get(x, 0) for x in membros)})
         de_jogo.update({x: jogos[-1]["nome"] for x in membros})
     for pid in soltos:
         if pid not in dentro_de_jogo:
             jogos.append({"nome": nomes[pid], "desde": BOOT + procs[pid]["inicio"] / HZ,
-                          "kb": procs[pid]["kb"], "vram": vram.get(pid, 0)})
+                          "kb": procs[pid]["kb"], "pid": pid, "vram": vram.get(pid, 0)})
     jogos.sort(key=lambda j: -j["kb"])
 
     agora = time.monotonic()
@@ -2725,6 +2834,8 @@ class Medidor:
         jogo = jogos[0]["nome"] if jogos else None
         quadros = leitor_fps.ler(jogos[0] if jogos else None)
         self.ft_lista = quadros.pop("ft_lista") if quadros else []
+        fio = gargalo.medir(jogos[0].get("pid") if jogos else None)
+        limita = classificar_gargalo(gpu, fio, self.ft_lista) if jogos else None
         if pz:
             if pz["ticks"] is not None:
                 av("pz-ticks", "pz", nivel_min(pz["ticks"], (8.5, 6, 4)), "Servidor do Zomboid a %.1f ticks/s" % pz["ticks"],
@@ -2752,6 +2863,8 @@ class Medidor:
                    "mib": int((ler("/proc/self/statm") or "0 0").split()[1]) * PAGINA_KB // 1024}
         ligado = float((ler("/proc/uptime") or "0").split()[0])
         lento = ritmo()
+        hoje.anotar(t, temps, rede)
+        prim = lambda m: next((y for y in (limite(m) or ()) if y is not None), None)
         agora = {"t": round(t, 2), "cpu": cpu, "ram": ram, "gpu": gpu, "rede": rede, "temps": temps,
                  "fans": {"canais": canais, "pode": fans["pode"], "escolha": cfg["fans"], "aplicado": fans["aplicado"],
                           "alvo_gpu": curva_gpu["alvo"], "calibrando": fans["calibrando"], "velho": fans["velho"]},
@@ -2763,6 +2876,8 @@ class Medidor:
                  "nv": nv, "avisos": avisos, "silencio": mudos,
                  "jogando": jogando(), "sessao": sessoes.resumo(sessoes.atual), "fps": quadros,
                  "fps_log": leitor_fps.pasta is not None,
+                 "gargalo": {"tipo": limita, "fio": fio[0] if fio else None, "fio_nome": fio[1] if fio else None} if limita else None,
+                 "lims": {"vram": prim("vram"), "cpu": prim("cpu_uso"), "ping": prim("ping")},
                  "rede_progs": extra["rede_progs"] if time.monotonic() - rede_pedida[0] < 15 else None,
                  "ev": ev_seq[0], "cfg": cfg_seq[0], "registro": cfg["registro"]["ligado"],
                  "espaco": lento[0] or float(cfg["passo"])}
@@ -2770,7 +2885,8 @@ class Medidor:
                  round(gpu["vram"] / 1024, 2) if gpu["ok"] else None, gpu.get("uso"), cpu["uso"],
                  ping, round(rx * 8 / 1e6, 3) if rx is not None else None,
                  round(tx * 8 / 1e6, 3) if tx is not None else None, tcpu, gpu.get("temp"), gw,
-                 quadros["fps"] if quadros else None, quadros["ft_max"] if quadros else None]
+                 quadros["fps"] if quadros else None, quadros["ft_max"] if quadros else None,
+                 quadros["ft"] if quadros else None]
         registro.medida(agora)
         return linha, agora
 
@@ -2868,6 +2984,7 @@ def laco_lento():
                 saude_ssd()
             if vence("h24", 900):
                 h24.salvar()
+                hoje.salvar()
             if vence("sis", 60 if aberta else 300):
                 extra["sis"] = info_sistema()
             if vence("saude", 120 if aberta or cfg["alertas"]["fundo"] else 900):
@@ -3165,6 +3282,7 @@ def sair(*_):
         with h24.trava:
             h24.fechar()
         h24.salvar()
+        hoje.salvar()
     except Exception as e:
         avisar("sair", e)
     ao_parar()
@@ -3193,6 +3311,7 @@ if __name__ == "__main__":
     prioridade_minima()
     carregar_cfg()
     h24.carregar()
+    hoje.carregar()
     caixa.iniciar()
     caixa.avisar_novo()
     try:
