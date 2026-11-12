@@ -10,11 +10,12 @@ The interface is available in English and Portuguese.
 ## What it shows
 
 - RAM, swap, cache and memory pressure
-- Graphics card usage, VRAM, temperature, power, fan speed (NVIDIA, basic AMD)
+- Graphics card usage, VRAM, temperature, power, fan speed (NVIDIA, basic AMD); Intel and AMD integrated graphics with usage, clock and video memory per program
 - Processor usage per core, temperature, clock, load
 - Network ping, loss, jitter, download and upload, link speed and errors, and a full network view
 - Programs ranked by RAM, VRAM and CPU
-- Temperatures and fans (with the highest reading of the last 24 h), disks with health, temperature, speed and busy share
+- Notebook battery: charge, time left or to full, power, health, cycles, age and charge limits (module, shown only when a battery exists)
+- Temperatures and fans (with the highest reading of the last 24 h, notebook fans read only), disks with health, temperature, speed and busy share
 - System health: kernel errors, crashed programs, pending reboot, pending updates (pacman or dnf; packages from outside the official repositories, such as the AUR, are counted and listed but never checked)
 - The running Steam game with FPS, frame time and what limits it (graphics card, processor or an FPS cap), an events list
   with a 24 h strip, optional CSV logging
@@ -190,9 +191,9 @@ Remove a quick install with `curl -fsSL https://raw.githubusercontent.com/gabrie
 
 - Linux with systemd and Python 3.12 or newer. No Python packages needed.
 - The tray icon is built for x86_64. On other machines the quick installer compiles it when a C compiler and the systemd headers exist.
-- Graphics card readings: NVIDIA with the proprietary driver, or AMD through the kernel driver. Without one, those cards are hidden.
+- Graphics card readings: NVIDIA with the proprietary driver, AMD through the kernel driver, or Intel integrated graphics (i915 or xe driver). Without one, those cards are hidden. Integrated graphics have no power or temperature reading of their own.
 - Fan control and motherboard fan speeds: Nuvoton NCT67xx fan chips (driver `nct6775`). Other chips are not supported yet.
-- Developed and tested on one Arch Linux machine (Ryzen, RTX 3060 Ti). Fedora packages are built and installed by the release workflow but have not been used on real hardware yet. Reports are welcome.
+- Developed and tested on one Arch Linux machine (Ryzen, RTX 3060 Ti, Radeon integrated graphics). Fedora packages are built by the release workflow and were run in a Fedora 45 container; Intel graphics and notebook batteries were tested with simulated kernel files, not on a real notebook yet. Reports are welcome.
 
 ## Updating
 

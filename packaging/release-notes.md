@@ -1,3 +1,23 @@
+## 0.5.2: notebooks, integrated graphics, battery
+
+- **Intel integrated graphics** (i915 and xe drivers): usage and video engine use from the programs'
+  DRM statistics, clock, and video memory per program. The card is called "Video memory" and counts
+  GiB taken from RAM, with no alert limit of its own (the RAM alert covers it).
+- **AMD integrated graphics** (APUs) are told apart from graphics cards. Their memory is the small
+  reserved part plus the shared part from RAM, so the card no longer shows only 0.5 GiB. Programs
+  using the video memory are listed for AMD too.
+- **Battery card** (module on by default, hidden on PCs without a battery): charge, time left or time
+  to full (from the average of the last 2 minutes, and up to the charge limit when one is set), power
+  drawn or charging, health against the design capacity, cycles, chemistry, age from the manufacture
+  date, charge limits, voltage and temperature when the kernel gives them. A low battery alert while
+  unplugged, and battery % and watts in the 24 h history and in the CSV log. Headset and mouse
+  batteries stay in the System card.
+- **Notebook fans** from other fan chips (ThinkPad, Dell, ASUS and others) are shown read only in
+  Temperatures, and the fan control buttons hide when there is nothing to control.
+- **Small screens**: checked at 1366x768 and 1280x720; empty fields hide instead of leaving gaps.
+- Processor names are shorter for Intel mobile chips (i5-1235U, Ultra 7 155H, Celeron N4020).
+- Tested on Fedora 45 (Python 3.15): the RPM builds, installs and runs.
+
 ## 0.5.1: alerts that stand out, disks, bottleneck
 
 - **Alerts stand out again.** Metric colors were moved away from the alert colors (no more pink or

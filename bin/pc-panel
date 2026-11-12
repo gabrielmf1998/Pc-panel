@@ -36,7 +36,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 
-VERSAO = "0.5.1"
+VERSAO = "0.5.2"
 REPO = "gabrielmf1998/pc-panel"         # owner/repository on GitHub, used only to look for a new version
 PASTA_CFG = os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"), "pc-panel")
 
@@ -67,7 +67,7 @@ ARQ_PAGINA = os.path.join(AQUI, "..", "share", "pc-panel", "page.html")
 ARQ_FANS = "/var/lib/pc-panel/fans.json"
 ARQ_FANS_ESTADO = "/run/pc-panel-fans.json"
 AJUDANTES_FANS = ("/usr/lib/pc-panel/pc-panel-fans", "/usr/local/lib/pc-panel/pc-panel-fans")
-CARTOES = ("ram", "vram", "gpu", "cpu", "rede", "prog", "temp", "disc", "saude", "jogo", "live", "pz", "sis", "eventos")
+CARTOES = ("ram", "vram", "gpu", "cpu", "rede", "prog", "temp", "disc", "saude", "jogo", "live", "pz", "sis", "eventos", "bat")
 TEMAS = ("escuro", "preto", "noite", "claro", "contraste")
 CORES = ("azul", "agua", "violeta", "magenta")
 PERFIS = ("tudo", "jogo", "live", "hardware", "proprio")
@@ -267,7 +267,8 @@ def rodar(args, espera=10):
 
 
 BOOT = int(re.search(r"^btime (\d+)", ler("/proc/stat") or "btime 0", re.M).group(1))
-NOME_CPU = re.sub(r"^AMD |^Intel\(R\) Core\(TM\) | \d+-Core Processor.*$", "",
+# "AMD Ryzen 7 9800X3D 8-Core Processor" -> "Ryzen 7 9800X3D", "12th Gen Intel(R) Core(TM) i5-1235U" -> "i5-1235U"
+NOME_CPU = re.sub(r"^\d+th Gen |^AMD |Intel\(R\) |Core\(TM\) |\((R|TM)\)|( CPU)? @.*$| with Radeon.*$| \d+-Core Processor.*$", "",
                   (re.search(r"model name\s*:\s*(.+)", ler("/proc/cpuinfo") or "") or [None, "Processador"])[1]).strip()
 FREQS = sorted(glob.glob("/sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_cur_freq"))
 # processor package energy (RAPL, also on AMD). Most systems keep it readable by root only,
@@ -369,7 +370,8 @@ def cfg_padrao():
             "caixa": True,
             "registro": {"ligado": False, "pasta": "~/.local/share/pc-panel/registro", "intervalo": 10, "dias": 30},
             # extra modules, off by default: Project Zomboid server and live viewer counter
-            "modulos": {"zomboid": False, "live": False},
+            # bateria: the notebook battery card, shown only when the PC has one
+            "modulos": {"zomboid": False, "live": False, "bateria": True},
             # MiB subtracted from available memory (3500 mimics the MangoHud "RAM LEFT" row)
             "ram_reserva": 0,
             "fans": None, "canais": [], "calib": {}, "nomes_fans": {}}
@@ -415,7 +417,7 @@ def limpar_cfg(d, base):
         if k in d:
             nova[k] = bool(d[k])
     if isinstance(d.get("modulos"), dict):
-        for k in ("zomboid", "live"):
+        for k in ("zomboid", "live", "bateria"):
             if k in d["modulos"]:
                 nova["modulos"][k] = bool(d["modulos"][k])
     if numero(d.get("ram_reserva")):
@@ -525,7 +527,8 @@ def salvar_cfg(nova):
 class Registro:
     COLUNAS = ["hora", "ram_usada_gib", "ram_left_mib", "swap_gib", "vram_gib", "placa_uso", "placa_temp",
                "placa_watts", "placa_fan", "cpu_uso", "cpu_temp", "fans_rpm", "ping_ms", "download_mbit",
-               "upload_mbit", "jogo", "jogo_ram_gib", "jogo_vram_gib", "espectadores", "pz_ticks", "pz_jogadores"]
+               "upload_mbit", "jogo", "jogo_ram_gib", "jogo_vram_gib", "espectadores", "pz_ticks", "pz_jogadores",
+               "bateria_pct", "bateria_watts"]
 
     def __init__(self):
         self.f = self.caminho = self.erro = None
@@ -593,7 +596,8 @@ class Registro:
                 n(None if rd["tx"] is None else rd["tx"] * 8 / 1e6, 2),
                 j["nome"] if j else "", n(j["kb"] / 1048576, 2) if j else "", n(j["vram"] / 1024, 2) if j else "",
                 sum(vivas) if vivas else "", n(z["ticks"]) if z else "",
-                len(z["jogadores"]) if z and z["jogadores"] is not None else ""]
+                len(z["jogadores"]) if z and z["jogadores"] is not None else "",
+                (a.get("bat") or {}).get("pct", ""), (a.get("bat") or {}).get("w") or ""]
 
     def evento(self, tipo, ev):
         if not cfg["registro"]["ligado"]:
@@ -776,7 +780,8 @@ def resumo_amostra(a):
             "vr": g.get("vram"), "vt": g.get("vram_total"), "ram": r["left"] // 1024, "sw": r["swap"] // 1024,
             "swr": r["swap_mibs"], "pm": r["psi"], "pio": a["psi_io"], "ping": a["rede"]["ping"],
             "pl": a["rede"]["perda"], "jt": a["rede"]["osc"], "fps": (a.get("fps") or {}).get("fps"),
-            "cw": c.get("watts"),
+            "cw": c.get("watts"), "bat": (a.get("bat") or {}).get("pct"),
+            "bw": a["bat"]["w"] if a.get("bat") and a["bat"]["status"] == "Discharging" else None,
             "rx": None if a["rede"]["rx"] is None else round(a["rede"]["rx"] * 8 / 1e6, 2),
             "tx": None if a["rede"]["tx"] is None else round(a["rede"]["tx"] * 8 / 1e6, 2),
             "j": (a["jogos"][0]["nome"][:32] if a["jogos"] else None),
@@ -938,7 +943,7 @@ def caixa_ok():
 class Historico24:
     # one line per minute for the last 24 hours (averages and peaks), saved every 15 minutes
     COLS = ["t", "cpu", "cpu_max", "tc_max", "gpu", "gpu_max", "tg_max", "w_max", "vram_max", "ram_min",
-            "swap_max", "ping", "ping_max", "jogo", "nv", "perda_max", "jit", "rx", "tx", "fps", "fps_min"]
+            "swap_max", "ping", "ping_max", "jogo", "nv", "perda_max", "jit", "rx", "tx", "fps", "fps_min", "bat_min", "bw"]
 
     def __init__(self):
         self.linhas = collections.deque(maxlen=1440)
@@ -967,7 +972,7 @@ class Historico24:
             if self.minuto != m:
                 self.fechar()
                 self.minuto, self.acc = m, collections.defaultdict(list)
-            for k in ("cpu", "tc", "gpu", "tg", "w", "vr", "ram", "sw", "ping", "nv", "pl", "jt", "rx", "tx", "fps"):
+            for k in ("cpu", "tc", "gpu", "tg", "w", "vr", "ram", "sw", "ping", "nv", "pl", "jt", "rx", "tx", "fps", "bat", "bw"):
                 if r[k] is not None and r[k] >= 0:
                     self.acc[k].append(r[k])
             if r["j"]:
@@ -982,7 +987,8 @@ class Historico24:
         self.linhas.append([self.minuto, media("cpu"), mx("cpu"), mx("tc"), media("gpu"), mx("gpu"), mx("tg"), mx("w"),
                             mx("vr"), min(x["ram"]) if x["ram"] else None, mx("sw"), media("ping"), mx("ping"),
                             (x["j"] or [None])[0], mx("nv") or 0, mx("pl"), media("jt"), media("rx"), media("tx"),
-                            media("fps"), min(x["fps"]) if x["fps"] else None])
+                            media("fps"), min(x["fps"]) if x["fps"] else None, min(x["bat"]) if x["bat"] else None,
+                            media("bw")])
         self.acc = None
         self.mudou = True
 
@@ -1743,8 +1749,140 @@ class Nvidia:
         return info, procs
 
 
+def nome_pci(dev):
+    # the card's name from the PCI ID list of the hwdata package (Arch, Fedora, Debian and others ship it)
+    ven = (ler(dev + "/vendor") or "").strip()[2:].lower()
+    num = (ler(dev + "/device") or "").strip()[2:].lower()
+    for arq in ("/usr/share/hwdata/pci.ids", "/usr/share/misc/pci.ids", "/usr/share/pci.ids"):
+        try:
+            with open(arq, encoding="utf-8", errors="replace") as f:
+                dentro = False
+                for linha in f:
+                    if linha.startswith("#") or not linha.strip():
+                        continue
+                    if not linha.startswith("\t"):
+                        if dentro:
+                            break
+                        dentro = linha.startswith(ven + "  ")
+                    elif dentro and linha.startswith("\t" + num + "  "):
+                        nome = linha[len(num) + 3:].strip()
+                        m = re.search(r"\[([^\]]+)\]", nome)     # "Alder Lake-P GT2 [Iris Xe Graphics]"
+                        return m.group(1) if m else nome
+        except OSError:
+            continue
+    return None
+
+
+def tamanho_drm(v):
+    # "2 MiB", "12 KiB", "4096" (bytes) -> bytes
+    p = v.split()
+    try:
+        n = int(p[0])
+    except (IndexError, ValueError):
+        return 0
+    return n << {"KiB": 10, "MiB": 20, "GiB": 30}.get(p[1] if len(p) > 1 else "", 0)
+
+
+class ClientesDrm:
+    # Programs using a graphics device, from /proc/<pid>/fdinfo (the kernel's DRM usage stats):
+    # busy time per engine and memory per program. Intel and AMD publish it, the NVIDIA driver does not.
+    # Only this user's programs can be read, which is where games and the desktop run.
+    MOTOR_3D = ("render", "compute", "rcs", "ccs", "gfx")
+    MOTOR_VIDEO = ("video", "video-enhance", "vcs", "vecs", "dec", "enc", "enc_1", "jpeg", "vpe")
+
+    def __init__(self, pdev, so_vram):
+        self.pdev = pdev
+        self.so_vram = so_vram      # dedicated card: count only its own memory, not system RAM it borrowed
+        self.pids = {}              # pid -> (next look at its open files, [fdinfo files of this device])
+        self.varrer_em = 0.0
+        self.ant = {}               # (client, engine) -> busy ns, or (busy cycles, total cycles)
+        self.t_ant = None
+
+    def achar(self):
+        agora = time.monotonic()
+        if agora < self.varrer_em:
+            return
+        self.varrer_em = agora + 10
+        vivos = set()
+        for nome in os.listdir("/proc"):
+            if not nome.isdigit():
+                continue
+            pid = int(nome)
+            vivos.add(pid)
+            visto = self.pids.get(pid)
+            if visto and agora < visto[0]:
+                continue
+            achados = []
+            try:
+                for fd in os.listdir("/proc/%d/fd" % pid):
+                    try:
+                        if os.readlink("/proc/%d/fd/%s" % (pid, fd)).startswith("/dev/dri/"):
+                            achados.append("/proc/%d/fdinfo/%s" % (pid, fd))
+                    except OSError:
+                        pass
+            except OSError:
+                pass                # another user's program, or it just closed
+            # programs open the card while starting: look again soon, then once a minute
+            self.pids[pid] = (agora + (60 if visto else 20), achados)
+        for pid in [x for x in self.pids if x not in vivos]:
+            del self.pids[pid]
+
+    def ler(self):
+        # returns ({pid: MiB}, % of the busiest 3D engine, % of the busiest video engine)
+        self.achar()
+        t = time.monotonic_ns()
+        dt = t - self.t_ant if self.t_ant else 0
+        self.t_ant = t
+        mem, vistos, novo = collections.Counter(), set(), {}
+        uso = collections.defaultdict(float)
+        for pid, (_, arqs) in list(self.pids.items()):
+            for arq in arqs:
+                d = {}
+                for linha in (ler(arq) or "").splitlines():
+                    k, _, v = linha.partition(":")
+                    d[k.strip()] = v.strip()
+                if not d.get("drm-driver") or d.get("drm-pdev", self.pdev) != self.pdev:
+                    continue
+                cliente = d.get("drm-client-id") or arq
+                if cliente in vistos:
+                    continue        # the same client open twice (a copied file descriptor)
+                vistos.add(cliente)
+                regioes = {k[13:]: tamanho_drm(v) for k, v in d.items() if k.startswith("drm-resident-")}
+                if not regioes:     # older amdgpu
+                    regioes = {k[11:]: tamanho_drm(v) for k, v in d.items() if k.startswith("drm-memory-")}
+                mem[pid] += sum(b for r, b in regioes.items()
+                                if r != "cpu" and (not self.so_vram or r.startswith(("vram", "local"))))
+                for k, v in d.items():
+                    if k.startswith("drm-engine-capacity-") or not k.startswith(("drm-engine-", "drm-cycles-")):
+                        continue
+                    motor = k[11:]          # after "drm-engine-" or "drm-cycles-"
+                    cap = max(1, int(d.get("drm-engine-capacity-" + motor, "1") or 1))
+                    try:
+                        n = int(v.split()[0])
+                    except (IndexError, ValueError):
+                        continue
+                    if k.startswith("drm-cycles-"):
+                        try:
+                            tot = int(d.get("drm-total-cycles-" + motor, "0").split()[0])
+                        except (IndexError, ValueError):
+                            continue
+                        a = self.ant.get((cliente, motor))
+                        novo[(cliente, motor)] = (max(n, a[0]) if a else n, tot)
+                        if a and tot > a[1]:
+                            uso[motor] += max(0, n - a[0]) / (tot - a[1]) / cap
+                    else:
+                        a = self.ant.get((cliente, motor))
+                        novo[(cliente, motor)] = max(n, a) if a is not None else n
+                        if a is not None and dt > 0:
+                            uso[motor] += max(0, n - a) / dt / cap
+        self.ant = novo
+        pct = lambda grupo: round(min(100.0, 100 * max([uso[m] for m in grupo if m in uso] or [0])))
+        return ({pid: round(b / 1048576) for pid, b in mem.items() if b >= 1048576},
+                pct(self.MOTOR_3D) if dt else None, pct(self.MOTOR_VIDEO) if dt else None)
+
+
 class Amd:
-    # AMD card (and integrated graphics) through the amdgpu sysfs. No per-program VRAM.
+    # AMD card or integrated graphics (APU) through the amdgpu sysfs; per-program memory from fdinfo.
     def __init__(self):
         self.dev = self.hw = None
         melhor = -1
@@ -1758,29 +1896,89 @@ class Amd:
             if c and not hw_lim["gpu"]:
                 hw_lim["gpu"] = {"crit": round(c)}
                 rec_cache["v"] = None
+            # gpu_metrics starts with a header whose format revision is 1 on cards and 2 or more
+            # on APUs (integrated graphics); without it, a tiny memory reserve also means integrated
+            try:
+                with open(self.dev + "/gpu_metrics", "rb") as f:
+                    cab = f.read(4)
+                self.integrada = len(cab) == 4 and cab[2] >= 2
+            except OSError:
+                self.integrada = melhor <= 1 << 30
+            self.nome = nome_pci(self.dev) or "AMD Radeon"
+            self.clientes = ClientesDrm(os.path.basename(os.path.realpath(self.dev)), so_vram=not self.integrada)
+            self.procs, self.procs_em = {}, 0.0
 
     def medir(self):
         d, h = self.dev, self.hw
         total, usada = ler_int(d + "/mem_info_vram_total") or 0, ler_int(d + "/mem_info_vram_used") or 0
         if not total:
             return {"ok": False, "ausente": True, "erro": ("placa sem leitura", "card not readable")}, {}
+        if self.integrada:
+            # integrated graphics: a small reserve plus system RAM lent to it (GTT), both count
+            total += ler_int(d + "/mem_info_gtt_total") or 0
+            usada += ler_int(d + "/mem_info_gtt_used") or 0
         temp = ler_int(h + "/temp1_input") if h else None
         watts = (ler_int(h + "/power1_average") or ler_int(h + "/power1_input")) if h else None
         pwm, rpm = (ler_int(h + "/pwm1"), ler_int(h + "/fan1_input")) if h else (None, None)
         mhz = ler_int(h + "/freq1_input") if h else None
-        return {"ok": True, "nome": "AMD Radeon", "driver": None, "watts_max": None,
-                "uso": ler_int(d + "/gpu_busy_percent") or 0, "vram": usada >> 20, "vram_total": max(1, total >> 20),
+        if time.monotonic() >= self.procs_em:
+            self.procs_em = time.monotonic() + 5
+            try:
+                self.procs = self.clientes.ler()[0]
+            except OSError:
+                self.procs = {}
+        return {"ok": True, "nome": self.nome, "driver": None, "watts_max": None, "integrada": self.integrada,
+                "compartilhada": self.integrada, "uso": ler_int(d + "/gpu_busy_percent") or 0, "vram": usada >> 20, "vram_total": max(1, total >> 20),
                 "temp": round(temp / 1000) if temp else None, "watts": round(watts / 1e6) if watts else None,
                 "fan": None if pwm is None else round(pwm / 2.55), "rpm": [rpm] if rpm else [],
-                "mhz": round(mhz / 1e6) if mhz else None, "enc": None}, {}
+                "mhz": round(mhz / 1e6) if mhz else None, "enc": None}, dict(self.procs)
+
+
+class Intel:
+    # Intel integrated graphics (i915 or xe driver), always at PCI slot 00:02.0. There is no busy
+    # file: usage comes from the programs' fdinfo, the clock from the driver. It has no memory of
+    # its own and no temperature sensor (it sits inside the processor, whose temperature is shown).
+    def __init__(self):
+        self.dev = self.card = None
+        for card in sorted(glob.glob("/sys/class/drm/card[0-9]*")):
+            d = card + "/device"
+            pdev = os.path.basename(os.path.realpath(d))
+            if "-" in os.path.basename(card) or not pdev.endswith(":00:02.0"):
+                continue
+            if (ler(d + "/vendor") or "").strip() == "0x8086" and (ler(d + "/class") or "").strip().startswith("0x03"):
+                self.dev, self.card, self.pdev = d, card, pdev
+                break
+        if self.dev:
+            self.driver = os.path.basename(os.path.realpath(self.dev + "/driver"))
+            self.nome = nome_pci(self.dev) or "Intel Graphics"
+            self.clientes = ClientesDrm(self.pdev, so_vram=False)
+            # i915: gt_act_freq_mhz (newer kernels also gt/gt0/rps_act_freq_mhz); xe: tile0/gt0/freq0/act_freq
+            self.freq = next((x for x in (self.card + "/gt_act_freq_mhz", self.card + "/gt/gt0/rps_act_freq_mhz",
+                                          self.dev + "/tile0/gt0/freq0/act_freq") if os.path.exists(x)), None)
+
+    def medir(self):
+        try:
+            procs, uso, video = self.clientes.ler()
+        except OSError:
+            procs, uso, video = {}, None, None
+        mhz = ler_int(self.freq) if self.freq else None
+        total = (ler_int_meminfo("MemTotal") or 0) >> 10
+        return {"ok": True, "nome": self.nome, "driver": None, "watts_max": None, "integrada": True, "compartilhada": True,
+                "uso": uso or 0, "vram": sum(procs.values()), "vram_total": max(1, total), "temp": None, "watts": None,
+                "fan": None, "rpm": [], "mhz": mhz if mhz and 0 < mhz < 10000 else None, "enc": video}, procs
 
 
 # ---------------------------------------------------------------- sensors, route and disks (slow)
 
 def achar_fontes():
-    f = {"cpu": None, "placa": None, "chip": None, "mem": [], "fans": [], "nvme": {}}
+    f = {"cpu": None, "placa": None, "chip": None, "mem": [], "fans": [], "nvme": {}, "fans_ro": []}
     for d in sorted(glob.glob("/sys/class/hwmon/hwmon*")):
         nome = (ler(d + "/name") or "").strip()
+        if not nome.startswith("nct67") and nome not in ("amdgpu", "radeon", "nouveau", "i915", "xe"):
+            # fans the panel only shows (notebooks: thinkpad, dell_smm, asus...; other motherboard chips)
+            for arq in sorted(glob.glob(d + "/fan[0-9]_input")):
+                rotulo = (ler(arq[:-6] + "_label") or "").strip()
+                f["fans_ro"].append({"arq": arq, "nome": rotulo, "chip": nome})
         if nome in ("k10temp", "zenpower", "coretemp"):
             f["cpu"] = d + "/temp1_input"
         elif nome.startswith("nct67"):
@@ -1866,6 +2064,8 @@ def info_sistema():
                 falhas.append(unidade)
     bateria = None
     for d in glob.glob("/sys/class/power_supply/*"):
+        if (ler(d + "/scope") or "").strip() != "Device":
+            continue                # the notebook battery has its own card (Bateria)
         pct, st = ler_int(d + "/capacity"), (ler(d + "/status") or "").strip()
         if pct is not None and st in ("Discharging", "Charging", "Full"):
             modelo = (ler(d + "/model_name") or os.path.basename(d)).strip()
@@ -1873,6 +2073,111 @@ def info_sistema():
             bateria = {"nome": "Headset" if fone else modelo, "pct": pct, "carregando": st == "Charging"}
             break
     return {"kernel": os.uname().release, "falhas": falhas, "bateria": bateria}
+
+
+class Bateria:
+    # The notebook battery, read straight from the kernel (/sys/class/power_supply). A headset or
+    # mouse battery has scope "Device" and stays in the System card. Read every 5 s at most: on some
+    # notebooks each read asks the embedded controller.
+    def __init__(self):
+        self.dirs, self.fontes = [], []
+        self.achar_em = self.ler_em = 0.0
+        self.info = None
+        self.ws = collections.deque(maxlen=40)      # (time, watts) for a steady time estimate
+
+    def achar(self):
+        self.dirs, self.fontes = [], []
+        for d in sorted(glob.glob("/sys/class/power_supply/*")):
+            tipo, escopo = (ler(d + "/type") or "").strip(), (ler(d + "/scope") or "").strip()
+            if escopo == "Device":
+                continue
+            if tipo == "Battery" and ler_int(d + "/present") != 0 and ler_int(d + "/capacity") is not None:
+                self.dirs.append(d)
+            elif tipo in ("Mains", "USB"):
+                self.fontes.append(d)
+
+    @staticmethod
+    def uma(d):
+        txt = lambda k: (ler(d + "/" + k) or "").strip() or None
+        num = lambda k: ler_int(d + "/" + k)
+        b = {"pct": num("capacity"), "status": txt("status"), "nivel": txt("capacity_level")}
+        # energy in µWh; batteries that count charge (µAh) are converted with the design voltage
+        vmin = num("voltage_min_design") or num("voltage_now")
+        if num("energy_full") is not None:
+            b.update(e=num("energy_now"), full=num("energy_full"), design=num("energy_full_design"))
+        elif num("charge_full") is not None and vmin:
+            conv = lambda x: None if x is None else x * vmin // 1000000
+            b.update(e=conv(num("charge_now")), full=conv(num("charge_full")), design=conv(num("charge_full_design")))
+        w = num("power_now")
+        if w is None and num("current_now") is not None and num("voltage_now"):
+            w = abs(num("current_now")) * num("voltage_now") // 1000000
+        b["uw"] = abs(w) if w is not None else None
+        b.update(ciclos=num("cycle_count") or None, fabricante=txt("manufacturer"), modelo=txt("model_name"),
+                 tecnologia=txt("technology"), saude_txt=txt("health"), v=num("voltage_now"),
+                 temp=num("temp"), ini=num("charge_control_start_threshold"), fim=num("charge_control_end_threshold"),
+                 ano=num("manufacture_year"), mes=num("manufacture_month"),
+                 t_vazio=num("time_to_empty_avg") or num("time_to_empty_now"),
+                 t_cheio=num("time_to_full_avg") or num("time_to_full_now"))
+        return b
+
+    def medir(self):
+        agora = time.monotonic()
+        if agora >= self.achar_em:
+            self.achar_em = agora + 60
+            self.achar()
+        if not self.dirs:
+            self.info = None
+            return None
+        if agora < self.ler_em and self.info:
+            return self.info
+        self.ler_em = agora + 5
+        bs = [self.uma(d) for d in self.dirs]
+        b = dict(bs[0])
+        if len(bs) > 1:             # two batteries (some ThinkPads): add them up
+            soma = lambda k: sum(x[k] for x in bs) if all(x.get(k) is not None for x in bs) else None
+            b.update(e=soma("e"), full=soma("full"), design=soma("design"), uw=soma("uw"))
+            if b["e"] is not None and b["full"]:
+                b["pct"] = round(100 * b["e"] / b["full"])
+            sts = [x["status"] for x in bs]
+            b["status"] = next((s for s in ("Discharging", "Charging") if s in sts), sts[0])
+        st = b["status"]
+        tomada = None
+        for d in self.fontes:
+            on = ler_int(d + "/online")
+            if on is not None:
+                tomada = bool(tomada) or on > 0
+        if tomada is None:
+            tomada = st in ("Charging", "Full", "Not charging")
+        ativo = st in ("Discharging", "Charging")
+        w = round(b["uw"] / 1e6, 1) if b["uw"] is not None and ativo else None
+        if w is not None and w > 0.05:
+            self.ws.append((agora, w, st))
+        # average of the last 2 minutes in the same state: the instant reading jumps a lot
+        rec = [x[1] for x in self.ws if agora - x[0] <= 120 and x[2] == st]
+        media = sum(rec) / len(rec) if rec else None
+        eta = None
+        if media and b.get("e") is not None:
+            if st == "Discharging":
+                eta = b["e"] / (media * 1e6) * 3600
+            elif st == "Charging" and b.get("full"):
+                alvo = b["full"] * (b["fim"] / 100 if b.get("fim") and b["fim"] < 100 else 1)
+                eta = max(0.0, (alvo - b["e"]) / (media * 1e6) * 3600)
+        if eta is None:
+            eta = b["t_vazio"] if st == "Discharging" else b["t_cheio"] if st == "Charging" else None
+        saude = round(100 * b["full"] / b["design"], 1) if b.get("full") and b.get("design") else None
+        self.info = {"pct": b["pct"], "status": st, "tomada": tomada, "w": w, "w_media": round(media, 1) if media else None,
+                     "eta": round(eta) if eta else None, "saude": saude, "ciclos": b["ciclos"],
+                     "wh": round(b["e"] / 1e6, 1) if b.get("e") is not None else None,
+                     "wh_cheia": round(b["full"] / 1e6, 1) if b.get("full") else None,
+                     "wh_projeto": round(b["design"] / 1e6, 1) if b.get("design") else None,
+                     "fabricante": b["fabricante"], "modelo": b["modelo"], "tecnologia": b["tecnologia"],
+                     "saude_txt": b["saude_txt"], "v": round(b["v"] / 1e6, 2) if b.get("v") else None,
+                     "temp": round(b["temp"] / 10, 1) if b.get("temp") else None, "ini": b["ini"], "fim": b["fim"],
+                     "ano": b["ano"] if b.get("ano") and b["ano"] > 1990 else None, "mes": b["mes"], "n": len(bs)}
+        return self.info
+
+
+bateria = Bateria()
 
 
 def cauda(arq, bytes_):
@@ -2547,7 +2852,7 @@ def info_live():
 class Medidor:
     def __init__(self):
         self.nv = Nvidia()
-        self.amd = None
+        self.outra = None           # AMD or Intel reader, made when there is no NVIDIA card
         self.ant = None
         self.pings = collections.deque(maxlen=60)
         self.pings_gw = collections.deque(maxlen=60)
@@ -2676,16 +2981,22 @@ class Medidor:
             nv["ram"] = max(nv["ram"], n2, key=NIVEIS.index)
 
         # graphics card
-        gpu, procs = self.nv.medir() if os.environ.get("PC_PANEL_GPU") != "amd" else ({"ok": False}, {})
-        if not gpu["ok"] and (self.nv.ausente or os.environ.get("PC_PANEL_GPU") == "amd"):
-            # no NVIDIA: try an AMD card; with none, the card tiles disappear instead of raising an alarm
-            self.amd = self.amd or Amd()
-            gpu, procs = self.amd.medir() if self.amd.dev else ({"ok": False, "ausente": True, "erro": ("", "")}, {})
+        forca = os.environ.get("PC_PANEL_GPU")        # "amd" or "intel": skip the NVIDIA card
+        gpu, procs = self.nv.medir() if forca not in ("amd", "intel") else ({"ok": False}, {})
+        if not gpu["ok"] and (self.nv.ausente or forca in ("amd", "intel")):
+            # no NVIDIA: an AMD card or APU, else Intel integrated graphics; with none,
+            # the card tiles disappear instead of raising an alarm
+            if self.outra is None:
+                leitores = (Intel,) if forca == "intel" else (Amd, Intel)
+                self.outra = next((x for x in (k() for k in leitores) if x.dev), False)
+            gpu, procs = self.outra.medir() if self.outra else ({"ok": False, "ausente": True, "erro": ("", "")}, {})
         ult_vram.clear()
         ult_vram.update(procs)
         if gpu["ok"]:
             pct = 100.0 * gpu["vram"] / gpu["vram_total"]
-            nv["vram"] = av("vram", "vram", nivel(pct, limite("vram")), "VRAM em %d %%" % pct, "VRAM at %d %%" % pct)
+            # Intel graphics borrows plain RAM with no limit of its own: the RAM card already warns
+            nv["vram"] = "bom" if gpu.get("compartilhada") else av(
+                "vram", "vram", nivel(pct, limite("vram")), "VRAM em %d %%" % pct, "VRAM at %d %%" % pct)
             nv["gpu"] = nivel(gpu["temp"], limite("temp_gpu"))
         elif gpu.get("ausente"):
             nv["vram"] = nv["gpu"] = "bom"
@@ -2823,6 +3134,11 @@ class Medidor:
             pwm = ler_int(base)
             canais.append({"n": n, "rpm": ler_int("%s/fan%s_input" % (fontes["chip"], n)) or 0,
                            "pct": None if pwm is None else round(pwm / 2.55), "modo": ler_int(base + "_enable")})
+        so_ver = []
+        for x in fontes["fans_ro"]:
+            rpm = ler_int(x["arq"])
+            if rpm is not None:
+                so_ver.append({"nome": x["nome"], "rpm": rpm})
         if fans["calibrando"] is None:
             for x in canais:
                 if x["rpm"] == 0:
@@ -2850,6 +3166,11 @@ class Medidor:
         if bat and lim_bat and not bat["carregando"]:
             av("bateria", "sis", nivel_min(bat["pct"], lim_bat), "%s com %d %% de bateria" % (bat["nome"], bat["pct"]),
                "%s battery at %d %%" % (bat["nome"], bat["pct"]))
+        pc_bat = bateria.medir() if cfg["modulos"]["bateria"] else None
+        nv["bat"] = "bom"
+        if pc_bat and lim_bat and pc_bat["status"] == "Discharging" and pc_bat["pct"] is not None:
+            nv["bat"] = av("bateria-pc", "bat", nivel_min(pc_bat["pct"], lim_bat), "Bateria do notebook em %d %%" % pc_bat["pct"],
+                           "Notebook battery at %d %%" % pc_bat["pct"])
         proteger_fans(gpu.get("temp"), tcpu)
         guiar_gpu(gpu.get("temp"))
         with trava_ev:
@@ -2866,7 +3187,8 @@ class Medidor:
         hoje.anotar(t, temps, rede)
         prim = lambda m: next((y for y in (limite(m) or ()) if y is not None), None)
         agora = {"t": round(t, 2), "cpu": cpu, "ram": ram, "gpu": gpu, "rede": rede, "temps": temps,
-                 "fans": {"canais": canais, "pode": fans["pode"], "escolha": cfg["fans"], "aplicado": fans["aplicado"],
+                 "bat": pc_bat,
+                 "fans": {"canais": canais, "ro": so_ver, "pode": fans["pode"], "escolha": cfg["fans"], "aplicado": fans["aplicado"],
                           "alvo_gpu": curva_gpu["alvo"], "calibrando": fans["calibrando"], "velho": fans["velho"]},
                  "discos": lista_discos, "psi_io": psi("io"),
                  "progs": extra["progs"], "jogos": jogos, "live": extra["live"], "pz": pz,
@@ -2886,7 +3208,8 @@ class Medidor:
                  ping, round(rx * 8 / 1e6, 3) if rx is not None else None,
                  round(tx * 8 / 1e6, 3) if tx is not None else None, tcpu, gpu.get("temp"), gw,
                  quadros["fps"] if quadros else None, quadros["ft_max"] if quadros else None,
-                 quadros["ft"] if quadros else None]
+                 quadros["ft"] if quadros else None, pc_bat["pct"] if pc_bat else None,
+                 (pc_bat["w"] if pc_bat["status"] == "Discharging" else -pc_bat["w"]) if pc_bat and pc_bat["w"] else None]
         registro.medida(agora)
         return linha, agora
 

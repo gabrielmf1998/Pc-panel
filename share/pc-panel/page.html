@@ -48,6 +48,7 @@ button.principal:hover{filter:brightness(1.12);background:var(--s1);color:#fff}
 .mod b{font-weight:500;color:var(--tinta2)}
 body[data-estreito] #mods{display:none}
 @media (max-width:1180px){#mods,.data{display:none}}
+[hidden]{display:none!important}
 
 .app{display:grid;gap:10px;padding:10px 12px 12px;height:calc(100vh - var(--topo-h))}
 body.rolar .app{height:auto;min-height:calc(100vh - var(--topo-h))}
@@ -69,7 +70,7 @@ body.semdados .cartao{opacity:.45}
 @keyframes pulso{from{opacity:.15}to{opacity:1}}
 @media (prefers-reduced-motion:reduce){.cartao.al-critico::after{animation:none;opacity:.7}}
 #c-chat{padding:0}
-#c-ram{--mc:var(--m-ram)}#c-vram{--mc:var(--m-vram)}#c-gpu{--mc:var(--m-gpu)}#c-cpu{--mc:var(--m-cpu)}#c-rede{--mc:var(--s1)}#c-jogo{--mc:var(--m-fps)}
+#c-ram{--mc:var(--m-ram)}#c-vram{--mc:var(--m-vram)}#c-gpu{--mc:var(--m-gpu)}#c-cpu{--mc:var(--m-cpu)}#c-rede{--mc:var(--s1)}#c-jogo{--mc:var(--m-fps)}#c-bat{--mc:var(--m-fps)}
 .cartao[data-acento]>header h2::before,#c-jogo .l1 h2::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;
   background:var(--mc);margin-right:7px;vertical-align:1px}
 .num b{transition:color .4s}
@@ -174,6 +175,8 @@ h3{margin:0;font-size:.86rem;font-weight:500;color:var(--apagado);white-space:no
 #c-jogo.grande .l1 h2{font-size:.93rem;color:var(--tinta2);font-weight:500}
 #c-jogo.grande .p{font-size:.93rem;font-weight:600;color:var(--tinta)}
 #c-jogo.grande .d,#c-jogo.grande .d2{display:none}
+.bat-info{font-size:.86rem;color:var(--tinta2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:none;margin-top:7px}
+@container (max-height:9.2rem){.bat-info{display:none}}
 #c-jogo .full .info{font-size:.86rem;color:var(--tinta2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:none}
 #c-jogo .full .info2{font-size:.86rem;color:var(--apagado);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:none}
 #c-jogo .full .dica-fps{font-size:.86rem;color:var(--apagado);flex:none}
@@ -322,7 +325,7 @@ body[data-estreito] .hora{font-size:1.29rem}
   </section>
 
   <section class="cartao" id="c-vram" data-acento>
-    <header><h2>VRAM<small id="gpu-nome"></small></h2><span class="pilula" id="vram-st"></span></header>
+    <header><h2><span id="vram-tit">VRAM</span><small id="gpu-nome"></small></h2><span class="pilula" id="vram-st"></span></header>
     <div class="resumo">
       <div class="num"><b id="vram-v">0</b><span id="vram-de">GiB</span></div>
       <dl class="sub">
@@ -343,7 +346,7 @@ body[data-estreito] .hora{font-size:1.29rem}
         <div><dt data-i="consumo"></dt><dd id="gpu-w"></dd></div>
         <div><dt>Fan</dt><dd id="gpu-fan"></dd></div>
         <div><dt>Clock</dt><dd id="gpu-mhz"></dd></div>
-        <div data-it="enc_t"><dt>Encoder</dt><dd id="gpu-enc"></dd></div>
+        <div id="gpu-enc-b" data-it="enc_t"><dt id="gpu-enc-r">Encoder</dt><dd id="gpu-enc"></dd></div>
       </dl>
     </div>
     <div class="med fino" id="gpu-m"><i></i></div>
@@ -391,11 +394,26 @@ body[data-estreito] .hora{font-size:1.29rem}
     </div>
   </section>
 
+  <section class="cartao" id="c-bat" data-acento>
+    <header><h2><span data-i="c_bat"></span><small id="bat-nome"></small></h2><span class="pilula" id="bat-st"></span></header>
+    <div class="resumo">
+      <div class="num"><b id="bat-v">0</b><span id="bat-de">%</span></div>
+      <dl class="sub">
+        <div data-it="bat_eta_t"><dt id="bat-eta-r"></dt><dd id="bat-eta"></dd></div>
+        <div data-it="bat_w_t"><dt id="bat-w-r"></dt><dd id="bat-w"></dd></div>
+        <div id="bat-saude-b"><dt data-i="bat_saude"></dt><dd id="bat-saude"></dd></div>
+      </dl>
+    </div>
+    <div class="med fino" id="bat-m"><i></i></div>
+    <div class="bat-info" id="bat-info"></div>
+    <div class="graf" id="g-bat"></div>
+  </section>
+
   <section class="cartao" id="c-prog">
     <header><h2 data-i="c_prog"></h2></header>
     <div class="duas">
       <div class="col"><h3 data-i="p_ram"></h3><div class="lista" id="l-ram"></div></div>
-      <div class="col"><h3 data-i="p_vram"></h3><div class="lista" id="l-vram"></div></div>
+      <div class="col"><h3 id="p-vram-t" data-i="p_vram"></h3><div class="lista" id="l-vram"></div></div>
       <div class="col c3"><h3 data-i="p_cpu" data-it="p_cpu_t"></h3><div class="lista" id="l-cpu"></div></div>
     </div>
   </section>
@@ -551,6 +569,7 @@ body[data-estreito] .hora{font-size:1.29rem}
   <fieldset><legend data-i="a_modulos"></legend>
     <label><input type="checkbox" id="aj-m-live"> <span data-i="a_m_live"></span></label>
     <label><input type="checkbox" id="aj-m-zomboid"> <span data-i="a_m_zomboid"></span></label>
+    <label><input type="checkbox" id="aj-m-bateria"> <span data-i="a_m_bateria"></span></label>
     <label class="campo"><span data-i="a_reserva"></span><input type="number" id="aj-reserva" class="curto" min="0" max="16000" step="100"></label></fieldset>
   <fieldset><legend data-i="a_sobre"></legend>
     <label class="campo"><span id="aj-versao" class="nota"></span><span><button type="button" id="aj-ver-btn" data-i="a_ver_btn"></button>
@@ -590,6 +609,17 @@ pt: {conectando: 'conectando', nv_bom: 'ok', nv_aviso: 'atenção', nv_serio: 'a
   a_modulos: 'Módulos extras e ajuste fino',
   a_m_live: 'Live, o cartão do OBS com contador de espectadores (usa o serviço espectadores na porta 47821)',
   a_m_zomboid: 'Servidor do Project Zomboid hospedado neste PC, com jogadores, ticks e backup',
+  a_m_bateria: 'Bateria do notebook: tempo restante, saúde e ciclos (só em PC com bateria)',
+  c_bat: 'Bateria', bat_rest: 'Restante', bat_ate: 'Até carregar', bat_tomada: 'na tomada, sem carregar', bat_carr: 'carregando',
+  bat_cheia: 'cheia', bat_nabat: 'na bateria', bat_saude: 'Saúde', bat_ciclos_n: '{0} ciclos de carga', bat_carga: 'Entrando',
+  bat_eta_t: 'Estimativa pela média de consumo dos últimos 2 minutos', bat_w_t: 'Quanto o notebook inteiro gasta agora, lido da bateria (média de 2 minutos)',
+  bat_wh: '{0} Wh agora, cheia guarda {1} Wh de {2} Wh de fábrica (desgaste de {3} %)',
+  bat_fab: 'fabricada em {0}', bat_idade: '{0} anos', bat_idade1: '1 ano', bat_meses: '{0} meses', bat_lim: 'carga limitada a {0} %', bat_lim2: 'carrega de {0} até {1} %',
+  bat_g_desc: 'gastando {0} W', bat_g_carga: 'carregando a {0} W', bat_duas: '2 baterias somadas',
+  mem_video: 'Memória de vídeo', gib_comp: 'GiB, da RAM', integrada_t: 'Placa integrada: usa parte da RAM do sistema como memória de vídeo',
+  p_memvideo: 'Memória de vídeo por programa', video: 'Vídeo', video_t: 'Uso do motor de vídeo (assistir, gravar e transmitir vídeo)',
+  soc_t: 'Na placa integrada da AMD este consumo inclui o processador', fan_ro: 'só leitura, o painel não controla esta fan',
+  s_pot_bat: 'notebook gastando {0} W da bateria', s_pot_soc: 'chip (processador e placa) {0} W',
   a_reserva: 'Descontar da memória disponível, em MiB (3500 imita o RAM LEFT do MangoHud)',
   a_sobre: 'Sobre o PC Panel', a_versao: 'Versão {0}.', a_ver_btn: 'Procurar versão nova', a_atualizar: 'Atualizar agora',
   a_ver_nova: ' Saiu a versão {0}.', a_ver_ok: ' Esta é a mais nova.', a_ver_senha: 'Digite a senha de administrador na janela que abriu. A página recarrega quando terminar.',
@@ -648,7 +678,7 @@ pt: {conectando: 'conectando', nv_bom: 'ok', nv_aviso: 'atenção', nv_serio: 'a
   lm_prog_cpu: 'Um programa usando o processador (% do total)', lm_temp_cpu: 'Temperatura do processador (°C)',
   lm_temp_gpu: 'Temperatura da placa de vídeo (°C)', lm_temp_ssd: 'Temperatura dos SSDs (°C)', lm_temp_mem: 'Temperatura da memória (°C)',
   lm_temp_placa: 'Temperatura da placa-mãe (°C)', lm_disco: 'Disco cheio (% usado)', lm_ping: 'Ping (ms)', lm_perda: 'Perda de pacotes (%)',
-  lm_bateria: 'Bateria do fone ou do mouse (%)', lm_kernel: 'Erros do kernel', lm_travou: 'Programa travou (crash)',
+  lm_bateria: 'Bateria do notebook, fone ou mouse (%)', lm_kernel: 'Erros do kernel', lm_travou: 'Programa travou (crash)',
   l_fonte: 'De onde vem o recomendado: {0}.', l_ssd: 'SSDs: {0}', l_padrao: 'outros',
   a_registro: 'Registro em arquivo', a_log: 'Guardar as medidas e os eventos em arquivos CSV', a_pasta: 'Pasta', a_int: 'Gravar uma linha a cada',
   i_5: '5 segundos', i_10: '10 segundos', i_30: '30 segundos', i_60: '1 minuto', a_dias: 'Apagar arquivos com mais de', d_7: '7 dias',
@@ -687,6 +717,17 @@ en: {conectando: 'connecting', nv_bom: 'ok', nv_aviso: 'warning', nv_serio: 'hig
   a_modulos: 'Extra modules and fine tuning',
   a_m_live: 'Live, the OBS card with a viewer counter (uses the espectadores service on port 47821)',
   a_m_zomboid: 'Project Zomboid server hosted on this PC, with players, ticks and backup',
+  a_m_bateria: 'Notebook battery: time left, health and cycles (only on a PC with a battery)',
+  c_bat: 'Battery', bat_rest: 'Left', bat_ate: 'Until full', bat_tomada: 'plugged in, not charging', bat_carr: 'charging',
+  bat_cheia: 'full', bat_nabat: 'on battery', bat_saude: 'Health', bat_ciclos_n: '{0} charge cycles', bat_carga: 'Charging at',
+  bat_eta_t: 'Estimate from the average draw of the last 2 minutes', bat_w_t: 'What the whole notebook draws now, read from the battery (2 minute average)',
+  bat_wh: '{0} Wh now, holds {1} Wh when full of {2} Wh when new ({3} % worn)',
+  bat_fab: 'made {0}', bat_idade: '{0} years', bat_idade1: '1 year', bat_meses: '{0} months', bat_lim: 'charge limited to {0} %', bat_lim2: 'charges from {0} to {1} %',
+  bat_g_desc: 'drawing {0} W', bat_g_carga: 'charging at {0} W', bat_duas: '2 batteries added up',
+  mem_video: 'Video memory', gib_comp: 'GiB, from RAM', integrada_t: 'Integrated graphics: uses part of the system RAM as video memory',
+  p_memvideo: 'Video memory by program', video: 'Video', video_t: 'Video engine usage (playing, recording and streaming video)',
+  soc_t: 'On AMD integrated graphics this power includes the processor', fan_ro: 'read only, the panel does not control this fan',
+  s_pot_bat: 'notebook drawing {0} W from the battery', s_pot_soc: 'chip (processor and graphics) {0} W',
   a_reserva: 'Subtract from available memory, in MiB (3500 mimics MangoHud RAM LEFT)',
   a_sobre: 'About PC Panel', a_versao: 'Version {0}.', a_ver_btn: 'Check for a new version', a_atualizar: 'Update now',
   a_ver_nova: ' Version {0} is out.', a_ver_ok: ' This is the latest.', a_ver_senha: 'Type the administrator password in the window that opened. The page reloads when it is done.',
@@ -745,7 +786,7 @@ en: {conectando: 'connecting', nv_bom: 'ok', nv_aviso: 'warning', nv_serio: 'hig
   lm_prog_cpu: 'One program using the processor (% of total)', lm_temp_cpu: 'Processor temperature (°C)',
   lm_temp_gpu: 'Graphics card temperature (°C)', lm_temp_ssd: 'SSD temperature (°C)', lm_temp_mem: 'Memory temperature (°C)',
   lm_temp_placa: 'Motherboard temperature (°C)', lm_disco: 'Disk full (% used)', lm_ping: 'Ping (ms)', lm_perda: 'Packet loss (%)',
-  lm_bateria: 'Headset or mouse battery (%)', lm_kernel: 'Kernel errors', lm_travou: 'Program crashed',
+  lm_bateria: 'Notebook, headset or mouse battery (%)', lm_kernel: 'Kernel errors', lm_travou: 'Program crashed',
   l_fonte: 'Where recommended comes from: {0}.', l_ssd: 'SSDs: {0}', l_padrao: 'others',
   a_registro: 'Logging to file', a_log: 'Save the samples and the events to CSV files', a_pasta: 'Folder', a_int: 'Write one row every',
   i_5: '5 seconds', i_10: '10 seconds', i_30: '30 seconds', i_60: '1 minute', a_dias: 'Delete files older than', d_7: '7 days',
@@ -833,7 +874,7 @@ Object.assign(TX.pt, {
   dg_internet: 'O roteador responde bem e a internet não: o problema está depois do roteador, no provedor ou no caminho até {0}.',
   dg_pc: 'O PC descartou pacotes UDP recebidos porque um programa não os leu a tempo (fila cheia).', dg_sem: 'Sem rede.',
   dgc_roteador: 'problema entre o PC e o roteador', dgc_internet: 'problema depois do roteador', dgc_pc: 'o PC descartou pacotes UDP',
-  h24_perda: 'Perda %', h24_jit: 'Oscilação ms', h24_rx: 'Download Mbit/s', h24_tx: 'Upload Mbit/s',
+  h24_bat: 'Bateria %', h24_bw: 'Bateria W', h24_perda: 'Perda %', h24_jit: 'Oscilação ms', h24_rx: 'Download Mbit/s', h24_tx: 'Upload Mbit/s',
   th_ping_s: 'Ping médio / máx', th_perda_s: 'Perda máx', th_jit_s: 'Oscilação',
   ds_prev: 'Previsão: restam ~{0} TB de escrita até 100 % do desgaste nominal ({1} TB por 1 %)', ds_aprox: 'aproximada, o SSD informa o desgaste em % inteiro',
   ds_ritmo: 'Escrevendo {0} TB por dia (últimos {1} dias), ~{2} anos nesse ritmo', ds_ritmo0: 'Ritmo de escrita: aparece depois de 1 dia medindo', d_anos: '~{0} anos',
@@ -904,7 +945,7 @@ Object.assign(TX.en, {
   dg_internet: 'The router answers well and the internet does not: the trouble is past the router, at the provider or on the way to {0}.',
   dg_pc: 'The PC dropped received UDP packets because a program did not read them in time (queue full).', dg_sem: 'No network.',
   dgc_roteador: 'trouble between the PC and the router', dgc_internet: 'trouble past the router', dgc_pc: 'the PC dropped UDP packets',
-  h24_perda: 'Loss %', h24_jit: 'Jitter ms', h24_rx: 'Download Mbit/s', h24_tx: 'Upload Mbit/s',
+  h24_bat: 'Battery %', h24_bw: 'Battery W', h24_perda: 'Loss %', h24_jit: 'Jitter ms', h24_rx: 'Download Mbit/s', h24_tx: 'Upload Mbit/s',
   th_ping_s: 'Ping avg / max', th_perda_s: 'Loss max', th_jit_s: 'Jitter',
   ds_prev: 'Forecast: about {0} TB of writes left to 100 % of the rated wear ({1} TB per 1 %)', ds_aprox: 'rough, the SSD reports wear as a whole %',
   ds_ritmo: 'Writing {0} TB a day (last {1} days), about {2} years at this pace', ds_ritmo0: 'Write pace: shows after 1 day of measuring', d_anos: '~{0} years',
@@ -921,17 +962,17 @@ const JANELA = 600;
 const GL = {bom: '●', aviso: '▲', serio: '◆', critico: '■'};
 const ORD = ['bom', 'aviso', 'serio', 'critico'];
 const COR = {bom: 'var(--bom)', aviso: 'var(--aviso)', serio: 'var(--serio)', critico: 'var(--critico)'};
-const CARTOES = ['ram', 'vram', 'gpu', 'cpu', 'rede', 'prog', 'temp', 'disc', 'saude', 'eventos', 'jogo', 'live', 'pz', 'sis'];
+const CARTOES = ['ram', 'vram', 'gpu', 'cpu', 'rede', 'bat', 'prog', 'temp', 'disc', 'saude', 'eventos', 'jogo', 'live', 'pz', 'sis'];
 const PERFIS = {tudo: CARTOES, jogo: ['ram', 'vram', 'gpu', 'cpu', 'rede', 'temp', 'prog', 'jogo'],
   live: ['ram', 'vram', 'gpu', 'cpu', 'rede', 'live', 'jogo', 'eventos', 'temp'],
-  hardware: ['ram', 'vram', 'gpu', 'cpu', 'temp', 'disc', 'saude', 'sis']};
+  hardware: ['ram', 'vram', 'gpu', 'cpu', 'bat', 'temp', 'disc', 'saude', 'sis']};
 // size of each card in columns x rows: l = wide screen (4 columns), m = half screen (2), c = compact
 const TAM = {ram: {l: [1, 5], m: [1, 3], c: [1, 2]}, vram: {l: [1, 5], m: [1, 3], c: [1, 2]}, gpu: {l: [1, 5], m: [1, 3], c: [1, 2]},
-  cpu: {l: [1, 5], m: [1, 3], c: [1, 2]}, rede: {l: [1, 6], m: [1, 4], c: [1, 2]}, prog: {l: [2, 6], m: [1, 4]},
+  cpu: {l: [1, 5], m: [1, 3], c: [1, 2]}, rede: {l: [1, 6], m: [1, 4], c: [1, 2]}, bat: {l: [1, 4], m: [1, 3], c: [1, 2]}, prog: {l: [2, 6], m: [1, 4]},
   temp: {l: [1, 4], m: [1, 5]}, disc: {l: [1, 3], m: [1, 3]}, saude: {l: [1, 3], m: [1, 3]}, eventos: {l: [1, 3], m: [1, 3]},
   jogo: {l: [1, 1], m: [1, 1], c: [1, 1]}, live: {l: [1, 1], m: [1, 1], c: [1, 1]}, pz: {l: [1, 1], m: [1, 1], c: [1, 1]},
   sis: {l: [1, 2], m: [1, 1]}, chat: {l: [1, 1], m: [2, 6]}};
-const PRIO = {ram: 1, vram: 2, gpu: 3, cpu: 4, rede: 5, chat: 6, temp: 30, prog: 31, disc: 32, saude: 33, eventos: 34, sis: 35, jogo: 40, live: 41, pz: 42};
+const PRIO = {ram: 1, vram: 2, gpu: 3, cpu: 4, rede: 5, bat: 5.5, chat: 6, temp: 30, prog: 31, disc: 32, saude: 33, eventos: 34, sis: 35, jogo: 40, live: 41, pz: 42};
 const ESSENCIAIS = ['ram', 'vram', 'gpu', 'cpu', 'rede'];
 
 let H = [], A = null, CFG = null, EV = [], seq = 0, inst = '', passo = 2, falhas = 0, L = 'pt', LOC = 'pt-BR', FONTE = 1;
@@ -1011,6 +1052,7 @@ function visivel(id) {
   if (!CFG) return true;
   if ((id === 'pz' && !CFG.modulos.zomboid) || (id === 'live' && !CFG.modulos.live)) return false;
   if ((id === 'vram' || id === 'gpu') && A && A.gpu.ausente) return false;     // PC without a supported graphics card
+  if (id === 'bat' && (CFG.modulos.bateria === false || !A || !A.bat)) return false;   // desktop PC, or the module is off
   return CFG.perfil === 'proprio' ? CFG.cartoes[id] !== false : (PERFIS[CFG.perfil] || CARTOES).includes(id);
 }
 const nomeDisco = n => n === '/' ? T('d_sistema') : n;
@@ -1143,11 +1185,13 @@ const graficos = [
     fmt: v => nf(v) + ' GiB', limite: () => A.ram.reserva ? {v: (A.ram.total - A.ram.reserva) / 1048576, rotulo: T('left_zero')} : null}),
   new Grafico($('g-vram'), {series: [{i: 2, nome: 'g_vram', cor: 'var(--m-vram)'}], max: () => A.gpu.ok ? A.gpu.vram_total / 1024 : 8,
     zoom: {span: 1}, fmt: v => nf(v) + ' GiB', nv: () => A.nv.vram,
-    limite: () => A.lims && A.lims.vram && A.gpu.ok ? {v: A.lims.vram / 100 * A.gpu.vram_total / 1024, rotulo: T('lim_alerta')} : null}),
+    limite: () => A.lims && A.lims.vram && A.gpu.ok && !A.gpu.compartilhada ? {v: A.lims.vram / 100 * A.gpu.vram_total / 1024, rotulo: T('lim_alerta')} : null}),
   new Grafico($('g-gpu'), {series: [{i: 3, nome: 'g_gpu', cor: 'var(--m-gpu)'}], max: () => 100, zoom: {span: 20, zero: true}, fmt: v => int(v) + ' %',
     nv: () => A.nv.gpu}),
   new Grafico($('g-cpu'), {series: [{i: 4, nome: 'g_cpu', cor: 'var(--m-cpu)'}], max: () => 100, zoom: {span: 20, zero: true}, fmt: v => int(v) + ' %',
     nv: () => A.nv.cpu, limite: () => A.lims && A.lims.cpu ? {v: A.lims.cpu, rotulo: T('lim_alerta')} : null}),
+  new Grafico($('g-bat'), {series: [{i: 14, nome: 'c_bat', cor: 'var(--m-fps)'}], max: () => 100, zoom: {span: 10}, fmt: v => int(v) + ' %',
+    nv: () => A.nv.bat, extra: l => l[15] == null ? '' : l[15] >= 0 ? T('bat_g_desc', nf(l[15])) : T('bat_g_carga', nf(-l[15]))}),
   new Grafico($('g-fps'), {series: [{i: 11, nome: 'FPS', cor: 'var(--m-fps)'}], zoom: {span: 20}, fmt: v => nf(v, v < 100 ? 1 : 0) + ' FPS',
     extra: l => l[12] != null ? T('fps_pior_d', nf(l[12])) : ''}),
   new Grafico($('g-ft'), {series: [{i: 12, nome: 'fps_pior', cor: 'var(--m-fps)'}], zoom: {span: 4, zero: true}, fmt: v => nf(v) + ' ms',
@@ -1186,18 +1230,27 @@ function cPlaca() {
   }
   const top = A.progs && A.progs.vram[0];
   $('gpu-nome').textContent = g.nome;
+  // integrated graphics: AMD lends it a reserve plus RAM (with a limit), Intel just uses RAM
+  $('vram-tit').textContent = g.integrada ? T('mem_video') : 'VRAM';
+  $('c-vram').querySelector('header').title = g.integrada ? T('integrada_t') : '';
+  $('p-vram-t').textContent = g.integrada ? T('p_memvideo') : T('p_vram');
   $('vram-v').textContent = nf(g.vram / 1024);
-  $('vram-de').textContent = T('gib_de', nf(g.vram_total / 1024));
-  $('vram-livre').textContent = tamMib(g.vram_total - g.vram);
+  $('vram-de').textContent = g.compartilhada ? T('gib_comp') : T('gib_de', nf(g.vram_total / 1024));
+  $('vram-livre').textContent = g.compartilhada ? '' : tamMib(g.vram_total - g.vram);
   $('vram-top').textContent = top ? top.nome + ' ' + tamMib(top.mib) : '';
   medidor($('vram-m'), 100 * g.vram / g.vram_total, A.nv.vram);
   nivelNum('vram-v', A.nv.vram); nivelNum('gpu-v', A.nv.gpu);
   $('gpu-v').textContent = int(g.uso);
   $('gpu-temp').textContent = g.temp == null ? '' : g.temp + ' °C';
-  $('gpu-w').textContent = g.watts == null ? '' : g.watts_max ? T('w_de', g.watts, g.watts_max) : g.watts + ' W';
+  $('gpu-w').textContent = g.watts == null || (g.integrada && !g.watts) ? '' : g.watts_max ? T('w_de', g.watts, g.watts_max) : g.watts + ' W';
   $('gpu-fan').textContent = (g.fan == null ? '' : g.fan + ' %') + (g.rpm.length ? (g.fan == null ? '' : ', ') + int(Math.max(...g.rpm)) + ' rpm' : '');
   $('gpu-mhz').textContent = g.mhz == null ? '' : g.mhz + ' MHz';
   $('gpu-enc').textContent = g.enc == null ? '' : g.enc + ' %';
+  $('gpu-enc-r').textContent = g.driver ? 'Encoder' : T('video');
+  $('gpu-enc-b').title = g.driver ? T('enc_t') : T('video_t');
+  $('gpu-w').parentElement.title = g.integrada && g.watts != null ? T('soc_t') : '';
+  // a reading this card does not have (no fan, no sensor) hides its label too
+  for (const id of ['vram-livre', 'vram-top', 'gpu-temp', 'gpu-w', 'gpu-fan', 'gpu-mhz', 'gpu-enc']) $(id).parentElement.hidden = $(id).textContent === '';
   medidor($('gpu-m'), g.uso, A.nv.gpu);
 }
 function cCpu() {
@@ -1339,7 +1392,14 @@ function cTemp() {
       T('fan_gpu') + ', ' + A.gpu.fan + ' %' + (A.gpu.rpm.length ? ', ' + A.gpu.rpm.map(int).join(' / ') + ' rpm' : '') + (e ? ', ' + modoFan(e.gpu) : ''), ''));
   f.canais.forEach((c, i) => linhas.push(linhaMed(nomeFan(c.n, i), c.pct == null ? 0 : c.pct, c.rpm ? 'bom' : 'serio', int(c.rpm) + ' rpm',
     nomeFan(c.n, i) + ' (' + T('canal', c.n) + '), ' + int(c.rpm) + ' rpm, ' + (c.pct == null ? '?' : c.pct) + ' %' + (e && e.placa[c.n] ? ', ' + modoFan(e.placa[c.n]) : ''), '')));
+  // fans the panel only reads (notebooks): a stopped one is normal there, the fan turns off when cool
+  (f.ro || []).forEach((x, i) => {
+    const nome = x.nome || T('fan_n', f.canais.length + i + 1);
+    linhas.push(linhaMed(nome, x.rpm / 60, 'bom', int(x.rpm) + ' rpm', nome + ', ' + int(x.rpm) + ' rpm, ' + T('fan_ro'), ''));
+  });
   $('l-temp').replaceChildren(...linhas);
+  const ajusta = f.canais.length > 0 || (A.gpu.ok && A.gpu.fan != null);
+  $('btn-fans2').hidden = !ajusta; $('btn-fans').hidden = !ajusta;
 }
 function cDisc() {
   $('disc-psi').textContent = A.psi_io >= 1 ? T('espera_disco', nf(A.psi_io, 0)) : '';
@@ -1480,13 +1540,46 @@ function cFaixa() {
     $('mods').replaceChildren(...mods.map(([a, b]) => { const e = el('span', 'mod', a + ' '); e.append(el('b', '', b)); return e; }));
   }
 
-  const s = A.sis, b = s.bateria, gw = A.gpu.ok ? A.gpu.watts : null, cw = A.cpu.watts;
-  const pot = cw != null && gw != null ? T('s_pot', int(cw + gw), int(cw), int(gw)) : gw != null ? T('s_pot_gpu', int(gw)) : null;
+  const s = A.sis, b = s.bateria, gw = A.gpu.ok && (A.gpu.watts || !A.gpu.integrada) ? A.gpu.watts : null, cw = A.cpu.watts, nb = A.bat;
+  // on battery the notebook's whole draw is known; on AMD integrated graphics the card's reading includes the processor
+  const pot = nb && nb.status === 'Discharging' && nb.w_media ? T('s_pot_bat', nf(nb.w_media)) :
+    cw != null && gw != null && !A.gpu.integrada ? T('s_pot', int(cw + gw), int(cw), int(gw)) :
+    gw != null ? T(A.gpu.integrada ? 's_pot_soc' : 's_pot_gpu', int(gw)) : null;
   const hj = A.rede.hoje;
   por('sis', T('s_ligado', dur(s.ligado)), [pot, hj ? T('s_net', tamB(hj.rx), tamB(hj.tx)) : null,
     b ? b.nome + ' ' + b.pct + ' %' + (b.carregando ? ' ' + T('carregando') : '') : null].filter(Boolean).join(', '));
   const sd2 = ['kernel ' + s.kernel, s.driver ? 'NVIDIA ' + s.driver : null, A.registro ? T('s_registro') : null].filter(Boolean).join(', ');
   $('sis-d2').textContent = sd2; $('sis-d2').title = sd2;
+}
+function cBat() {
+  const b = A.bat;
+  if (!b || !visivel('bat')) return;
+  const st = b.status, desc = st === 'Discharging', carr = st === 'Charging';
+  const est = desc ? T('bat_nabat') : carr ? T('bat_carr') : st === 'Full' ? T('bat_cheia') : b.tomada ? T('bat_tomada') : st || '';
+  $('bat-nome').textContent = [b.fabricante, b.modelo].filter(Boolean).join(' ');
+  $('bat-v').textContent = b.pct == null ? '?' : int(b.pct);
+  $('bat-de').textContent = '%';
+  pilula($('bat-st'), A.nv.bat || 'bom', A.nv.bat && A.nv.bat !== 'bom' ? null : est);
+  nivelNum('bat-v', A.nv.bat);
+  medidor($('bat-m'), b.pct || 0, A.nv.bat);
+  $('bat-eta-r').textContent = desc ? T('bat_rest') : carr ? T('bat_ate') : '';
+  $('bat-eta').textContent = (desc || carr) && b.eta ? dur(b.eta) : '';
+  $('bat-w-r').textContent = carr ? T('bat_carga') : T('consumo');
+  $('bat-w').textContent = (desc || carr) && (b.w_media || b.w) ? nf(b.w_media || b.w) + ' W' : '';
+  $('bat-saude').textContent = b.saude == null ? '' : nf(Math.min(100, b.saude), 0) + ' %';
+  $('bat-saude-b').title = b.saude == null ? '' : T('bat_wh', nf(b.wh), nf(b.wh_cheia), nf(b.wh_projeto), nf(Math.max(0, 100 - b.saude), 0));
+  for (const id of ['bat-eta', 'bat-w', 'bat-saude']) $(id).parentElement.hidden = $(id).textContent === '';
+  // age only when the battery reports its date (many notebooks do not)
+  let idade = null;
+  if (b.ano) {
+    const d = new Date(), meses = (d.getFullYear() - b.ano) * 12 + d.getMonth() + 1 - (b.mes || 1);
+    const qto = meses >= 24 ? T('bat_idade', Math.floor(meses / 12)) : meses >= 12 ? T('bat_idade1') : T('bat_meses', Math.max(0, meses));
+    idade = T('bat_fab', (b.mes ? String(b.mes).padStart(2, '0') + '/' : '') + b.ano) + ', ' + qto;
+  }
+  const lim = b.fim && b.fim < 100 ? (b.ini && b.ini < b.fim ? T('bat_lim2', b.ini, b.fim) : T('bat_lim', b.fim)) : null;
+  const info = [b.ciclos != null ? T('bat_ciclos_n', int(b.ciclos)) : null, b.tecnologia, idade, lim, b.n > 1 ? T('bat_duas') : null, b.v ? nf(b.v, 2) + ' V' : null,
+    b.temp != null ? nf(b.temp, 0) + ' °C' : null, b.saude_txt && b.saude_txt !== 'Good' ? b.saude_txt : null].filter(Boolean).join(', ');
+  $('bat-info').textContent = info; $('bat-info').title = info;
 }
 let iconeAntes = '';
 function icone(nv) {
@@ -1713,7 +1806,7 @@ function desenhar() {
   if (!A) return;
   cRam(); cPlaca(); cCpu(); cRede(); cFaixa(); cTopo();
   arranjar();
-  cJogo(); cProg(); cTemp(); cDisc(); cSaude(); cEventos(); cLinha24();
+  cJogo(); cProg(); cTemp(); cDisc(); cSaude(); cEventos(); cLinha24(); cBat();
   cortarListas();
   for (const g of graficos) g.desenhar();
   if ($('fans').open) {
@@ -1801,9 +1894,9 @@ function tabela10() {
 const M24 = [['cpu', 'h24_cpu', 100], ['tc_max', 'h24_tc'], ['gpu', 'h24_gpu', 100], ['tg_max', 'h24_tg'], ['w_max', 'h24_w'],
   ['vram_max', 'h24_vram', null, v => v / 1024], ['ram_min', 'h24_ram', null, v => v / 1024], ['swap_max', 'h24_swap', null, v => v / 1024],
   ['ping', 'h24_ping'], ['perda_max', 'h24_perda', null, null, 1], ['jit', 'h24_jit', null, null, 1], ['rx', 'h24_rx', null, null, 2],
-  ['tx', 'h24_tx', null, null, 2], ['fps', 'h24_fps']];
+  ['tx', 'h24_tx', null, null, 2], ['fps', 'h24_fps'], ['bat_min', 'h24_bat', 100, null, 0, 'bat'], ['bw', 'h24_bw', null, null, 1, 'bat']];
 async function aba24() {
-  $('h24-m').replaceChildren(...M24.map(m => {
+  $('h24-m').replaceChildren(...M24.filter(m => !m[5] || (A && A.bat)).map(m => {
     const b = el('button', '', T(m[1]));
     b.type = 'button'; b.setAttribute('aria-pressed', m[0] === m24);
     b.onclick = () => { m24 = m[0]; for (const x of $('h24-m').children) x.setAttribute('aria-pressed', x === b); desenhar24(); };
@@ -2048,7 +2141,7 @@ async function abrirAjustes() {
   montarLimites();
   $('aj-log').checked = c.registro.ligado; $('aj-pasta').value = c.registro.pasta;
   $('aj-int').value = c.registro.intervalo; $('aj-dias').value = c.registro.dias;
-  $('aj-m-live').checked = c.modulos.live; $('aj-m-zomboid').checked = c.modulos.zomboid; $('aj-reserva').value = c.ram_reserva;
+  $('aj-m-live').checked = c.modulos.live; $('aj-m-zomboid').checked = c.modulos.zomboid; $('aj-m-bateria').checked = c.modulos.bateria !== false; $('aj-reserva').value = c.ram_reserva;
   marcarPerfil();
   infoAjustes(d);
   $('aj-erro').textContent = '';
@@ -2138,7 +2231,7 @@ async function salvarAjustes() {
     avisar: {desktop: $('aj-desktop').checked, som: $('aj-som').checked, nivel: $('aj-nivel').value},
     alertas: {fundo: $('aj-fundo').checked, cada: +$('aj-cada').value},
     jogo: {limites: $('aj-jogo-lim').checked, leve: $('aj-jogo-leve').checked}, caixa: $('aj-caixa').checked, dica: $('aj-dica').checked,
-    modulos: {live: $('aj-m-live').checked, zomboid: $('aj-m-zomboid').checked}, ram_reserva: +$('aj-reserva').value || 0,
+    modulos: {live: $('aj-m-live').checked, zomboid: $('aj-m-zomboid').checked, bateria: $('aj-m-bateria').checked}, ram_reserva: +$('aj-reserva').value || 0,
     registro: {ligado: $('aj-log').checked, pasta: $('aj-pasta').value, intervalo: +$('aj-int').value, dias: +$('aj-dias').value}};
   if (proprio) corpo.cartoes = cartoes;
   LIMS[modoLim] = Object.assign(LIMS[modoLim], lerLimites());
