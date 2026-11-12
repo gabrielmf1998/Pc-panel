@@ -4,7 +4,7 @@ Version:        0.5.3
 Release:        1
 Summary:        Local web dashboard to monitor and control a Linux PC, with a tray icon
 License:        MIT
-URL:            https://github.com/gabrielmf1998/pc-panel
+URL:            https://github.com/gabrielmf1998/Pc-panel
 Source0:        %{name}-%{version}.tar.gz
 BuildRequires:  make
 BuildRequires:  gcc

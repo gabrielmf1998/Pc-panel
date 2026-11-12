@@ -165,16 +165,16 @@ rewritten at most every 30 seconds and only when they changed. It can be turned 
 Quick, for one user, no root needed:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/gabrielmf1998/pc-panel/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/gabrielmf1998/Pc-panel/main/install.sh | sh
 ```
 
 Add fan control (asks for the administrator password):
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/gabrielmf1998/pc-panel/main/install.sh | sh -s -- --fans
+curl -fsSL https://raw.githubusercontent.com/gabrielmf1998/Pc-panel/main/install.sh | sh -s -- --fans
 ```
 
-Other ways, from the [releases page](https://github.com/gabrielmf1998/pc-panel/releases)
+Other ways, from the [releases page](https://github.com/gabrielmf1998/Pc-panel/releases)
 (also mirrored on [GitLab](https://gitlab.com/gabriel17166/pc-panel/-/releases)):
 
 | System | How |
@@ -185,7 +185,7 @@ Other ways, from the [releases page](https://github.com/gabrielmf1998/pc-panel/r
 
 After a package install, open **PC Panel** from the application menu once and tick **Start with system** in the tray menu.
 
-Remove a quick install with `curl -fsSL https://raw.githubusercontent.com/gabrielmf1998/pc-panel/main/install.sh | sh -s -- --uninstall`.
+Remove a quick install with `curl -fsSL https://raw.githubusercontent.com/gabrielmf1998/Pc-panel/main/install.sh | sh -s -- --uninstall`.
 
 ## Requirements and supported hardware
 

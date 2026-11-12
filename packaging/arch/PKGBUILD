@@ -4,7 +4,7 @@ pkgver=0.5.3
 pkgrel=1
 pkgdesc="Local web dashboard to monitor and control a Linux PC (RAM, VRAM, CPU, network, disks, fans), with a tray icon"
 arch=('x86_64' 'aarch64')
-url="https://github.com/gabrielmf1998/pc-panel"
+url="https://github.com/gabrielmf1998/Pc-panel"
 license=('MIT')
 depends=('python>=3.12' 'systemd' 'systemd-libs' 'glibc')
 optdepends=('nvidia-utils: NVIDIA graphics card readings and fan control'

@@ -1,11 +1,11 @@
 #!/bin/sh
 # PC Panel installer for one user, no root needed for the dashboard and the tray icon.
-#   curl -fsSL https://raw.githubusercontent.com/gabrielmf1998/pc-panel/main/install.sh | sh
+#   curl -fsSL https://raw.githubusercontent.com/gabrielmf1998/Pc-panel/main/install.sh | sh
 # Options:  --fans       also enable fan control (asks for the administrator password)
 #           --uninstall  remove everything this script installed
 #           --update     used by the self-updater: install over the current copy, keep every choice
 set -eu
-REPO="gabrielmf1998/pc-panel"
+REPO="gabrielmf1998/Pc-panel"
 PREFIX="$HOME/.local"
 CONF="${XDG_CONFIG_HOME:-$HOME/.config}"
 UNIT="$CONF/systemd/user/pc-panel.service"
