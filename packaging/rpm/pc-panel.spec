@@ -1,6 +1,6 @@
 %global debug_package %{nil}
 Name:           pc-panel
-Version:        0.5.3
+Version:        0.6.0
 Release:        1
 Summary:        Local web dashboard to monitor and control a Linux PC, with a tray icon
 License:        MIT
@@ -55,6 +55,9 @@ make DESTDIR=%{buildroot} PREFIX=%{_prefix} install
 %{_unitdir}/pc-panel-fans.service
 
 %changelog
+* Sun Nov 15 2026 PC Panel contributors - 0.6.0-1
+- 1 h and 24 h chart periods, program details, GPU throttle reasons, session comparison, lighter page
+
 * Thu Nov 12 2026 PC Panel contributors - 0.5.3-1
 - Disks card shows every disk on short windows (detail line drops first)
 

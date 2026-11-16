@@ -36,7 +36,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 
-VERSAO = "0.5.3"
+VERSAO = "0.6.0"
 REPO = "gabrielmf1998/Pc-panel"         # owner/repository on GitHub, used only to look for a new version
 PASTA_CFG = os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"), "pc-panel")
 
@@ -788,7 +788,8 @@ def resumo_amostra(a):
             "top": [top["nome"][:24], round(top["pct"] / NCPU)] if top else None,
             "fan": max([x["rpm"] for x in a["fans"]["canais"]] or [None], key=lambda x: x or 0),
             "de": max([d["espera"] or 0 for d in a["discos"]] or [0]),
-            "nv": max([NIVEIS.index(x["nv"]) for x in a["avisos"]] or [0])}
+            "nv": max([NIVEIS.index(x["nv"]) for x in a["avisos"]] or [0]),
+            "pp": a["sis"]["painel"]["mib"]}
 
 
 class CaixaPreta:
@@ -943,7 +944,7 @@ def caixa_ok():
 class Historico24:
     # one line per minute for the last 24 hours (averages and peaks), saved every 15 minutes
     COLS = ["t", "cpu", "cpu_max", "tc_max", "gpu", "gpu_max", "tg_max", "w_max", "vram_max", "ram_min",
-            "swap_max", "ping", "ping_max", "jogo", "nv", "perda_max", "jit", "rx", "tx", "fps", "fps_min", "bat_min", "bw"]
+            "swap_max", "ping", "ping_max", "jogo", "nv", "perda_max", "jit", "rx", "tx", "fps", "fps_min", "bat_min", "bw", "pp_mib"]
 
     def __init__(self):
         self.linhas = collections.deque(maxlen=1440)
@@ -972,7 +973,7 @@ class Historico24:
             if self.minuto != m:
                 self.fechar()
                 self.minuto, self.acc = m, collections.defaultdict(list)
-            for k in ("cpu", "tc", "gpu", "tg", "w", "vr", "ram", "sw", "ping", "nv", "pl", "jt", "rx", "tx", "fps", "bat", "bw"):
+            for k in ("cpu", "tc", "gpu", "tg", "w", "vr", "ram", "sw", "ping", "nv", "pl", "jt", "rx", "tx", "fps", "bat", "bw", "pp"):
                 if r[k] is not None and r[k] >= 0:
                     self.acc[k].append(r[k])
             if r["j"]:
@@ -988,13 +989,14 @@ class Historico24:
                             mx("vr"), min(x["ram"]) if x["ram"] else None, mx("sw"), media("ping"), mx("ping"),
                             (x["j"] or [None])[0], mx("nv") or 0, mx("pl"), media("jt"), media("rx"), media("tx"),
                             media("fps"), min(x["fps"]) if x["fps"] else None, min(x["bat"]) if x["bat"] else None,
-                            media("bw")])
+                            media("bw"), mx("pp")])
         self.acc = None
         self.mudou = True
 
-    def dados(self):
+    def dados(self, desde=0):
+        # desde: only the minutes after this time (the page asks for what it does not have yet)
         with self.trava:
-            linhas = list(self.linhas)
+            linhas = [x for x in self.linhas if x[0] > desde] if desde else list(self.linhas)
         return {"cols": self.COLS, "linhas": linhas}
 
     def salvar(self):
@@ -1024,7 +1026,8 @@ class Sessoes:
                               "tc_max": None, "tg_max": None, "w_max": None, "vram_max": None, "vram_jogo": 0,
                               "ram_min": None, "ram_jogo": 0, "swap_max": 0, "ping_max": None,
                               "ping_s": 0.0, "ping_n": 0, "perda_max": None, "jit_s": 0.0, "jit_n": 0,
-                              "fps_s": 0.0, "fps_n": 0, "ft": [0] * (len(self.BINS) + 1)}
+                              "fps_s": 0.0, "fps_n": 0, "ft": [0] * (len(self.BINS) + 1),
+                              "fr_n": 0, "fr_t": 0, "fr_e": 0}
         g, c, r = a["gpu"], a["cpu"], a["ram"]
         mx = lambda k, v: s.update({k: v if s[k] is None or (v is not None and v > s[k]) else s[k]})
         s["fim"] = round(a["t"])
@@ -1050,6 +1053,11 @@ class Sessoes:
         s["ram_jogo"] = max(s["ram_jogo"], j["kb"])
         s["vram_jogo"] = max(s["vram_jogo"], j["vram"] or 0)
         s["swap_max"] = max(s["swap_max"], r["swap"] // 1024)
+        fr = (g.get("freio") or {}).get("agora")
+        if fr:
+            s["fr_n"] = s.get("fr_n", 0) + 1
+            s["fr_t"] = s.get("fr_t", 0) + (fr[0] or fr[1])
+            s["fr_e"] = s.get("fr_e", 0) + fr[2]
         q = a.get("fps")
         if q:
             s["fps_s"] += q["fps"]
@@ -1075,7 +1083,11 @@ class Sessoes:
     def resumo(self, s):
         if not s:
             return None
-        x = {k: v for k, v in s.items() if k not in ("cpu", "gpu", "n", "ping_s", "ping_n", "jit_s", "jit_n", "fps_s", "fps_n", "ft")}
+        x = {k: v for k, v in s.items() if k not in ("cpu", "gpu", "n", "ping_s", "ping_n", "jit_s", "jit_n", "fps_s", "fps_n", "ft",
+                                                      "fr_n", "fr_t", "fr_e")}
+        # share of the busy time the graphics card held its clock for heat or for its power limit
+        x["freio_t"] = round(100 * s["fr_t"] / s["fr_n"]) if s.get("fr_n") else None
+        x["freio_e"] = round(100 * s["fr_e"] / s["fr_n"]) if s.get("fr_n") else None
         x["fps"] = round(s["fps_s"] / s["fps_n"], 1) if s.get("fps_n") else None
         x["fps_low"] = self.baixa_1(s) if s.get("ft") else None
         x["ping"] = round(s["ping_s"] / s["ping_n"], 1) if s["ping_n"] else None
@@ -1157,7 +1169,8 @@ class Hoje:
                 else:
                     h.append([hora, round(x["c"], 1)])
                     del h[:-25]
-                x["max24"] = max(v for (q, v) in h if q > hora - 24)
+                q, x["max24"] = max(((q, v) for (q, v) in h if q > hora - 24), key=lambda y: y[1])
+                x["max24_t"] = q * 3600
             rede["hoje"] = {"rx": self.rx, "tx": self.tx}
 
     def salvar(self):
@@ -1282,12 +1295,39 @@ def duracao(seg):
 # ---------------------------------------------------------------- SSD health (UDisks2, no root needed)
 
 ssd = {}                            # block device name -> health
+# SATA SSDs with a Phison controller (Kingston A400 and others), the model list of the
+# "Phison Driven SSDs" entry in smartmontools' drivedb.h. On these, attribute 231 is
+# SSD_Life_Left (raw, %), 241 is Lifetime_Writes_GiB, and 170 counts bad blocks (it is
+# not the spare area other drives report there).
+RE_PHISON = re.compile(
+    r"BP4 mSATA SSD|Corsair Force LE(200)? SSD|DGSR2(128|256|512)GP13T|GIGABYTE GP-GSTFS31((120|240|256|480)G|100T)NTD|"
+    r"GOODRAM IRIDIUM PRO|IRP?-SSDPR-S25[AC]-(120|240|256|480|512|960|0[12]T)|KINGSTON O(C|M[48S])P0S3(64|128|256|512)B-[0A]0|"
+    r"KINGSTON RBUSNS(4|8)180S3(32|64|128|256|512)GJ|KINGSTON SEDC400S37(400|480|800|960|1600|1800)G|"
+    r"KINGSTON SEDC(450R|500[MR]|600M)(480|960|1920|3840|7680)G|KINGSTON SM2280S3G2(120)G|KINGSTON SUV300S37A(120|240|480)G|"
+    r"KINGSTON SKC310S3B?7A960G|KINGSTON SKC400S37(128G|256G|512G|1T)|KINGSTON SV310S3(7A|D7|N7A|B7A)960G|"
+    r"KINGSTON SHSS3B?7A(120|240|480|960)G|KINGSTON SS200S330G|KINGSTON  ?SA400(M8|S37)(120|240|480|960)G|"
+    r"Patriot (Blast|Blaze|Flare|Ignite)|Patriot Burst( (120|240|480|960)GB)?|PNY CS(900|1311|2211) (120G|240G|480G|960G|1T|2T)B SSD|"
+    r"PNY ELITE PSSD|S11-(128|256|512)G-PHISON-SSD-B27|SSD Smartbuy (60|64|120|128|240|256|480|512|960|1024|2000)GB|"
+    r"SSD PHISON (128|256)GB PS3110-S10C|SSDPR-CX400-(128|256|512|1024)|TEAM L3 EVO SSD (120|240|480|960)GB|"
+    r"SSM28(128|256|512)GPTCB3B-S11[24]61[123]|SVM2S46(128|256|512)GNPI51UF")
+
+
+def ata_bruto(x):
+    # UDisks hands out libatasmart's converted ("pretty") value, not the raw one. libatasmart
+    # names attributes by the most common meaning, so on other drives it converts numbers that
+    # are not what it thinks; this undoes the conversion (see make_pretty() in libatasmart).
+    v, unidade = x[6], x[7]
+    if unidade == 4:                    # millikelvin, made from the low 16 bits
+        return (v - 273150) // 1000
+    if unidade == 7:                    # "MB", made from 32 MiB units
+        return round(v * 1e6 / (65536 * 512))
+    return v if unidade in (0, 1) else None
 ssd_base = {}                       # drive -> error count already seen, so only new errors alert
 ssd_ritmo = {}                      # drive -> [[time, bytes written, % used, power-on hours]], one every 6 h
 
 
 def previsao_ssd(chave, h):
-    # Life forecast of an NVMe SSD. The drive reports "% used" of its rated endurance and the
+    # Life forecast of an SSD (NVMe, or a SATA one whose wear the panel knows). The drive reports "% used" of its rated endurance and the
     # bytes written, so bytes per 1 % comes from the drive itself; the pace is what it wrote
     # over the last days (at least one). An estimate: % used is a whole number, so with a
     # few % only the forecast is rough, and 100 % is the rating, not the end of the drive.
@@ -1299,7 +1339,7 @@ def previsao_ssd(chave, h):
         pts.append([round(agora), h["escrito"], h["gasto"], h["horas"]])
         del pts[:-240]
         novo = True
-    p = {"tb_pct": None, "restam_tb": None, "tb_dia": None, "dias": None, "anos": None, "aprox": h["gasto"] < 5}
+    p = {"tb_pct": None, "restam_tb": None, "tb_dia": None, "dias": None, "anos": None, "aprox": True}
     if h["gasto"] >= 1:
         por = h["escrito"] / h["gasto"]
         p.update(tb_pct=round(por / 1e12, 2), restam_tb=round(max(0, 100 - h["gasto"]) * por / 1e12, 1))
@@ -1309,6 +1349,8 @@ def previsao_ssd(chave, h):
         p.update(tb_dia=round((h["escrito"] - base[1]) / 1e12 / dias, 4), dias=round(dias, 1))
         if p["restam_tb"] is not None and p["tb_dia"] > 0:
             p["anos"] = round(p["restam_tb"] / p["tb_dia"] / 365, 1)
+    # a few % used, or under two weeks of pace (a week of gaming against a quiet one), is rough
+    p["aprox"] = h["gasto"] < 5 or p["dias"] is None or p["dias"] < 14
     return p, novo
 
 
@@ -1367,7 +1409,17 @@ def saude_ssd():
             por_id = {x[0]: x for x in (at[0] if at else [])}
             seg = val(ifs, "Drive.Ata", "SmartPowerOnSeconds")
             h["horas"] = seg // 3600 if seg else None
-            if 170 in por_id:               # available reserved space, normalized
+            if RE_PHISON.fullmatch((val(objs.get(drive, {}), "Drive", "Model") or "").strip()):
+                vida = ata_bruto(por_id[231]) if 231 in por_id else None
+                if vida is not None and 0 <= vida <= 100:
+                    h["saude"], h["gasto"] = vida, 100 - vida
+                gib = ata_bruto(por_id[241]) if 241 in por_id else None
+                if gib:
+                    h["escrito"] = gib << 30
+                if h["gasto"] is not None:
+                    h["previsao"], n = previsao_ssd(os.path.basename(drive), h)
+                    ritmo_mudou = ritmo_mudou or n
+            elif 170 in por_id:             # available reserved space, normalized
                 h["reserva"], h["reserva_min"] = por_id[170][3], por_id[170][5]
             # reallocated + pending sectors (libatasmart) and errors the drive could not correct
             h["erros"] = (val(ifs, "Drive.Ata", "SmartNumBadSectors") or 0) + (por_id[187][6] if 187 in por_id else 0)
@@ -1663,6 +1715,8 @@ class Nvidia:
         self.tentar_em = 0.0
         self.ausente = False        # this PC does not have the NVIDIA library
         self.erro = ("ainda não li a placa", "card not read yet")
+        self.freios = collections.deque(maxlen=30)      # why the clock was held, last 30 busy samples
+        self.pcie_max = None
 
     def abrir(self):
         self.tentar_em = time.monotonic() + 30
@@ -1699,6 +1753,12 @@ class Nvidia:
             rec_cache["v"] = None
             self.fixo = {"nome": nome.value.decode(errors="replace").replace("NVIDIA GeForce ", ""),
                          "driver": drv.value.decode(errors="replace"), "watts_max": round(lim.value / 1000)}
+            g, w = ctypes.c_uint(), ctypes.c_uint()
+            try:
+                if lib.nvmlDeviceGetMaxPcieLinkGeneration(h, ctypes.byref(g)) == 0 and lib.nvmlDeviceGetMaxPcieLinkWidth(h, ctypes.byref(w)) == 0:
+                    self.pcie_max = (g.value, w.value)      # what this card and this slot can do
+            except AttributeError:
+                self.pcie_max = None
             self.lib, self.h, self.erro = lib, h, None
         except Falha as e:
             self.lib, self.erro = None, e.args
@@ -1746,6 +1806,35 @@ class Nvidia:
         info = dict(self.fixo, ok=True, uso=uso.gpu, vram=(mem.total - mem.livre) >> 20,
                     vram_total=mem.total >> 20, temp=temp.value, watts=round(mw.value / 1000),
                     fan=fan.value, rpm=rpm, mhz=mhz.value, enc=enc.value)
+        mhz_mem = ctypes.c_uint()
+        if lib.nvmlDeviceGetClockInfo(h, 2, ref(mhz_mem)) == 0:        # NVML_CLOCK_MEM
+            info["mhz_mem"] = mhz_mem.value
+        # Why the clock is held back (nvml.h nvmlClocksEventReason*): 0x4 software power cap,
+        # 0x20 / 0x40 thermal slowdown, 0x8 / 0x80 hardware slowdown or power brake (an outside
+        # signal, often the power supply). Idle, board and reliability limits are normal.
+        motivo = ctypes.c_ulonglong()
+        r = -1
+        for funcao in ("nvmlDeviceGetCurrentClocksEventReasons", "nvmlDeviceGetCurrentClocksThrottleReasons"):
+            try:
+                r = getattr(lib, funcao)(h, ref(motivo))
+                break
+            except AttributeError:          # older or newer drivers have only one of the two names
+                continue
+        agora = None
+        if r == 0 and uso.gpu >= 30:
+            b = motivo.value
+            agora = (bool(b & 0x60), bool(b & 0x88), bool(b & 0x4))
+            self.freios.append(agora)
+        elif uso.gpu < 10:
+            self.freios.clear()
+        if len(self.freios) >= 5:
+            info["freio"] = {k: round(100 * sum(1 for f in self.freios if f[i]) / len(self.freios))
+                             for i, k in enumerate(("temp", "hw", "energia"))}
+            info["freio"].update(n=len(self.freios), agora=agora)
+        g, w = ctypes.c_uint(), ctypes.c_uint()
+        if self.pcie_max and lib.nvmlDeviceGetCurrPcieLinkGeneration(h, ref(g)) == 0 and lib.nvmlDeviceGetCurrPcieLinkWidth(h, ref(w)) == 0:
+            # the generation drops when idle to save power; the width should not
+            info["pcie"] = [g.value, w.value, self.pcie_max[0], self.pcie_max[1]]
         return info, procs
 
 
@@ -2190,6 +2279,30 @@ def cauda(arq, bytes_):
         return b""
 
 
+RE_CRASH_GENERICO = re.compile(r"wine.*|.*preloader|python[\d.]*|java|node|mono|.*\.exe|reaper|pressure-vessel.*|steam")
+nomes_crash = {}
+
+
+def nome_do_crash(pid, exe):
+    # a game under Proton crashes as "wine64-preloader": the Steam scope or the .exe on
+    # its command line says which game it was
+    if not RE_CRASH_GENERICO.fullmatch(exe) or not pid.isdigit():
+        return exe
+    if pid not in nomes_crash:
+        nome = None
+        info = rodar(["coredumpctl", "info", pid, "--since", "today", "-q", "--no-pager"], 15) or ""
+        m = re.search(r"^\s*User Unit: app-steam-app(\d+)-", info, re.M)
+        if m and m.group(1) != "0":
+            nome = nome_app(m.group(1), os.path.expanduser("~/.local/share/Steam"))
+        if not nome:
+            m = re.search(r"^\s*Command Line: (.*)$", info, re.M)
+            if m:
+                exes = re.findall(r"([^\\/'\" ]+)\.exe\b", m.group(1), re.I)
+                nome = exes[0] if exes else None
+        nomes_crash[pid] = "%s (%s)" % (nome, exe) if nome else exe
+    return nomes_crash[pid]
+
+
 def info_saude():
     # kernel errors since boot, programs that crashed today, pending reboot
     # and when the last full system upgrade happened
@@ -2203,8 +2316,10 @@ def info_saude():
             evento_avulso(k["nv"], "Erro novo do kernel: " + s["kult"], "New kernel error: " + s["kult"])
     saida = rodar(["coredumpctl", "list", "--since", "today", "--no-legend", "-q", "--no-pager"])
     if saida is not None:
-        nomes = [os.path.basename(p) for linha in saida.splitlines() for p in linha.split() if p.startswith("/")]
-        s["trav"], s["tult"] = len(nomes), (nomes[-1] if nomes else "")
+        lista = [(linha.split()[4] if len(linha.split()) > 4 else "", os.path.basename(p))
+                 for linha in saida.splitlines() for p in linha.split()[5:] if p.startswith("/")]
+        s["trav"] = len(lista)
+        s["tult"] = nome_do_crash(*lista[-1]) if lista else ""
         k = cfg["limites"]["travou"]
         if antes["trav"] is not None and s["trav"] > antes["trav"] and k["on"]:
             evento_avulso(k["nv"], "%s travou e foi fechado pelo sistema" % s["tult"], "%s crashed" % s["tult"])
@@ -2409,8 +2524,40 @@ RE_STATUS = re.compile(rb"RssAnon:\s+(\d+) kB\nRssFile:\s+\d+ kB\nRssShmem:\s+(\
 RE_PONG = re.compile(rb"\[(\d\d)-(\d\d)-(\d\d) (\d\d):(\d\d):(\d\d)\.(\d\d\d)\][^\n]*? f:(\d+) [^\n]*ping@pong")
 RE_CONEXAO = re.compile(rb'event="([^"]*)" message="([^"]*)" guid="(\d+)"(?:[^\n]*? username="([^"]*)")?')
 nomes_app = {}
+# interpreters: the program is the script they run, not "python3"
+RE_INTERPRETE = re.compile(r"(python[\d.]*|node(js)?|perl[\d.]*|ruby[\d.]*|lua[\d.]*|php[\d.]*|deno|bun)")
+GENERICOS = {"server", "main", "app", "run", "index", "__main__", "cli", "daemon", "start", "service", "bot", "manage"}
+nomes_script = {}                   # (pid, start) -> name, read once per process
+
+
+def nome_script(pid, inicio):
+    chave = (pid, inicio)
+    if chave in nomes_script:
+        return nomes_script[chave]
+    args = [a.decode(errors="replace") for a in argumentos(pid)[1:12]]
+    nome, i = None, 0
+    while i < len(args):
+        a = args[i]
+        if a == "-m" and i + 1 < len(args):             # python -m package.module
+            nome = args[i + 1]
+            break
+        if a in ("-c", "-e", "--eval"):                 # inline code
+            break
+        if a.startswith("-"):
+            i += 2 if a in ("-W", "-X", "-r", "--require") else 1     # options that take a value
+            continue
+        partes = [x for x in a.split("/") if x]
+        if not partes:
+            break
+        base = re.sub(r"\.(py|pyw|js|mjs|cjs|ts|pl|rb|lua|php)$", "", partes[-1])
+        # server.py, main.js, index.js... say little: the folder names the program
+        pastas = [x for x in partes[:-1] if x not in ("bin", "src", "lib", "dist", "build", "app", "scripts", "opt", "share")]
+        nome = pastas[-1] if base in GENERICOS and pastas else base
+        break
+    nomes_script[chave] = nome = nome[:40] if nome else None
+    return nome
 cache_pz = {"pid": None, "quando": 0.0, "dados": None, "con": (None, None)}
-ant_cpu = {"t": 0.0, "ticks": {}}
+ant_cpu = {"t": 0.0, "ticks": {}, "pct": {}}
 
 
 def varrer_processos():
@@ -2436,6 +2583,32 @@ def varrer_processos():
             continue
         procs[int(nome)] = p
     return procs
+
+
+def detalhes_prog(nome):
+    # the processes behind one name in the Programs card: read only, nothing is changed
+    pids = sorted(pid for pid, n in list(extra.get("nomes_prog", {}).items()) if n == nome)[:60]
+    saida = []
+    for pid in pids:
+        try:
+            with open("/proc/%d/stat" % pid, "rb") as f:
+                st = f.read()
+            campos = st[st.rindex(b")") + 2:].split()
+            with open("/proc/%d/status" % pid, "rb") as f:
+                m = RE_STATUS.search(f.read())
+            cg = (ler("/proc/%d/cgroup" % pid) or "").strip().rsplit("/", 1)[-1]
+            # systemd escapes unit names (app-google\x2dchrome@...): show them readable
+            cg = re.sub(r"\\x([0-9a-f]{2})", lambda x: chr(int(x.group(1), 16)), cg)
+        except (OSError, ValueError):
+            continue
+        # the share from the last scan: a request right after a scan would divide one tick by a few ms
+        uso = ant_cpu["pct"].get(pid)
+        cmd = b" ".join(argumentos(pid)).decode(errors="replace").strip()
+        saida.append({"pid": pid, "kb": (int(m.group(1)) + int(m.group(2))) if m else 0, "swap": int(m.group(3)) if m else 0,
+                      "cpu": round(uso, 1) if uso is not None else None,
+                      "desde": round(BOOT + int(campos[19]) / HZ), "unidade": cg[:80], "cmd": cmd[:400]})
+    saida.sort(key=lambda x: -x["kb"])
+    return {"nome": nome, "procs": saida}
 
 
 def argumentos(pid):
@@ -2554,6 +2727,8 @@ def varredura():
                 if a.startswith(b"AppId="):
                     raiz = os.path.dirname(os.path.dirname(args[0].decode(errors="replace")))
                     raizes.append((pid, a[6:].decode(errors="replace"), raiz))
+        elif RE_INTERPRETE.fullmatch(comm):
+            nome = nome_script(pid, p["inicio"]) or comm
         elif comm in ("java", "ProjectZomboid6"):
             args = argumentos(pid)
             if b"zombie.network.GameServer" in args:
@@ -2564,6 +2739,8 @@ def varredura():
                 soltos.append(pid)
         nomes[pid] = nome
 
+    for chave in [k for k in nomes_script if k[0] not in procs or procs[k[0]]["inicio"] != k[1]]:
+        del nomes_script[chave]
     jogos, dentro_de_jogo, de_jogo = [], set(), {}
     for pid, appid, raiz in raizes:
         membros = [x for x in arvore(pid) if x in procs]
@@ -2584,15 +2761,17 @@ def varredura():
     agora = time.monotonic()
     dt = agora - ant_cpu["t"]
     ram, quantos, swap, uso = (collections.Counter() for _ in range(4))
+    pct = {}
     for pid, p in procs.items():
         if p["kb"]:
             ram[nomes[pid]] += p["kb"]
             swap[nomes[pid]] += p["swap"]
             quantos[nomes[pid]] += 1
         antes = ant_cpu["ticks"].get(pid)
-        if antes is not None and p["ticks"] > antes and 0 < dt < 120:
-            uso[nomes[pid]] += (p["ticks"] - antes) / HZ / dt * 100
-    ant_cpu.update(t=agora, ticks={pid: p["ticks"] for pid, p in procs.items()})
+        if antes is not None and p["ticks"] >= antes and 0 < dt < 120:
+            pct[pid] = (p["ticks"] - antes) / HZ / dt * 100
+            uso[nomes[pid]] += pct[pid]
+    ant_cpu.update(t=agora, ticks={pid: p["ticks"] for pid, p in procs.items()}, pct=pct)
     placa = collections.Counter()
     for pid, mib in vram.items():
         if mib > 0:
@@ -2601,7 +2780,7 @@ def varredura():
         progs={"ram": [{"nome": n, "kb": kb, "n": quantos[n], "swap": swap[n]} for n, kb in ram.most_common(16)],
                "vram": [{"nome": n, "mib": m} for n, m in placa.most_common(16)],
                "cpu": [{"nome": n, "pct": round(v, 1)} for n, v in uso.most_common(16) if v >= 0.5]},
-        jogos=jogos, pz=pz, obs=obs, nomes_pid={**nomes, **de_jogo})
+        jogos=jogos, pz=pz, obs=obs, nomes_pid={**nomes, **de_jogo}, nomes_prog=nomes)
 
 
 def sockets_inet(proto):
@@ -2998,6 +3177,17 @@ class Medidor:
             nv["vram"] = "bom" if gpu.get("compartilhada") else av(
                 "vram", "vram", nivel(pct, limite("vram")), "VRAM em %d %%" % pct, "VRAM at %d %%" % pct)
             nv["gpu"] = nivel(gpu["temp"], limite("temp_gpu"))
+            fr = gpu.get("freio")
+            if fr and fr["n"] >= 10 and fr["temp"] >= 50:
+                nv["gpu"] = max(nv["gpu"], av("gpu-freio-temp", "gpu", "aviso", "Placa de vídeo baixando o clock por temperatura",
+                                              "Graphics card lowering its clock because of heat"), key=NIVEIS.index)
+            if fr and fr["n"] >= 10 and fr["hw"] >= 30:
+                nv["gpu"] = max(nv["gpu"], av("gpu-freio-hw", "gpu", "serio", "Placa de vídeo freada pelo hardware (energia ou fonte)",
+                                              "Graphics card slowed down by the hardware (power or power supply)"), key=NIVEIS.index)
+            pc = gpu.get("pcie")
+            if pc and pc[1] < pc[3]:
+                av("gpu-pcie", "gpu", "aviso", "Placa de vídeo em PCIe x%d, o slot aceita x%d" % (pc[1], pc[3]),
+                   "Graphics card running at PCIe x%d, the slot allows x%d" % (pc[1], pc[3]))
         elif gpu.get("ausente"):
             nv["vram"] = nv["gpu"] = "bom"
             gpu["erro"] = {"pt": "", "en": ""}
@@ -3451,7 +3641,13 @@ class Pedido(BaseHTTPRequestHandler):
             else:
                 self.json({"incidentes": caixa.lista(), "cada": caixa.CADA, "slots": caixa.SLOTS, "ativa": caixa.fd is not None})
         elif u.path == "/historico24":
-            self.json(h24.dados())
+            try:
+                desde = float(parse_qs(u.query).get("desde", ["0"])[0])
+            except ValueError:
+                desde = 0
+            self.json(h24.dados(desde))
+        elif u.path == "/prog":
+            self.json(detalhes_prog(parse_qs(u.query).get("n", [""])[0][:80]))
         elif u.path == "/sessoes":
             self.json({"sessoes": sessoes.lista(), "atual": sessoes.resumo(sessoes.atual)})
         elif u.path == "/registro/hoje.csv":
@@ -3462,7 +3658,15 @@ class Pedido(BaseHTTPRequestHandler):
             except OSError:
                 self.send_error(404)
         elif u.path in ("/", "/index.html"):
-            self.responder(pagina(), "text/html; charset=utf-8")
+            corpo = pagina()
+            etag = '"%x-%x"' % (hash(pagina_cache["m"]) & 0xFFFFFFFF, len(corpo))
+            if self.headers.get("If-None-Match") == etag:
+                self.send_response(304)         # the browser already has this page
+                self.send_header("ETag", etag)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            self.responder(corpo, "text/html; charset=utf-8", etag=etag)
         else:
             self.send_error(404)
 
@@ -3585,10 +3789,14 @@ class Pedido(BaseHTTPRequestHandler):
     def json(self, corpo):
         self.responder(json.dumps(corpo, separators=(",", ":"), ensure_ascii=False).encode(), "application/json")
 
-    def responder(self, corpo, tipo, baixar=None):
+    def responder(self, corpo, tipo, baixar=None, etag=None):
         self.send_response(200)
         self.send_header("Content-Type", tipo)
-        self.send_header("Cache-Control", "no-store")
+        if etag:
+            self.send_header("ETag", etag)
+            self.send_header("Cache-Control", "no-cache")       # keep it, but ask every time
+        else:
+            self.send_header("Cache-Control", "no-store")
         self.send_header("Content-Length", str(len(corpo)))
         if baixar:
             self.send_header("Content-Disposition", 'attachment; filename="%s"' % baixar)

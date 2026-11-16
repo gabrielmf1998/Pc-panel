@@ -103,6 +103,20 @@ h3{margin:0;font-size:.86rem;font-weight:500;color:var(--apagado);white-space:no
 .rot{fill:var(--apagado);font-size:.75rem;font-variant-numeric:tabular-nums}
 .limite{stroke:var(--critico);stroke-width:1;stroke-dasharray:4 4;opacity:.8}
 .zona{fill:var(--critico);opacity:.08}
+.esparso{fill:var(--tinta2);opacity:.05}
+.graf .per{position:absolute;bottom:-2px;padding:0 2px;border:0;background:none;color:var(--apagado);font-size:.75rem;line-height:1.2;
+  text-decoration:underline dotted;text-underline-offset:2px;cursor:pointer;z-index:1}
+.graf .per:hover{color:var(--tinta)}
+.marca{opacity:.16}
+.marca-l{stroke-width:1.5}
+.marca-t{fill:var(--tinta2)}
+.clica{cursor:pointer}
+.lista .lin.clica:hover .n,tr.clica:hover td,.ev.clica:hover .x{color:var(--tinta);text-decoration:underline;text-underline-offset:2px}
+.ses-cmp{margin:0 0 12px}
+.ses-cmp table{margin-top:4px}
+.cmp-bom{color:var(--bom)}
+.cmp-ruim{color:var(--serio)}
+td.cmd{max-width:min(560px,50vw);overflow:hidden;text-overflow:ellipsis;font-family:ui-monospace,monospace;font-size:.82rem}
 .pico{fill:var(--tinta2);font-size:.75rem;font-variant-numeric:tabular-nums}
 .mira{stroke:var(--apagado);stroke-width:1}
 .linha{fill:none;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
@@ -121,8 +135,12 @@ h3{margin:0;font-size:.86rem;font-weight:500;color:var(--apagado);white-space:no
 .redegraf>div{flex:1 1 0;min-height:0;min-width:0;display:flex;flex-direction:column;gap:3px}
 @container (max-height:21.4rem){.redegraf{flex-direction:row;gap:12px}.legenda b{display:none}}
 
-.nucleos{display:flex;gap:2px;height:2rem;align-items:flex-end;border-bottom:1px solid var(--eixo);flex:none}
-.nucleos i{flex:1 1 0;max-width:24px;background:var(--s1);border-radius:4px 4px 0 0;min-height:1px}
+.nucleos{display:flex;gap:10px;align-items:center;flex:none}
+.nucleos .cel{display:flex;gap:2px;flex:1 1 auto;min-width:0}
+.nucleos .cel i{flex:1 1 0;max-width:28px;height:.8rem;border-radius:2px;background:var(--m-cpu);opacity:.12}
+.nucleos .cel i.q{background:var(--aviso)}
+.nucleos span{font-size:.8rem;color:var(--apagado);white-space:nowrap;font-variant-numeric:tabular-nums}
+.nucleos span b{color:var(--tinta);font-weight:600}
 .med{height:6px;border-radius:3px;background:color-mix(in srgb,var(--c,var(--s1)) 24%,transparent);overflow:hidden;flex:none}
 .med i{display:block;height:100%;background:var(--c,var(--s1));border-radius:3px;transition:width .5s}
 .fino{height:4px}
@@ -201,7 +219,7 @@ h3{margin:0;font-size:.86rem;font-weight:500;color:var(--apagado);white-space:no
 @container (max-height:9rem){.tl{display:none}}
 .abas{display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap}
 .abas button[aria-pressed="true"]{background:var(--sup2);color:var(--tinta);border-color:var(--s1)}
-.g24{position:relative;height:280px;width:min(940px,88vw);margin-top:8px}
+.g24{position:relative;height:280px;width:100%;min-width:min(940px,88vw);margin-top:8px}
 .g24 svg{position:absolute;inset:0;width:100%;height:100%;display:block}
 .faixa-jogo{fill:var(--tinta2);opacity:.09}
 .legenda i.jg{height:10px;background:var(--tinta2);opacity:.25}
@@ -348,6 +366,7 @@ body[data-estreito] .hora{font-size:1.29rem}
         <div><dt>Fan</dt><dd id="gpu-fan"></dd></div>
         <div><dt>Clock</dt><dd id="gpu-mhz"></dd></div>
         <div id="gpu-enc-b" data-it="enc_t"><dt id="gpu-enc-r">Encoder</dt><dd id="gpu-enc"></dd></div>
+        <div data-it="freio_t"><dt data-i="freio"></dt><dd id="gpu-fr"></dd></div>
       </dl>
     </div>
     <div class="med fino" id="gpu-m"><i></i></div>
@@ -366,7 +385,7 @@ body[data-estreito] .hora{font-size:1.29rem}
       </dl>
     </div>
     <div class="med fino" id="cpu-m"><i></i></div>
-    <div class="nucleos" id="cpu-nuc" role="img"></div>
+    <div class="nucleos" id="cpu-nuc" role="img"><div class="cel" id="cpu-nuc-c"></div><span id="cpu-nuc-top"></span></div>
     <div class="graf" id="g-cpu"></div>
   </section>
 
@@ -476,10 +495,11 @@ body[data-estreito] .hora{font-size:1.29rem}
     <tbody id="tab-corpo"></tbody>
   </table></div></div>
   <div data-painel="24" hidden><div class="botoes" id="h24-m"></div><p class="nota" id="h24-nota"></p><div class="g24" id="h24-g"></div></div>
-  <div data-painel="ses" hidden><p class="nota" id="ses-nota" style="margin-bottom:8px"></p><div class="rolagem"><table>
-    <thead><tr><th class="e" data-i="th_jogo2"></th><th data-i="th_comecou"></th><th data-i="th_durou"></th><th data-i="th_cpu_p"></th><th data-i="th_cpu_max"></th>
+  <div data-painel="ses" hidden><p class="nota" id="ses-nota" style="margin-bottom:8px"></p>
+    <div class="ses-cmp" id="ses-cmp" hidden></div><div class="rolagem"><table>
+    <thead><tr><th data-it="ses_marcar_t">⇄</th><th class="e" data-i="th_jogo2"></th><th data-i="th_comecou"></th><th data-i="th_durou"></th><th data-i="th_cpu_p"></th><th data-i="th_cpu_max"></th>
       <th data-i="th_gpu_p"></th><th data-i="th_gpu_max"></th><th data-i="th_w_max"></th><th data-i="th_vram_pico"></th><th data-i="th_vram_jogo"></th>
-      <th data-i="th_ram_min"></th><th data-i="th_ram_jogo"></th><th data-i="th_ping_s"></th><th data-i="th_perda_s"></th><th data-i="th_jit_s"></th><th data-i="th_alertas"></th></tr></thead>
+      <th data-i="th_ram_min"></th><th data-i="th_ram_jogo"></th><th data-i="th_ping_s"></th><th data-i="th_perda_s"></th><th data-i="th_jit_s"></th><th>FPS</th><th>1 % low</th><th data-i="th_freio_t" data-it="th_freio_tt"></th><th data-i="th_freio_e" data-it="th_freio_et"></th><th data-i="th_alertas"></th></tr></thead>
     <tbody id="ses-corpo"></tbody></table></div></div>
   <div data-painel="cx" hidden><p class="nota" id="cx-nota" style="margin-bottom:8px;max-width:940px"></p><div class="botoes" id="cx-lista"></div>
     <p class="nota" id="cx-resumo"></p><ul id="cx-rel" hidden></ul><div class="rolagem"><table><thead id="cx-cab"></thead><tbody id="cx-corpo"></tbody></table></div></div>
@@ -509,6 +529,15 @@ body[data-estreito] .hora{font-size:1.29rem}
   <div class="rolagem"><table>
     <thead><tr><th data-i="th_comecou"></th><th data-i="th_durou"></th><th class="e" data-i="th_nivel"></th><th class="e" data-i="th_oque"></th><th class="e" data-i="th_jogo"></th><th></th></tr></thead>
     <tbody id="ev-corpo"></tbody>
+  </table></div>
+</dialog>
+
+<dialog id="prog" class="largo">
+  <header><h2 id="pr-tit"></h2><button type="button" data-fechar data-i="fechar"></button></header>
+  <p class="nota" id="pr-nota" style="margin-bottom:8px"></p>
+  <div class="rolagem"><table>
+    <thead><tr><th>PID</th><th>RAM</th><th>Swap</th><th data-i="pr_cpu" data-it="pr_cpu_t"></th><th data-i="pr_desde"></th><th class="e" data-i="pr_unidade"></th><th class="e" data-i="pr_cmd"></th></tr></thead>
+    <tbody id="pr-corpo"></tbody>
   </table></div>
 </dialog>
 
@@ -957,6 +986,42 @@ Object.assign(TX.en, {
   cxr_w: 'Graphics card power rose from {0} to {1} W', cxr_cpu: 'Processor at {0} %', cxr_gpu: 'Graphics card at {0} %',
   cxr_ping: 'Ping lost {0} time(s)'});
 
+// strings added in 0.6
+Object.assign(TX.pt, {
+  g_60: '1 h atrás', g_30: '30 min', g_24h: '24 h atrás', g_12h: '12 h', per_t: 'Clique para trocar o período: 10 minutos, 1 hora ou 24 horas (1 hora e 24 horas usam o histórico de um valor por minuto)',
+  per_min: 'valor do minuto', esparso_t: 'painel fechado, uma medida a cada {0} s',
+  nuc_top: 'Núcleo mais usado: núcleo {0} com {1} %', nuc_top_r: 'núcleo mais usado',
+  freio: 'Freio', freio_t: 'Parte dos últimos segundos com a placa ocupada em que ela segurou o clock. Temperatura e hardware são problema; limite de energia é o normal de uma placa no máximo.',
+  fr_temp: 'temperatura {0} %', fr_hw: 'hardware {0} %', fr_energia: 'energia {0} %',
+  clk_mem: 'Memória a {0} MHz', pcie_t: 'PCIe {0} x{1} agora, máximo deste slot e desta placa PCIe {2} x{3}', pcie_ocioso: '(a geração cai quando a placa está parada, é normal)',
+  t_max24_h: 'entre {0} e {1}', left_zero: 'RAM LEFT acaba em',
+  prog_clique: 'Clique para ver os processos', ev_clique: 'Clique para ver no histórico de 24 h',
+  pr_nota: '{0} processo(s) com este nome agora. Só leitura, o painel não mexe em nada.', pr_nada: 'Nenhum processo com este nome agora.',
+  pr_cpu: 'CPU', pr_cpu_t: '% de um núcleo, desde a última leitura', pr_desde: 'Desde', pr_unidade: 'Serviço / grupo', pr_cmd: 'Linha de comando',
+  a_custo_pag: 'Desenhar esta página custa {0} % de um núcleo do navegador.',
+  h24_pp: 'Memória do painel MiB', ds_aprox: 'aproximada até ter 14 dias de medida e 5 % de desgaste',
+  th_freio_t: 'Freio °C', th_freio_tt: 'Parte do tempo com a placa ocupada em que ela baixou o clock por temperatura ou pelo hardware',
+  th_freio_e: 'Lim. W', th_freio_et: 'Parte do tempo com a placa ocupada em que ela estava no limite de energia (normal no máximo)',
+  th_ping_m: 'Ping médio', ses_marcar_t: 'Marque duas sessões para comparar', ses_cmp_n: 'Marque duas sessões na primeira coluna para comparar lado a lado.',
+  ses_cmp_t: 'Comparação, a mais antiga à esquerda. Verde = melhorou, laranja = piorou.', ses_dif: 'Diferença'});
+Object.assign(TX.en, {
+  g_60: '1 h ago', g_30: '30 min', g_24h: '24 h ago', g_12h: '12 h', per_t: 'Click to switch the period: 10 minutes, 1 hour or 24 hours (1 hour and 24 hours use the one value per minute history)',
+  per_min: 'minute value', esparso_t: 'page closed, one sample every {0} s',
+  nuc_top: 'Busiest core: core {0} at {1} %', nuc_top_r: 'busiest core',
+  freio: 'Held by', freio_t: 'Share of the last seconds with the card busy in which it held its clock back. Heat and hardware are a problem; the power limit is normal for a card at full load.',
+  fr_temp: 'heat {0} %', fr_hw: 'hardware {0} %', fr_energia: 'power {0} %',
+  clk_mem: 'Memory at {0} MHz', pcie_t: 'PCIe {0} x{1} now, this slot and card allow PCIe {2} x{3}', pcie_ocioso: '(the generation drops while the card is idle, that is normal)',
+  t_max24_h: 'between {0} and {1}', left_zero: 'RAM LEFT runs out at',
+  prog_clique: 'Click to see the processes', ev_clique: 'Click to see it in the 24 h history',
+  pr_nota: '{0} process(es) with this name now. Read only, the panel changes nothing.', pr_nada: 'No process with this name now.',
+  pr_cpu: 'CPU', pr_cpu_t: '% of one core, since the last reading', pr_desde: 'Since', pr_unidade: 'Service / group', pr_cmd: 'Command line',
+  a_custo_pag: 'Drawing this page costs {0} % of one browser core.',
+  h24_pp: 'Panel memory MiB', ds_aprox: 'rough until there are 14 days of readings and 5 % of wear',
+  th_freio_t: 'Held °C', th_freio_tt: 'Share of the busy time in which the card lowered its clock for heat or by the hardware',
+  th_freio_e: 'Power lim.', th_freio_et: 'Share of the busy time in which the card was at its power limit (normal at full load)',
+  th_ping_m: 'Avg ping', ses_marcar_t: 'Tick two sessions to compare', ses_cmp_n: 'Tick two sessions in the first column to compare them side by side.',
+  ses_cmp_t: 'Comparison, the older one on the left. Green = better, orange = worse.', ses_dif: 'Difference'});
+
 const $ = id => document.getElementById(id);
 const NS = 'http://www.w3.org/2000/svg';
 const JANELA = 600;
@@ -977,7 +1042,7 @@ const PRIO = {ram: 1, vram: 2, gpu: 3, cpu: 4, rede: 5, bat: 5.5, chat: 6, temp:
 const ESSENCIAIS = ['ram', 'vram', 'gpu', 'cpu', 'rede'];
 
 let H = [], A = null, CFG = null, EV = [], seq = 0, inst = '', passo = 2, falhas = 0, L = 'pt', LOC = 'pt-BR', FONTE = 1;
-let chatLigado = false, cfgSeq = -1, evSeq = -1, rolar = false, assinatura = '', avisosAntes = new Set(), blocos = null, calAntes = null, som = null;
+let alAntes = '', chatLigado = false, cfgSeq = -1, evSeq = -1, rolar = false, assinatura = '', avisosAntes = new Set(), blocos = null, calAntes = null, som = null;
 
 function T(k, ...a) {
   let s = TX[L][k] ?? TX.pt[k] ?? k;
@@ -1014,10 +1079,24 @@ function sv(tag, at, pai) {
   if (pai) pai.appendChild(e);
   return e;
 }
-function pilula(e, nv, texto) { e.replaceChildren(el('i', nv, GL[nv]), document.createTextNode(texto || T('nv_' + nv))); }
+function pilula(e, nv, texto) {
+  const k = nv + '|' + (texto || T('nv_' + nv));
+  if (e._p === k) return;
+  e._p = k;
+  e.replaceChildren(el('i', nv, GL[nv]), document.createTextNode(texto || T('nv_' + nv)));
+}
 function medidor(e, pct, nv) {
-  e.style.setProperty('--c', COR[nv || 'bom']);
-  e.firstElementChild.style.width = Math.max(2, Math.min(100, pct)) + '%';
+  const c = COR[nv || 'bom'], w = Math.max(2, Math.min(100, pct)).toFixed(1) + '%';
+  if (e._c !== c) { e.style.setProperty('--c', c); e._c = c; }
+  if (e._w !== w) { e.firstElementChild.style.width = w; e._w = w; }
+}
+// true when this element already shows exactly this; a list is rebuilt only when it changed
+let sujo = true;
+function igual(alvo, chave) {
+  chave = L + '|' + FONTE + '|' + chave;
+  if (alvo._sig === chave) return true;
+  alvo._sig = chave; sujo = true;
+  return false;
 }
 // a readable range around the data: z.span = smallest range shown, z.zero = always start at 0
 const PASSOS = [0.1, 0.2, 0.25, 0.5, 1, 2, 2.5, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000];
@@ -1031,7 +1110,9 @@ function faixa(lo, hi, z, teto) {
   if (teto != null && b > teto) { b = teto; a = Math.max(0, Math.min(a, b - z.span)); }
   return [Math.max(0, a), b];
 }
-function nivelNum(id, nv) { $(id).className = nv && nv !== 'bom' ? 'nv-' + nv : ''; }
+function nivelNum(id, nv) { const e = $(id), c = nv && nv !== 'bom' ? 'nv-' + nv : ''; if (e.className !== c) e.className = c; }
+// writes only when the text changed: an equal write still makes the browser lay the page out again
+function tx(id, v) { const e = $(id), t = v == null ? '' : String(v); if (e.textContent !== t) e.textContent = t; }
 function bonito(m) {
   for (const p of [1, 2, 4, 10, 20, 40, 100, 200, 400, 1000, 2000, 4000, 10000]) if (m <= p) return p;
   return m;
@@ -1060,26 +1141,67 @@ const nomeDisco = n => n === '/' ? T('d_sistema') : n;
 const nomeTemp = t => t.id === 'ssd' ? (t.nome === '/' ? T('ssd_sis') : 'SSD ' + t.nome) : T('t_' + t.id);
 const nomeFan = (n, i) => (CFG && CFG.nomes_fans[n]) || T('fan_n', i + 1);
 
+// ---- charts. The size comes from the ResizeObserver (no layout read while drawing), a chart
+// whose inputs did not change is not drawn again, and a chart with a 24 h column can show the
+// last hour or the last 24 h from the per-minute history instead of the last 10 minutes.
+const PERIODOS = ['10', '60', '1440'];
+function linhas24(o, jan) {
+  // per-minute rows shaped like H rows: the column of each series goes where H keeps it
+  const D = T24.d;
+  if (!D || !o.h24) return [];
+  if (o._c24 && o._c24.d === D && o._c24.n === D.linhas.length && o._c24.jan === jan) return o._c24.rows;
+  const cols = o.h24.map(([k]) => D.cols.indexOf(k)), t0 = Date.now() / 1000 - jan - 60, rows = [];
+  for (const l of D.linhas) {
+    if (l[0] < t0) continue;
+    const r = [l[0]];
+    o.series.forEach((s, k) => { const v = cols[k] >= 0 ? l[cols[k]] : null; r[s.i] = v == null ? null : o.h24[k][1] ? o.h24[k][1](v) : v; });
+    rows.push(r);
+  }
+  o._c24 = {d: D, n: D.linhas.length, jan, rows};
+  return rows;
+}
 class Grafico {
   constructor(alvo, o) {
     this.el = alvo; this.o = o; this.mx = null; this.uid = 'gr' + (Grafico.n = (Grafico.n || 0) + 1);
+    this.per = '10'; this.W = 0; this.Ht = 0; this.sig = '';
     this.svg = sv('svg', {role: 'img'}, alvo);
     this.dica = el('div', 'dica'); this.dica.hidden = true; alvo.appendChild(this.dica);
-    new ResizeObserver(() => this.desenhar()).observe(alvo);
+    if (o.h24) {
+      this.btn = el('button', 'per'); this.btn.type = 'button'; this.btn.hidden = true;
+      this.btn.onclick = () => { this.per = PERIODOS[(PERIODOS.indexOf(this.per) + 1) % PERIODOS.length]; if (this.per !== '10') atualizar24(); this.desenhar(); };
+      alvo.appendChild(this.btn);
+    }
+    new ResizeObserver(es => { const r = es[es.length - 1].contentRect; this.W = r.width; this.Ht = r.height; this.desenhar(); }).observe(alvo);
     alvo.addEventListener('pointermove', e => { this.mx = e.clientX - alvo.getBoundingClientRect().left; this.mira(); });
     alvo.addEventListener('pointerleave', () => { this.mx = null; this.mira(); });
   }
   desenhar() {
-    const o = this.o, W = this.el.clientWidth, Ht = this.el.clientHeight, svg = this.svg, f = FONTE;
+    const o = this.o, W = Math.round(this.W), Ht = Math.round(this.Ht), svg = this.svg, f = FONTE;
     if (!A || W < 60 || Ht < 34) return;
-    const esq = 32 * f, dir = 8, topo = 7, baixo = Ht >= 84 * f ? 16 * f : 3;
-    const pw = W - esq - dir, ph = Ht - topo - baixo, t1 = A.t, t0 = t1 - JANELA;
-    const buraco = Math.max(passo * 3.5, (A.espaco || passo) * 1.7);
-    let max = o.max ? o.max() : 0, min = 0;
+    const longo = this.per !== '10' && o.h24, jan = longo ? +this.per * 60 : JANELA;
+    const t1 = A.t, t0 = t1 - jan;
+    let rows = H;
+    if (longo) {
+      // the per-minute history ends up to two minutes ago, the live samples after it (one per 15 s) close the gap
+      const h = linhas24(o, jan), fim = h.length ? h[h.length - 1][0] + 60 : t0;
+      rows = h.concat(H.filter((l, i) => l[0] > fim && (i === H.length - 1 || Math.floor(l[0] / 15) !== Math.floor(H[i + 1][0] / 15))));
+    }
     const lim = o.limite && o.limite(), nvc = o.nv && o.nv(), corNv = nvc && nvc !== 'bom' ? COR[nvc] : null;
+    const ult = rows.length ? rows[rows.length - 1][0] : 0;
+    // the window slides with every new sample, so the newest time is part of the key
+    const sig = [W, Ht, f, L, this.per, longo ? T24.t : 0, rows.length, ult, longo ? Math.floor(t1 / 60) : t1, lim && lim.v, lim && lim.rotulo, nvc,
+      CFG && CFG.tema, CFG && CFG.cor].join('|');
+    if (sig === this.sig) return;
+    this.sig = sig;
+    const esq = 32 * f, dir = 8, topo = 7, baixo = Ht >= 84 * f ? 16 * f : 3;
+    const pw = W - esq - dir, ph = Ht - topo - baixo;
+    // samples further apart than this are not joined; the background watch (page closed) samples
+    // every 5 to 60 s, those stretches are joined and shaded instead of left as loose dots
+    const buraco = longo ? 150 : Math.max(passo * 3.5, (A.espaco || passo) * 1.7), solto = longo ? 150 : Math.max(buraco, 65);
+    let max = o.max ? o.max() : 0, min = 0;
     if (o.zoom) {
       let lo = null, hi = null;
-      for (const l of H) if (l[0] >= t0) for (const s of o.series) {
+      for (const l of rows) if (l[0] >= t0) for (const s of o.series) {
         const v = l[s.i];
         if (v != null && v >= 0) { if (lo == null || v < lo) lo = v; if (hi == null || v > hi) hi = v; }
       }
@@ -1088,14 +1210,14 @@ class Grafico {
       [min, max] = faixa(lo, hi, o.zoom, o.max ? max : null);
     } else if (!o.max) {
       let m = 0;
-      for (const l of H) for (const s of o.series) if (l[s.i] != null && l[s.i] > m) m = l[s.i];
+      for (const l of rows) if (l[0] >= t0) for (const s of o.series) if (l[s.i] != null && l[s.i] > m) m = l[s.i];
       if (lim && lim.v > m && lim.v - m <= m * 0.6) m = lim.v;
       max = bonito(Math.max(m, o.piso || 1));
     }
-    const X = t => esq + (t - t0) / JANELA * pw;
+    const X = t => esq + (t - t0) / jan * pw;
     const Y = v => topo + ph - (Math.max(min, Math.min(v, max)) - min) / (max - min) * ph;
     const y0 = (topo + ph).toFixed(1);
-    this.esc = {X, Y, t0, esq, pw, W, topo, ph};
+    this.esc = {X, Y, t0, esq, pw, W, topo, ph, rows, jan, longo, buraco, solto};
     svg.setAttribute('viewBox', '0 0 ' + W + ' ' + Ht);
     svg.setAttribute('aria-label', o.series.map(s => T(s.nome)).join(', '));
     svg.replaceChildren();
@@ -1105,13 +1227,28 @@ class Grafico {
       sv('text', {x: esq - 6, y: Y(v) + 3.5, class: 'rot', 'text-anchor': 'end'}, svg).textContent =
         Number.isInteger(v) ? String(v) : nf(v);
     }
+    const [r0, r5] = this.per === '60' ? ['g_60', 'g_30'] : this.per === '1440' && longo ? ['g_24h', 'g_12h'] : ['g_10', 'g_5'];
+    if (this.btn) {
+      this.btn.hidden = !(baixo > 3 && pw >= 110);
+      this.btn.textContent = T(r0) + ' ▾'; this.btn.title = T('per_t');
+      this.btn.style.left = esq + 'px';
+    }
     if (baixo > 3) {
-      if (pw >= 110) sv('text', {x: esq, y: Ht - 2, class: 'rot'}, svg).textContent = T('g_10');
-      if (pw >= 190) sv('text', {x: esq + pw / 2, y: Ht - 2, class: 'rot', 'text-anchor': 'middle'}, svg).textContent = T('g_5');
+      if (pw >= 110 && !this.btn) sv('text', {x: esq, y: Ht - 2, class: 'rot'}, svg).textContent = T(r0);
+      if (pw >= 190) sv('text', {x: esq + pw / 2, y: Ht - 2, class: 'rot', 'text-anchor': 'middle'}, svg).textContent = T(r5);
       sv('text', {x: W - dir, y: Ht - 2, class: 'rot', 'text-anchor': 'end'}, svg).textContent = T('agora');
     }
     if (lim && lim.v <= max)          // the alert zone, the whole chart when the data is all above the limit
       sv('rect', {x: esq, y: topo, width: pw, height: Math.max(0, Y(Math.max(lim.v, min)) - topo), class: 'zona'}, svg);
+    if (!longo) {                      // stretches sampled slowly (page closed): a light band behind them
+      let ant = null;
+      for (const l of rows) {
+        if (l[0] < t0) continue;
+        if (ant != null && l[0] - ant > buraco && l[0] - ant <= solto)
+          sv('rect', {x: X(ant), y: topo, width: Math.max(1, X(l[0]) - X(ant)), height: ph, class: 'esparso'}, svg);
+        ant = l[0];
+      }
+    }
     const pontas = [];
     o.series.forEach((s, k) => {
       const cor = corNv || s.cor || 'var(--s1)', segs = [], gid = this.uid + 'g' + k;
@@ -1119,11 +1256,11 @@ class Grafico {
       sv('stop', {offset: 0, style: 'stop-color:' + cor + ';stop-opacity:.34'}, lg);
       sv('stop', {offset: 1, style: 'stop-color:' + cor + ';stop-opacity:0'}, lg);
       let seg = null, tant = 0;
-      for (const l of H) {
+      for (const l of rows) {
         const t = l[0], v = l[s.i];
         if (t < t0) continue;
         const ruim = v == null || v < 0;
-        if (ruim || (seg && t - tant > buraco)) seg = null;
+        if (ruim || (seg && t - tant > solto)) seg = null;
         if (ruim) continue;
         if (!seg) { seg = []; segs.push(seg); }
         seg.push([X(t), Y(v), t]);
@@ -1137,13 +1274,13 @@ class Grafico {
         sv('path', {d, class: 'linha', style: 'stroke:' + cor}, svg);
       }
       const us = segs[segs.length - 1];
-      if (us && us[us.length - 1][2] > t1 - buraco) pontas.push([us[us.length - 1], cor]);
+      if (us && us[us.length - 1][2] > t1 - (longo ? 150 : solto)) pontas.push([us[us.length - 1], cor]);
     });
-    if (o.perdas) for (const l of H) if (l[5] === -1 && l[0] >= t0)
+    if (o.perdas && !longo) for (const l of rows) if (l[5] === -1 && l[0] >= t0)
       sv('line', {x1: X(l[0]), x2: X(l[0]), y1: topo, y2: topo + 8, style: 'stroke:var(--critico);stroke-width:2'}, svg);
     if (lim && lim.v <= max && lim.v > min) {
       sv('line', {x1: esq, x2: W - dir, y1: Y(lim.v), y2: Y(lim.v), class: 'limite'}, svg);
-      sv('text', {x: W - dir, y: Y(lim.v) - 4, class: 'rot', 'text-anchor': 'end'}, svg).textContent = lim.rotulo;
+      sv('text', {x: W - dir, y: Y(lim.v) - 4, class: 'rot', 'text-anchor': 'end'}, svg).textContent = lim.rotulo + ' ' + o.fmt(lim.v);
     } else if (lim && lim.v >= max && ph >= 60)       // above the zoomed range: say where it is
       sv('text', {x: W - dir, y: topo + 10, class: 'rot', 'text-anchor': 'end'}, svg).textContent = '↑ ' + lim.rotulo + ' ' + o.fmt(lim.v);
     for (const [q, cor] of pontas)
@@ -1156,25 +1293,29 @@ class Grafico {
     if (!g) return;
     g.replaceChildren();
     if (this.mx == null || !this.esc) { d.hidden = true; return; }
-    const {X, Y, t0, esq, pw, W, topo, ph} = this.esc;
-    const alvo = t0 + (this.mx - esq) / pw * JANELA;
-    let perto = null, dist = 1e9;
-    for (const l of H) { const x = Math.abs(l[0] - alvo); if (x < dist) { dist = x; perto = l; } }
-    if (!perto || dist > Math.max(8, (A.espaco || 2) * 2) || perto[0] < t0) { d.hidden = true; return; }
+    const {X, Y, t0, esq, pw, W, topo, ph, rows, jan, longo, buraco, solto} = this.esc;
+    const alvo = t0 + (this.mx - esq) / pw * jan;
+    let perto = null, dist = 1e9, k = -1;
+    rows.forEach((l, i) => { const x = Math.abs(l[0] - alvo); if (x < dist) { dist = x; perto = l; k = i; } });
+    if (!perto || dist > (longo ? 150 : Math.max(8, solto)) || perto[0] < t0) { d.hidden = true; return; }
     const x = X(perto[0]);
     sv('line', {x1: x, x2: x, y1: topo, y2: topo + ph, class: 'mira'}, g);
-    d.replaceChildren(el('div', 'h', hora(perto[0])));
+    d.replaceChildren(el('div', 'h', longo ? new Date(perto[0] * 1000).toLocaleTimeString(LOC, {hour: '2-digit', minute: '2-digit'}) + ' · ' + T('per_min') : hora(perto[0])));
     const nvc = this.o.nv && this.o.nv(), corNv = nvc && nvc !== 'bom' ? COR[nvc] : null;
     for (const s of this.o.series) {
-      const v = perto[s.i], cor = corNv || s.cor || 'var(--s1)', r = el('div', 'r'), k = el('i');
-      k.style.background = cor;
-      r.append(k, el('b', '', v == null ? T('sem_medida') : v < 0 ? T('perdido') : this.o.fmt(v)), el('span', '', T(s.nome)));
+      const v = perto[s.i], cor = corNv || s.cor || 'var(--s1)', r = el('div', 'r'), q = el('i');
+      q.style.background = cor;
+      r.append(q, el('b', '', v == null ? T('sem_medida') : v < 0 ? T('perdido') : this.o.fmt(v)), el('span', '', T(s.nome)));
       d.append(r);
       if (v != null && v >= 0)
         sv('circle', {cx: x, cy: Y(v), r: 4, style: 'fill:' + cor + ';stroke:var(--sup);stroke-width:2'}, g);
     }
-    const mais = this.o.extra && this.o.extra(perto);
+    const mais = !longo && this.o.extra && this.o.extra(perto);
     if (mais) d.append(el('div', 'h', mais));
+    if (!longo) {
+      const viz = [rows[k - 1], rows[k + 1]].filter(Boolean).map(l => Math.abs(l[0] - perto[0])).filter(v => v > buraco && v <= solto);
+      if (viz.length) d.append(el('div', 'h', T('esparso_t', int(Math.min(...viz)))));
+    }
     d.hidden = false;
     const lw = d.offsetWidth;
     d.style.left = Math.max(0, Math.min(W - lw, x + 12 + lw > W ? x - 12 - lw : x + 12)) + 'px';
@@ -1182,25 +1323,27 @@ class Grafico {
 }
 
 const graficos = [
+  // the 24 h history keeps the lowest free RAM of each minute, which is the highest RAM used
   new Grafico($('g-ram'), {series: [{i: 1, nome: 'g_ram', cor: 'var(--m-ram)'}], max: () => A.ram.total / 1048576, zoom: {span: 4}, nv: () => A.nv.ram,
+    h24: [['ram_min', v => Math.max(0, (A.ram.total - A.ram.reserva) / 1048576 - v / 1024)]],
     fmt: v => nf(v) + ' GiB', limite: () => A.ram.reserva ? {v: (A.ram.total - A.ram.reserva) / 1048576, rotulo: T('left_zero')} : null}),
-  new Grafico($('g-vram'), {series: [{i: 2, nome: 'g_vram', cor: 'var(--m-vram)'}], max: () => A.gpu.ok ? A.gpu.vram_total / 1024 : 8,
+  new Grafico($('g-vram'), {series: [{i: 2, nome: 'g_vram', cor: 'var(--m-vram)'}], max: () => A.gpu.ok ? A.gpu.vram_total / 1024 : 8, h24: [['vram_max', v => v / 1024]],
     zoom: {span: 1}, fmt: v => nf(v) + ' GiB', nv: () => A.nv.vram,
     limite: () => A.lims && A.lims.vram && A.gpu.ok && !A.gpu.compartilhada ? {v: A.lims.vram / 100 * A.gpu.vram_total / 1024, rotulo: T('lim_alerta')} : null}),
-  new Grafico($('g-gpu'), {series: [{i: 3, nome: 'g_gpu', cor: 'var(--m-gpu)'}], max: () => 100, zoom: {span: 20, zero: true}, fmt: v => int(v) + ' %',
+  new Grafico($('g-gpu'), {series: [{i: 3, nome: 'g_gpu', cor: 'var(--m-gpu)'}], max: () => 100, zoom: {span: 20, zero: true}, fmt: v => int(v) + ' %', h24: [['gpu']],
     nv: () => A.nv.gpu}),
-  new Grafico($('g-cpu'), {series: [{i: 4, nome: 'g_cpu', cor: 'var(--m-cpu)'}], max: () => 100, zoom: {span: 20, zero: true}, fmt: v => int(v) + ' %',
+  new Grafico($('g-cpu'), {series: [{i: 4, nome: 'g_cpu', cor: 'var(--m-cpu)'}], max: () => 100, zoom: {span: 20, zero: true}, fmt: v => int(v) + ' %', h24: [['cpu']],
     nv: () => A.nv.cpu, limite: () => A.lims && A.lims.cpu ? {v: A.lims.cpu, rotulo: T('lim_alerta')} : null}),
-  new Grafico($('g-bat'), {series: [{i: 14, nome: 'c_bat', cor: 'var(--m-fps)'}], max: () => 100, zoom: {span: 10}, fmt: v => int(v) + ' %',
+  new Grafico($('g-bat'), {series: [{i: 14, nome: 'c_bat', cor: 'var(--m-fps)'}], max: () => 100, zoom: {span: 10}, fmt: v => int(v) + ' %', h24: [['bat_min']],
     nv: () => A.nv.bat, extra: l => l[15] == null ? '' : l[15] >= 0 ? T('bat_g_desc', nf(l[15])) : T('bat_g_carga', nf(-l[15]))}),
-  new Grafico($('g-fps'), {series: [{i: 11, nome: 'FPS', cor: 'var(--m-fps)'}], zoom: {span: 20}, fmt: v => nf(v, v < 100 ? 1 : 0) + ' FPS',
+  new Grafico($('g-fps'), {series: [{i: 11, nome: 'FPS', cor: 'var(--m-fps)'}], zoom: {span: 20}, fmt: v => nf(v, v < 100 ? 1 : 0) + ' FPS', h24: [['fps']],
     extra: l => l[12] != null ? T('fps_pior_d', nf(l[12])) : ''}),
   new Grafico($('g-ft'), {series: [{i: 12, nome: 'fps_pior', cor: 'var(--m-fps)'}], zoom: {span: 4, zero: true}, fmt: v => nf(v) + ' ms',
     extra: l => l[13] != null ? T('ft_med_d', nf(l[13])) : ''}),
-  new Grafico($('g-ping'), {series: [{i: 5, nome: 'Ping'}], piso: 40, fmt: v => nf(v) + ' ms', perdas: true, nv: () => A.nv.rede,
+  new Grafico($('g-ping'), {series: [{i: 5, nome: 'Ping'}], piso: 40, fmt: v => nf(v) + ' ms', perdas: true, nv: () => A.nv.rede, h24: [['ping']],
     limite: () => A.lims && A.lims.ping ? {v: A.lims.ping, rotulo: T('lim_alerta')} : null}),
   new Grafico($('g-net'), {series: [{i: 6, nome: 'Download'}, {i: 7, nome: 'Upload', cor: 'var(--s2)'}], piso: 1,
-    fmt: v => nf(v, v < 10 ? 2 : 1) + ' Mbit/s'}),
+    fmt: v => nf(v, v < 10 ? 2 : 1) + ' Mbit/s', h24: [['rx'], ['tx']]}),
   new Grafico($('rd-gping'), {series: [{i: 5, nome: 'rd_internet'}, {i: 10, nome: 'roteador', cor: 'var(--s2)'}], piso: 40,
     fmt: v => nf(v, v < 10 ? 1 : 0) + ' ms', perdas: true}),
   new Grafico($('rd-gnet'), {series: [{i: 6, nome: 'Download'}, {i: 7, nome: 'Upload', cor: 'var(--s2)'}], piso: 1,
@@ -1209,13 +1352,13 @@ const graficos = [
 
 function cRam() {
   const r = A.ram, usando = r.swap_mibs > 0.5;
-  $('ram-v').textContent = nf(r.usada / 1048576);
-  $('ram-de').textContent = T('gib_de', nf(r.total / 1048576));
-  $('ram-left-r').textContent = r.reserva ? 'RAM LEFT' : T('disponivel');
-  $('ram-left').textContent = r.left >= 4194304 && !r.reserva ? tam(r.left) : int(r.left / 1024) + ' MiB';
-  $('ram-swap').textContent = tam(r.swap) + ', ' + (usando ? T('em_uso') : T('parado'));
-  $('ram-cache').textContent = tam(r.cache);
-  $('ram-psi').textContent = nf(r.psi, r.psi < 10 ? 1 : 0) + ' %';
+  tx('ram-v', nf(r.usada / 1048576));
+  tx('ram-de', T('gib_de', nf(r.total / 1048576)));
+  tx('ram-left-r', r.reserva ? 'RAM LEFT' : T('disponivel'));
+  tx('ram-left', r.left >= 4194304 && !r.reserva ? tam(r.left) : int(r.left / 1024) + ' MiB');
+  tx('ram-swap', tam(r.swap) + ', ' + (usando ? T('em_uso') : T('parado')));
+  tx('ram-cache', tam(r.cache));
+  tx('ram-psi', nf(r.psi, r.psi < 10 ? 1 : 0) + ' %');
   pilula($('ram-st'), A.nv.ram);
   nivelNum('ram-v', A.nv.ram);
   medidor($('ram-m'), 100 * r.usada / r.total, A.nv.ram);
@@ -1226,64 +1369,86 @@ function cPlaca() {
   pilula($('gpu-st'), A.nv.gpu, g.ok ? null : T('sem_leitura'));
   if (!g.ok) {
     for (const id of ['vram-v', 'gpu-v']) $(id).textContent = '?';
-    for (const id of ['vram-livre', 'vram-top', 'gpu-temp', 'gpu-w', 'gpu-fan', 'gpu-mhz', 'gpu-enc']) $(id).textContent = '';
+    for (const id of ['vram-livre', 'vram-top', 'gpu-temp', 'gpu-w', 'gpu-fan', 'gpu-mhz', 'gpu-enc', 'gpu-fr']) tx(id, '');
     return;
   }
   const top = A.progs && A.progs.vram[0];
-  $('gpu-nome').textContent = g.nome;
+  tx('gpu-nome', g.nome);
   // integrated graphics: AMD lends it a reserve plus RAM (with a limit), Intel just uses RAM
-  $('vram-tit').textContent = g.integrada ? T('mem_video') : 'VRAM';
+  tx('vram-tit', g.integrada ? T('mem_video') : 'VRAM');
   $('c-vram').querySelector('header').title = g.integrada ? T('integrada_t') : '';
-  $('p-vram-t').textContent = g.integrada ? T('p_memvideo') : T('p_vram');
-  $('vram-v').textContent = nf(g.vram / 1024);
-  $('vram-de').textContent = g.compartilhada ? T('gib_comp') : T('gib_de', nf(g.vram_total / 1024));
-  $('vram-livre').textContent = g.compartilhada ? '' : tamMib(g.vram_total - g.vram);
-  $('vram-top').textContent = top ? top.nome + ' ' + tamMib(top.mib) : '';
+  tx('p-vram-t', g.integrada ? T('p_memvideo') : T('p_vram'));
+  tx('vram-v', nf(g.vram / 1024));
+  tx('vram-de', g.compartilhada ? T('gib_comp') : T('gib_de', nf(g.vram_total / 1024)));
+  tx('vram-livre', g.compartilhada ? '' : tamMib(g.vram_total - g.vram));
+  tx('vram-top', top ? top.nome + ' ' + tamMib(top.mib) : '');
   medidor($('vram-m'), 100 * g.vram / g.vram_total, A.nv.vram);
   nivelNum('vram-v', A.nv.vram); nivelNum('gpu-v', A.nv.gpu);
-  $('gpu-v').textContent = int(g.uso);
-  $('gpu-temp').textContent = g.temp == null ? '' : g.temp + ' °C';
-  $('gpu-w').textContent = g.watts == null || (g.integrada && !g.watts) ? '' : g.watts_max ? T('w_de', g.watts, g.watts_max) : g.watts + ' W';
-  $('gpu-fan').textContent = (g.fan == null ? '' : g.fan + ' %') + (g.rpm.length ? (g.fan == null ? '' : ', ') + int(Math.max(...g.rpm)) + ' rpm' : '');
-  $('gpu-mhz').textContent = g.mhz == null ? '' : g.mhz + ' MHz';
-  $('gpu-enc').textContent = g.enc == null ? '' : g.enc + ' %';
-  $('gpu-enc-r').textContent = g.driver ? 'Encoder' : T('video');
+  tx('gpu-v', int(g.uso));
+  tx('gpu-temp', g.temp == null ? '' : g.temp + ' °C');
+  tx('gpu-w', g.watts == null || (g.integrada && !g.watts) ? '' : g.watts_max ? T('w_de', g.watts, g.watts_max) : g.watts + ' W');
+  tx('gpu-fan', (g.fan == null ? '' : g.fan + ' %') + (g.rpm.length ? (g.fan == null ? '' : ', ') + int(Math.max(...g.rpm)) + ' rpm' : ''));
+  tx('gpu-mhz', g.mhz == null ? '' : g.mhz + ' MHz');
+  // what holds the clock back while the card is busy: heat and the hardware brake are problems,
+  // the power limit is how a card at full load normally runs
+  const fr = g.freio, partes = [];
+  if (fr && fr.temp >= 10) partes.push(T('fr_temp', fr.temp));
+  if (fr && fr.hw >= 10) partes.push(T('fr_hw', fr.hw));
+  if (fr && fr.energia >= 10) partes.push(T('fr_energia', fr.energia));
+  tx('gpu-fr', partes.join(', '));
+  const dClock = [g.mhz_mem ? T('clk_mem', g.mhz_mem) : null,
+    g.pcie ? T('pcie_t', g.pcie[0] + '.0', g.pcie[1], g.pcie[2] + '.0', g.pcie[3]) + (g.pcie[0] < g.pcie[2] && g.uso < 30 ? ' ' + T('pcie_ocioso') : '') : null].filter(Boolean).join('\n');
+  const pm = $('gpu-mhz').parentElement;
+  if (pm.title !== dClock) pm.title = dClock;
+  tx('gpu-enc', g.enc == null ? '' : g.enc + ' %');
+  tx('gpu-enc-r', g.driver ? 'Encoder' : T('video'));
   $('gpu-enc-b').title = g.driver ? T('enc_t') : T('video_t');
   $('gpu-w').parentElement.title = g.integrada && g.watts != null ? T('soc_t') : '';
   // a reading this card does not have (no fan, no sensor) hides its label too
-  for (const id of ['vram-livre', 'vram-top', 'gpu-temp', 'gpu-w', 'gpu-fan', 'gpu-mhz', 'gpu-enc']) $(id).parentElement.hidden = $(id).textContent === '';
+  for (const id of ['vram-livre', 'vram-top', 'gpu-temp', 'gpu-w', 'gpu-fan', 'gpu-mhz', 'gpu-enc', 'gpu-fr']) {
+    const b = $(id).parentElement, h = $(id).textContent === '';
+    if (b.hidden !== h) b.hidden = h;
+  }
   medidor($('gpu-m'), g.uso, A.nv.gpu);
 }
 function cCpu() {
   const c = A.cpu;
-  $('cpu-nome').textContent = c.nome;
-  $('cpu-v').textContent = c.uso == null ? '?' : int(c.uso);
-  $('cpu-temp').textContent = c.temp == null ? '' : nf(c.temp, 0) + ' °C';
-  $('cpu-ghz').textContent = c.ghz == null ? '' : nf(c.ghz, 2) + ' GHz';
-  $('cpu-carga').textContent = nf(c.carga);
-  $('cpu-psi').textContent = nf(c.psi, c.psi < 10 ? 1 : 0) + ' %';
+  tx('cpu-nome', c.nome);
+  tx('cpu-v', c.uso == null ? '?' : int(c.uso));
+  tx('cpu-temp', c.temp == null ? '' : nf(c.temp, 0) + ' °C');
+  tx('cpu-ghz', c.ghz == null ? '' : nf(c.ghz, 2) + ' GHz');
+  tx('cpu-carga', nf(c.carga));
+  tx('cpu-psi', nf(c.psi, c.psi < 10 ? 1 : 0) + ' %');
   pilula($('cpu-st'), A.nv.cpu);
   nivelNum('cpu-v', A.nv.cpu);
   medidor($('cpu-m'), c.uso || 0, A.nv.cpu);
-  const alvo = $('cpu-nuc');
+  // one cell per core, brighter the busier; the busiest core is what a game feels first
+  const alvo = $('cpu-nuc-c');
   if (alvo.children.length !== c.nucleos.length) alvo.replaceChildren(...c.nucleos.map(() => el('i')));
+  let top = -1, k = 0;
   c.nucleos.forEach((v, i) => {
-    alvo.children[i].style.height = Math.max(4, v) + '%';
-    alvo.children[i].title = T('nucleo', i + 1, int(v));
+    const e = alvo.children[i], o = (0.14 + 0.86 * Math.min(100, v) / 100).toFixed(2), q = v >= 90;
+    if (e._o !== o) { e.style.opacity = o; e._o = o; }
+    if (e._q !== q) { e.classList.toggle('q', q); e._q = q; }
+    if (v > top) { top = v; k = i; }
   });
+  const dica = c.nucleos.map((v, i) => T('nucleo', i + 1, int(v))).join('\n');
+  if (alvo.title !== dica) alvo.title = dica;
+  const topo = $('cpu-nuc-top'), tt = c.nucleos.length ? T('nuc_top', k + 1, int(top)) : '';
+  if (topo._t !== tt) { topo._t = tt; topo.replaceChildren(T('nuc_top_r') + ' ', el('b', '', c.nucleos.length ? int(top) + ' %' : '')); topo.title = tt; }
 }
 function cRede() {
   const r = A.rede;
-  $('rede-if').textContent = r.iface ? r.iface + (r.ip ? ', ' + r.ip : '') : T('sem_rota');
-  $('ping-v').textContent = r.ping == null ? '?' : r.ping < 0 ? T('perdido') : r.ping < 10 ? nf(r.ping) : int(r.ping);
-  $('ping-gw').textContent = r.gw == null ? '?' : r.gw < 0 ? T('perdido') : nf(r.gw) + ' ms';
-  $('ping-perda').textContent = nf(r.perda, r.perda && r.perda < 10 ? 1 : 0) + ' %';
-  $('ping-jit').textContent = r.osc == null ? '' : nf(r.osc) + ' ms';
-  $('rede-link').textContent = r.link ? (r.link >= 1000 ? nf(r.link / 1000, r.link % 1000 ? 1 : 0) + ' Gbit/s' : r.link + ' Mbit/s') : '?';
-  $('rede-err').textContent = r.erros == null ? '' : T('err_v', int(r.erros), int(r.descartes));
-  $('ping-alvo').textContent = r.alvo;
-  $('net-rx').textContent = mbit(r.rx == null ? null : r.rx * 8 / 1e6);
-  $('net-tx').textContent = mbit(r.tx == null ? null : r.tx * 8 / 1e6);
+  tx('rede-if', r.iface ? r.iface + (r.ip ? ', ' + r.ip : '') : T('sem_rota'));
+  tx('ping-v', r.ping == null ? '?' : r.ping < 0 ? T('perdido') : r.ping < 10 ? nf(r.ping) : int(r.ping));
+  tx('ping-gw', r.gw == null ? '?' : r.gw < 0 ? T('perdido') : nf(r.gw) + ' ms');
+  tx('ping-perda', nf(r.perda, r.perda && r.perda < 10 ? 1 : 0) + ' %');
+  tx('ping-jit', r.osc == null ? '' : nf(r.osc) + ' ms');
+  tx('rede-link', r.link ? (r.link >= 1000 ? nf(r.link / 1000, r.link % 1000 ? 1 : 0) + ' Gbit/s' : r.link + ' Mbit/s') : '?');
+  tx('rede-err', r.erros == null ? '' : T('err_v', int(r.erros), int(r.descartes)));
+  tx('ping-alvo', r.alvo);
+  tx('net-rx', mbit(r.rx == null ? null : r.rx * 8 / 1e6));
+  tx('net-tx', mbit(r.tx == null ? null : r.tx * 8 / 1e6));
   pilula($('rede-st'), A.nv.rede);
   nivelNum('ping-v', A.nv.rede);
   const dg = r.diag, x = $('rede-diag'), mostra = r.n >= 10 && (dg === 'roteador' || dg === 'internet' || dg === 'pc');
@@ -1302,8 +1467,8 @@ function cRedeDet() {
   const r = A.rede, P = A.rede_progs;
   const ms = v => v == null ? '?' : v < 0 ? T('perdido') : nf(v, v < 10 ? 1 : 0) + ' ms';
   const nvDe = id => ((A.avisos || []).find(a => a.id === id) || {}).nv || 'bom';
-  $('rd-if').textContent = r.iface ? r.iface + (r.ip ? ', ' + r.ip : '') : T('sem_rota');
-  $('rd-l-net').textContent = T('rd_internet') + ' (' + r.alvo + ')';
+  tx('rd-if', r.iface ? r.iface + (r.ip ? ', ' + r.ip : '') : T('sem_rota'));
+  tx('rd-l-net', T('rd_internet') + ' (' + r.alvo + ')');
   const dg = r.diag === 'ok' && r.n < 10 ? 'medindo' : r.diag;
   const nvd = {ok: 'bom', medindo: 'bom', roteador: 'serio', internet: 'aviso', pc: 'aviso', sem: 'critico'}[dg] || 'bom';
   $('rd-diag').replaceChildren(el('i', 'g ' + nvd, GL[nvd]), el('span', '', T('dg_' + dg, r.alvo)));
@@ -1340,32 +1505,37 @@ function cRedeDet() {
     ...(P ? P.lista.map(x => linha([x.nome || T('rd_outros'), taxa(x.rx), taxa(x.tx), String(x.tcp), String(x.udp)]))
       : [linha([T('rd_medindo'), '', '', '', ''])]));
 }
+let linCache = null;
 function cabem(alvo) {
-  const lh = parseFloat(getComputedStyle(document.body).getPropertyValue('--lin')) * rem() || 23;
+  if (!linCache || linCache.f !== FONTE) linCache = {f: FONTE, v: parseFloat(getComputedStyle(document.body).getPropertyValue('--lin')) * rem() || 23};
+  const lh = linCache.v;
   return Math.max(1, Math.floor(alvo.clientHeight / lh));
 }
 function lista(alvo, itens, valor, rotulo, dica) {
   const ver = itens.slice(0, cabem(alvo)), max = ver.length ? valor(ver[0]) : 1;
+  if (igual(alvo, JSON.stringify(ver.map(it => [it.nome, it.n, rotulo(it), Math.round(100 * valor(it) / max)])))) return;
   alvo.replaceChildren(...ver.map(it => {
     const lin = el('div', 'lin'), n = el('span', 'n', it.nome), b = el('div', 'barra'), f = el('i');
     if (it.n > 1) n.append(' ', el('small', '', '×' + it.n));
     f.style.width = Math.max(1, 100 * valor(it) / max) + '%';
     b.append(f);
-    lin.title = dica(it);
+    lin.title = dica(it) + '\n' + T('prog_clique');
+    lin.classList.add('clica');
+    lin.onclick = () => abrirProg(it.nome);
     lin.append(n, b, el('span', 'v', rotulo(it)));
     return lin;
   }));
 }
 function cProg() {
   const p = A.progs;
-  if (!p) { $('l-ram').replaceChildren(el('div', 'vazio', T('medindo'))); return; }
+  if (!p) { if (!igual($('l-ram'), 'medindo')) $('l-ram').replaceChildren(el('div', 'vazio', T('medindo'))); return; }
   lista($('l-ram'), p.ram, it => it.kb, it => tam(it.kb), it => T('tip_ram', it.nome, it.n, tam(it.kb)) + (it.swap > 10240 ? T('no_swap', tam(it.swap)) : ''));
   if (p.vram.length) lista($('l-vram'), p.vram, it => it.mib, it => tamMib(it.mib), it => T('tip_vram', it.nome, tamMib(it.mib)));
-  else $('l-vram').replaceChildren(el('div', 'vazio', T('p_sem_vram')));
+  else if (!igual($('l-vram'), 'vazio')) $('l-vram').replaceChildren(el('div', 'vazio', T('p_sem_vram')));
   // the service sends % of one core; here it becomes % of the whole processor, like the big number on the card
   const nt = A.cpu.nucleos.length || 1, tot = it => it.pct / nt, usando = p.cpu.filter(it => tot(it) >= 0.05);
   if (usando.length) lista($('l-cpu'), usando, tot, it => nf(tot(it), 1) + ' %', it => T('tip_cpu', it.nome, nf(tot(it)), nf(it.pct, 0)));
-  else $('l-cpu').replaceChildren(el('div', 'vazio', T('p_parado')));
+  else if (!igual($('l-cpu'), 'vazio')) $('l-cpu').replaceChildren(el('div', 'vazio', T('p_parado')));
 }
 function modoFan(x) {
   return !x ? '' : x.modo === 'max' ? T('m_max') : x.modo === 'auto' ? T('m_auto') : x.modo === 'curva' ? T('m_curva') : T('m_fixo', x.pct);
@@ -1383,10 +1553,13 @@ function linhaMed(nome, pct, nv, valor, dica, mx) {
 }
 function cTemp() {
   const linhas = [], f = A.fans, e = f.escolha;
+  if (igual($('l-temp'), JSON.stringify([A.temps.map(t => [t.id, t.nome, Math.round(t.c), t.nv, t.max24, t.lim]), f.canais, f.ro, e, A.gpu.fan, A.gpu.rpm, CFG && CFG.nomes_fans]))) return;
   // the bar fills up to the first alert limit, so a full bar means "about to alert"
   for (const t of A.temps)
     linhas.push(linhaMed(nomeTemp(t), t.lim ? (t.c - 25) / (t.lim - 25) * 100 : (t.c - 20) / 80 * 100, t.nv, nf(t.c, 0) + ' °C',
-      T('tip_temp', nomeTemp(t), nf(t.c), T('nv_' + t.nv), t.lim) + (t.max24 != null ? '\n' + T('t_max24_t', nf(t.max24, 0)) : ''),
+      T('tip_temp', nomeTemp(t), nf(t.c), T('nv_' + t.nv), t.lim) + (t.max24 != null ? '\n' + T('t_max24_t', nf(t.max24, 0)) +
+        (t.max24_t ? ' ' + T('t_max24_h', new Date(t.max24_t * 1000).toLocaleTimeString(LOC, {hour: '2-digit', minute: '2-digit'}),
+          new Date((t.max24_t + 3600) * 1000).toLocaleTimeString(LOC, {hour: '2-digit', minute: '2-digit'})) : '') : ''),
       t.max24 != null ? '↑' + nf(t.max24, 0) : ''));
   if (A.gpu.ok && A.gpu.fan != null)
     linhas.push(linhaMed(T('fan_gpu'), A.gpu.fan, 'bom', A.gpu.rpm.length ? int(Math.max(...A.gpu.rpm)) + ' rpm' : A.gpu.fan + ' %',
@@ -1403,7 +1576,10 @@ function cTemp() {
   $('btn-fans2').hidden = !ajusta; $('btn-fans').hidden = !ajusta;
 }
 function cDisc() {
-  $('disc-psi').textContent = A.psi_io >= 1 ? T('espera_disco', nf(A.psi_io, 0)) : '';
+  tx('disc-psi', A.psi_io >= 1 ? T('espera_disco', nf(A.psi_io, 0)) : '');
+  const mbr = x => x == null ? null : Math.round(x / 104857.6);
+  if (igual($('l-disc'), JSON.stringify([A.discos.map(d => [d.nome, d.livre, d.nv, d.saude, mbr(d.ler), mbr(d.gravar), Math.round(d.ocupado || 0), d.espera]),
+    A.temps.filter(t => t.id === 'ssd').map(t => [t.nome, Math.round(t.c), t.nv])]))) return;
   // two lines per disk: name and free space, then health, temperature and activity
   $('l-disc').replaceChildren(...A.discos.map(d => {
     const caixa = el('div', 'disco'), n = el('span', 'n', nomeDisco(d.nome)), m = el('div', 'med'), v = el('span', 'v'), det = el('div', 'det');
@@ -1444,6 +1620,7 @@ function cDisc() {
 }
 function cSaude() {
   const s = A.saude, u = s.upd, linhas = [];
+  if (igual($('l-saude'), JSON.stringify([s, Math.floor(A.t / 60)]))) return;
   const lin = (rot, val, nv, dica) => {
     const l = el('div', 'lin s'), v = el('span', 'v');
     if (nv) v.append(el('i', 'g ' + nv, GL[nv]), ' ');
@@ -1478,14 +1655,14 @@ function cJogo() {
   // the big game card (FPS from MangoHud's log), filled after the layout decided its size
   if (!$('c-jogo').classList.contains('grande') || !jogoAgora) return;
   const {nome, info, d2} = jogoAgora, f = A.fps, ss = A.sessao;
-  $('jogo-p').textContent = nome;
-  $('fps-v').textContent = f ? fpsTxt(f.fps) : '?';
-  $('fps-ft').textContent = f ? nf(f.ft) + ' ms' : '';
-  $('fps-max').textContent = f ? nf(f.ft_max) + ' ms' : '';
-  $('fps-med').textContent = ss && ss.fps != null ? fpsTxt(ss.fps) : '';
-  $('fps-low').textContent = ss && ss.fps_low != null ? fpsTxt(ss.fps_low) : '';
+  tx('jogo-p', nome);
+  tx('fps-v', f ? fpsTxt(f.fps) : '?');
+  tx('fps-ft', f ? nf(f.ft) + ' ms' : '');
+  tx('fps-max', f ? nf(f.ft_max) + ' ms' : '');
+  tx('fps-med', ss && ss.fps != null ? fpsTxt(ss.fps) : '');
+  tx('fps-low', ss && ss.fps_low != null ? fpsTxt(ss.fps_low) : '');
   const dica = f ? '' : A.fps_log ? T('fps_sem') : T('fps_como');
-  $('fps-dica').hidden = !dica; $('fps-dica').textContent = dica;
+  $('fps-dica').hidden = !dica; tx('fps-dica', dica);
   $('fps-gs').hidden = !f && !H.some(l => l[11] != null && l[0] >= A.t - JANELA);
   const g = A.gargalo, gx = $('jogo-garg');
   gx.hidden = !g;
@@ -1496,8 +1673,8 @@ function cJogo() {
     gx.replaceChildren(T('ga'), ' ', el('b', '', a), ', ' + b);
     gx.title = T('ga_t');
   }
-  $('jogo-info').textContent = info; $('jogo-info').title = info;
-  $('jogo-info2').textContent = d2; $('jogo-info2').title = d2;
+  tx('jogo-info', info); $('jogo-info').title = info;
+  tx('jogo-info2', d2); $('jogo-info2').title = d2;
 }
 function cFaixa() {
   const j = A.jogos || [], ss = A.sessao, q = v => v == null ? '?' : int(v), f = A.fps;
@@ -1506,7 +1683,7 @@ function cFaixa() {
   if (!j.length) por('jogo', T('j_nenhum'), '');
   else por('jogo', nome + (f ? ' · ' + fpsTxt(f.fps) + ' FPS' : ''), info, true);
   const d2 = ss && j.length ? T('j_sessao', q(ss.tc_max), q(ss.tg_max), ss.vram_max == null ? '?' : tamMib(ss.vram_max), tamMib(ss.ram_min || 0)) : '';
-  $('jogo-d2').textContent = d2; $('jogo-d2').title = d2;
+  tx('jogo-d2', d2); $('jogo-d2').title = d2;
   $('c-jogo').title = A.jogando ? T('j_limites') : '';
   jogoAgora = {nome, info, d2};
   const lv = A.live || {obs: false};
@@ -1550,24 +1727,24 @@ function cFaixa() {
   por('sis', T('s_ligado', dur(s.ligado)), [pot, hj ? T('s_net', tamB(hj.rx), tamB(hj.tx)) : null,
     b ? b.nome + ' ' + b.pct + ' %' + (b.carregando ? ' ' + T('carregando') : '') : null].filter(Boolean).join(', '));
   const sd2 = ['kernel ' + s.kernel, s.driver ? 'NVIDIA ' + s.driver : null, A.registro ? T('s_registro') : null].filter(Boolean).join(', ');
-  $('sis-d2').textContent = sd2; $('sis-d2').title = sd2;
+  tx('sis-d2', sd2); $('sis-d2').title = sd2;
 }
 function cBat() {
   const b = A.bat;
   if (!b || !visivel('bat')) return;
   const st = b.status, desc = st === 'Discharging', carr = st === 'Charging';
   const est = desc ? T('bat_nabat') : carr ? T('bat_carr') : st === 'Full' ? T('bat_cheia') : b.tomada ? T('bat_tomada') : st || '';
-  $('bat-nome').textContent = [b.fabricante, b.modelo].filter(Boolean).join(' ');
-  $('bat-v').textContent = b.pct == null ? '?' : int(b.pct);
-  $('bat-de').textContent = '%';
+  tx('bat-nome', [b.fabricante, b.modelo].filter(Boolean).join(' '));
+  tx('bat-v', b.pct == null ? '?' : int(b.pct));
+  tx('bat-de', '%');
   pilula($('bat-st'), A.nv.bat || 'bom', A.nv.bat && A.nv.bat !== 'bom' ? null : est);
   nivelNum('bat-v', A.nv.bat);
   medidor($('bat-m'), b.pct || 0, A.nv.bat);
-  $('bat-eta-r').textContent = desc ? T('bat_rest') : carr ? T('bat_ate') : '';
-  $('bat-eta').textContent = (desc || carr) && b.eta ? dur(b.eta) : '';
-  $('bat-w-r').textContent = carr ? T('bat_carga') : T('consumo');
-  $('bat-w').textContent = (desc || carr) && (b.w_media || b.w) ? nf(b.w_media || b.w) + ' W' : '';
-  $('bat-saude').textContent = b.saude == null ? '' : nf(Math.min(100, b.saude), 0) + ' %';
+  tx('bat-eta-r', desc ? T('bat_rest') : carr ? T('bat_ate') : '');
+  tx('bat-eta', (desc || carr) && b.eta ? dur(b.eta) : '');
+  tx('bat-w-r', carr ? T('bat_carga') : T('consumo'));
+  tx('bat-w', (desc || carr) && (b.w_media || b.w) ? nf(b.w_media || b.w) + ' W' : '');
+  tx('bat-saude', b.saude == null ? '' : nf(Math.min(100, b.saude), 0) + ' %');
   $('bat-saude-b').title = b.saude == null ? '' : T('bat_wh', nf(b.wh), nf(b.wh_cheia), nf(b.wh_projeto), nf(Math.max(0, 100 - b.saude), 0));
   for (const id of ['bat-eta', 'bat-w', 'bat-saude']) $(id).parentElement.hidden = $(id).textContent === '';
   // age only when the battery reports its date (many notebooks do not)
@@ -1580,13 +1757,14 @@ function cBat() {
   const lim = b.fim && b.fim < 100 ? (b.ini && b.ini < b.fim ? T('bat_lim2', b.ini, b.fim) : T('bat_lim', b.fim)) : null;
   const info = [b.ciclos != null ? T('bat_ciclos_n', int(b.ciclos)) : null, b.tecnologia, idade, lim, b.n > 1 ? T('bat_duas') : null, b.v ? nf(b.v, 2) + ' V' : null,
     b.temp != null ? nf(b.temp, 0) + ' °C' : null, b.saude_txt && b.saude_txt !== 'Good' ? b.saude_txt : null].filter(Boolean).join(', ');
-  $('bat-info').textContent = info; $('bat-info').title = info;
+  tx('bat-info', info); $('bat-info').title = info;
 }
 let iconeAntes = '';
 function icone(nv) {
+  const chave = nv + '|' + (CFG ? CFG.tema + CFG.cor : '');
+  if (iconeAntes === chave) return;
+  iconeAntes = chave;
   const cs = getComputedStyle(document.body), cor = cs.getPropertyValue(nv === 'bom' ? '--s1' : '--' + nv).trim() || '#3987e5';
-  if (iconeAntes === nv + cor) return;
-  iconeAntes = nv + cor;
   $('icone').href = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="' +
     (nv === 'bom' ? (cs.getPropertyValue('--sup').trim() || '#1a1a19') : cor) + '"/><path d="M5 21l6-7 5 4 6-9 5 5" fill="none" stroke="' + (nv === 'bom' ? cor : '#0b0b0b') +
     '" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>');
@@ -1605,20 +1783,25 @@ function bip() {
 function cTopo() {
   const a = A.avisos.slice().sort((x, y) => ORD.indexOf(y.nv) - ORD.indexOf(x.nv)), g = $('btn-ev');
   const pior = a.length ? a[0].nv : 'bom';
-  g.classList.remove('al-aviso', 'al-serio', 'al-critico');
-  for (const c of document.querySelectorAll('.cartao')) c.classList.remove('al-aviso', 'al-serio', 'al-critico');
   // each card takes the worst level among its alerts and its own level (the processor card turns red with its temperature)
   const pc = {};
   for (const x of a) if (!pc[x.c] || ORD.indexOf(x.nv) > ORD.indexOf(pc[x.c])) pc[x.c] = x.nv;
   for (const [k, v] of Object.entries(A.nv)) if (v !== 'bom' && (!pc[k] || ORD.indexOf(v) > ORD.indexOf(pc[k]))) pc[k] = v;
-  for (const [k, v] of Object.entries(pc)) { const c = $('c-' + k); if (c && ORD.includes(v) && v !== 'bom') c.classList.add('al-' + v); }
-  if (!a.length) { pilula($('geral-st'), 'bom', T('tudo_certo')); $('geral-tx').textContent = ''; }
-  else {
-    g.classList.add('al-' + pior);
-    pilula($('geral-st'), pior, a.length === 1 ? T('n_aviso') : T('n_avisos', a.length));
-    $('geral-tx').textContent = a.map(x => x[L]).join(', ');
+  const chaveAl = JSON.stringify([pc, a.length ? a[0].nv : '']);
+  if (chaveAl !== alAntes) {
+    alAntes = chaveAl;
+    g.classList.remove('al-aviso', 'al-serio', 'al-critico');
+    for (const c of document.querySelectorAll('.cartao')) c.classList.remove('al-aviso', 'al-serio', 'al-critico');
+    for (const [k, v] of Object.entries(pc)) { const c = $('c-' + k); if (c && ORD.includes(v) && v !== 'bom') c.classList.add('al-' + v); }
+    if (a.length) g.classList.add('al-' + pior);
   }
-  document.title = (a.length ? '(' + a.length + ') ' : '') + 'PC Panel';
+  if (!a.length) { pilula($('geral-st'), 'bom', T('tudo_certo')); tx('geral-tx', ''); }
+  else {
+    pilula($('geral-st'), pior, a.length === 1 ? T('n_aviso') : T('n_avisos', a.length));
+    tx('geral-tx', a.map(x => x[L]).join(', '));
+  }
+  const titulo = (a.length ? '(' + a.length + ') ' : '') + 'PC Panel';
+  if (document.title !== titulo) document.title = titulo;
   icone(pior);
   const ms = A.silencio || {}, ids = Object.keys(ms), chip = $('btn-mudo');
   if (ids.length) {
@@ -1632,17 +1815,29 @@ function cTopo() {
   avisosAntes = agora;
 }
 // events card: the last 24 h as a strip (from the per-minute history), fetched every 5 minutes
+// shared with the History dialog and the charts set to 1 h or 24 h; after the first load only
+// the new minutes are asked for
 const T24 = {t: 0, d: null, ocupado: false, chave: ''};
-async function buscar24() {
+async function atualizar24(forcar) {
+  if (T24.ocupado || (!forcar && Date.now() - T24.t < 60000)) return;
   T24.ocupado = true;
-  try { T24.d = await pedir('/historico24'); } catch (e) { T24.d = null; }
+  try {
+    const ant = T24.d, ult = ant && ant.linhas.length ? ant.linhas[ant.linhas.length - 1][0] : 0;
+    const d = await pedir('/historico24' + (ult ? '?desde=' + ult : ''));
+    if (ult && d.cols.join() === ant.cols.join()) {
+      const corte = Date.now() / 1000 - 86400 - 120;
+      T24.d = {cols: d.cols, linhas: ant.linhas.filter(l => l[0] >= corte).concat(d.linhas)};
+    } else T24.d = d;
+  } catch (e) { /* keep what there is */ }
   T24.t = Date.now(); T24.ocupado = false;
   cLinha24();
+  for (const g of graficos) if (g.per !== '10') g.desenhar();
+  if ($('tabela').open && abaH === '24') { D24 = T24.d; desenhar24(); }
 }
 function cLinha24() {
   const box = $('ev-tl');
   if ($('c-eventos').classList.contains('fora') || document.hidden) return;
-  if (Date.now() - T24.t > 300000 && !T24.ocupado) { buscar24(); return; }
+  if (Date.now() - T24.t > 300000 && !T24.ocupado) { atualizar24(true); return; }
   const D = T24.d, svg = $('tl-svg');
   if (!D || !D.linhas.length) { box.hidden = true; return; }
   const W = box.clientWidth || $('c-eventos').clientWidth - 28, chave = T24.t + '|' + W + '|' + L;
@@ -1697,11 +1892,14 @@ function cLinha24() {
 function cEventos() {
   const alvo = $('l-ev');
   if ($('c-eventos').classList.contains('fora')) return;
+  const n = cabem(alvo), ult = EV[EV.length - 1];
+  if (igual(alvo, [EV.length, n, ult && ult.t, ult && ult.fim, ult && ult.nv, ult && !ult.fim ? Math.floor(A.t / 60) : 0].join())) return;
   if (!EV.length) { alvo.replaceChildren(el('div', 'vazio', T('e_nada'))); return; }
-  alvo.replaceChildren(...EV.slice(-cabem(alvo)).reverse().map(e => {
-    const lin = el('div', 'ev'), x = el('span', 'x');
+  alvo.replaceChildren(...EV.slice(-n).reverse().map(e => {
+    const lin = el('div', 'ev clica'), x = el('span', 'x');
+    lin.onclick = () => verNoHistorico(e);
     x.append(el('i', 'g ' + e.nv, GL[e.nv]), ' ' + e[L]);
-    x.title = e[L] + (e.jogo ? T('e_com', e.jogo) : '');
+    x.title = e[L] + (e.jogo ? T('e_com', e.jogo) : '') + (A.t - e.t < 86400 ? '\n' + T('ev_clique') : '');
     lin.append(el('span', 'q', hora(e.t).slice(0, 5)), x, el('span', 'dur', e.fim ? dur(e.fim - e.t) : T('agora')));
     return lin;
   }));
@@ -1741,6 +1939,7 @@ function arranjar(forcar) {
   const sig = [W, Hh, FONTE, vivo, encaixe, CFG ? CFG.perfil + JSON.stringify(CFG.cartoes) : '', [...alerta].sort(), ativo('jogo'), ativo('live'), ativo('pz')].join('|');
   if (sig === assinatura && !forcar) return;
   assinatura = sig;
+  sujo = true;
   b.dataset.cols = cols === 4 ? 4 : 2;
   if (estreito) b.dataset.estreito = '1'; else delete b.dataset.estreito;
   b.classList.toggle('rolar', !encaixe);
@@ -1807,18 +2006,28 @@ function cortarListas() {
   }
   for (const [c, x] of esconder) c.style.visibility = x ? 'hidden' : '';
 }
+// what drawing costs this page (JavaScript and the layout it forces), shown in Settings
+const custoPag = {ms: 0, desde: performance.now(), pct: null};
 function desenhar() {
   if (!A) return;
+  const t0 = performance.now();
   cRam(); cPlaca(); cCpu(); cRede(); cFaixa(); cTopo();
   arranjar();
   cJogo(); cProg(); cTemp(); cDisc(); cSaude(); cEventos(); cLinha24(); cBat();
-  cortarListas();
+  if (sujo) { cortarListas(); sujo = false; }
   for (const g of graficos) g.desenhar();
+  if (graficos.some(g => g.per !== '10')) atualizar24();
+  const agora = performance.now();
+  custoPag.ms += agora - t0;
+  if (agora - custoPag.desde >= 60000) {
+    custoPag.pct = 100 * custoPag.ms / (agora - custoPag.desde);
+    custoPag.ms = 0; custoPag.desde = agora;
+  }
   if ($('fans').open) {
     if (calAntes != null && A.fans.calibrando == null) abrirFans(); else fansAgora();
   }
   calAntes = A.fans.calibrando;
-  if ($('ajustes').open) $('aj-custo').textContent = custo();
+  if ($('ajustes').open) tx('aj-custo', custo());
 }
 function aplicarCfg() {
   L = CFG.idioma; FONTE = CFG.fonte;
@@ -1858,7 +2067,7 @@ async function puxar() {
     if (++falhas >= 2) {
       document.body.classList.add('semdados');
       pilula($('geral-st'), 'critico', T('sem_resp'));
-      $('geral-tx').textContent = T('sem_resp2');
+      tx('geral-tx', T('sem_resp2'));
     }
   }
 }
@@ -1866,8 +2075,8 @@ let ocupado = false, relogioDados = null;
 async function ciclo() { if (ocupado) return; ocupado = true; try { await puxar(); } finally { ocupado = false; } }
 function relogio() {
   const d = new Date();
-  $('hora').textContent = d.toLocaleTimeString(LOC);
-  $('data').textContent = d.toLocaleDateString(LOC, {weekday: 'long', day: 'numeric', month: 'long'});
+  tx('hora', d.toLocaleTimeString(LOC));
+  tx('data', d.toLocaleDateString(LOC, {weekday: 'long', day: 'numeric', month: 'long'}));
 }
 
 // ---- dialogs
@@ -1899,7 +2108,8 @@ function tabela10() {
 const M24 = [['cpu', 'h24_cpu', 100], ['tc_max', 'h24_tc'], ['gpu', 'h24_gpu', 100], ['tg_max', 'h24_tg'], ['w_max', 'h24_w'],
   ['vram_max', 'h24_vram', null, v => v / 1024], ['ram_min', 'h24_ram', null, v => v / 1024], ['swap_max', 'h24_swap', null, v => v / 1024],
   ['ping', 'h24_ping'], ['perda_max', 'h24_perda', null, null, 1], ['jit', 'h24_jit', null, null, 1], ['rx', 'h24_rx', null, null, 2],
-  ['tx', 'h24_tx', null, null, 2], ['fps', 'h24_fps'], ['bat_min', 'h24_bat', 100, null, 0, 'bat'], ['bw', 'h24_bw', null, null, 1, 'bat']];
+  ['tx', 'h24_tx', null, null, 2], ['fps', 'h24_fps'], ['bat_min', 'h24_bat', 100, null, 0, 'bat'], ['bw', 'h24_bw', null, null, 1, 'bat'],
+  ['pp_mib', 'h24_pp']];
 async function aba24() {
   $('h24-m').replaceChildren(...M24.filter(m => !m[5] || (A && A.bat)).map(m => {
     const b = el('button', '', T(m[1]));
@@ -1907,8 +2117,10 @@ async function aba24() {
     b.onclick = () => { m24 = m[0]; for (const x of $('h24-m').children) x.setAttribute('aria-pressed', x === b); desenhar24(); };
     return b;
   }));
-  $('h24-nota').textContent = CFG && !CFG.caixa ? T('h24_off') : T('h24_nota');
-  try { D24 = await pedir('/historico24'); } catch (e) { return; }
+  tx('h24-nota', CFG && !CFG.caixa ? T('h24_off') : T('h24_nota'));
+  await atualizar24(true);
+  D24 = T24.d;
+  if (!D24) return;
   if (!g24) {
     const alvo = $('h24-g');
     g24 = {svg: sv('svg', {role: 'img'}, alvo), dica: el('div', 'dica'), mx: null};
@@ -1942,6 +2154,13 @@ function desenhar24() {
     ant = l[0];
   }
   if (ini != null) banda(ini, ant);
+  if (marca24 && marca24.t >= t0) {          // the event opened from the Events card
+    const xa = X(marca24.t), xb = Math.max(xa + 2, X(Math.min(t1, marca24.fim + 60)));
+    sv('rect', {x: xa, y: topo, width: xb - xa, height: ph, class: 'marca', style: 'fill:' + COR[marca24.nv]}, svg);
+    sv('line', {x1: xa, x2: xa, y1: topo, y2: topo + ph, class: 'marca-l', style: 'stroke:' + COR[marca24.nv]}, svg);
+    const tt = sv('text', {x: xa + (xa > W - 220 ? -6 : 6), y: topo + 12, class: 'rot marca-t', 'text-anchor': xa > W - 220 ? 'end' : 'start'}, svg);
+    tt.textContent = hora(marca24.t).slice(0, 5) + ' ' + marca24.txt;
+  }
   for (const v of [0, max / 2, max]) {
     sv('line', {x1: esq, x2: W - dir, y1: Y(v), y2: Y(v), class: v ? 'grade' : 'eixo'}, svg);
     sv('text', {x: esq - 6, y: Y(v) + 3.5, class: 'rot', 'text-anchor': 'end'}, svg).textContent = Number.isInteger(v) ? String(v) : nf(v);
@@ -1994,25 +2213,65 @@ function mira24() {
 async function abaSessoes() {
   let d;
   try { d = await pedir('/sessoes'); } catch (e) { return; }
-  $('ses-nota').textContent = d.sessoes.length || d.atual ? T('ses_nota', '~/.local/share/pc-panel/sessoes.jsonl') : T('ses_vazio');
-  const q = v => v == null ? '' : int(v), mib = v => v ? tamMib(v) : '';
-  $('ses-corpo').replaceChildren(...(d.atual ? [Object.assign({agora: true}, d.atual)] : []).concat(d.sessoes).map(x => {
-    const tr = el('tr');
+  tx('ses-nota', d.sessoes.length || d.atual ? T('ses_nota', '~/.local/share/pc-panel/sessoes.jsonl') : T('ses_vazio'));
+  const q = v => v == null ? '' : int(v), mib = v => v ? tamMib(v) : '', pc = v => v == null ? '' : int(v) + ' %';
+  const todas = (d.atual ? [Object.assign({agora: true}, d.atual)] : []).concat(d.sessoes);
+  SES = todas; sesMarcadas.clear(); compararSessoes();
+  $('ses-corpo').replaceChildren(...todas.map((x, k) => {
+    const tr = el('tr'), cx = el('input'), td = el('td');
+    cx.type = 'checkbox'; cx.title = T('ses_marcar_t');
+    cx.onchange = () => {
+      if (cx.checked) sesMarcadas.add(k); else sesMarcadas.delete(k);
+      // only two at a time: the oldest pick gives way
+      if (sesMarcadas.size > 2) { const v = [...sesMarcadas][0]; sesMarcadas.delete(v); $('ses-corpo').children[v].querySelector('input').checked = false; }
+      compararSessoes();
+    };
+    td.append(cx); tr.append(td);
     tr.append(el('td', 'e', x.nome + (x.agora ? ' (' + T('ses_agora') + ')' : '')));
     for (const c of [new Date(x.ini * 1000).toLocaleString(LOC, {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'}),
       dur(x.fim - x.ini), q(x.cpu), q(x.tc_max), q(x.gpu), q(x.tg_max), q(x.w_max), mib(x.vram_max), mib(x.vram_jogo),
       x.ram_min == null ? '' : tamMib(x.ram_min), x.ram_jogo ? tam(x.ram_jogo) : '',
       x.ping == null ? '' : nf(x.ping, x.ping < 10 ? 1 : 0) + (x.ping_max != null ? ' / ' + int(x.ping_max) : ''),
       x.perda_max == null ? '' : nf(x.perda_max, x.perda_max && x.perda_max < 10 ? 1 : 0) + ' %', x.jit == null ? '' : nf(x.jit),
-      q(x.alertas)]) tr.append(el('td', '', c));
+      x.fps == null ? '' : nf(x.fps, x.fps < 100 ? 1 : 0), x.fps_low == null ? '' : nf(x.fps_low, x.fps_low < 100 ? 1 : 0),
+      pc(x.freio_t), pc(x.freio_e), q(x.alertas)]) tr.append(el('td', '', c));
     return tr;
   }));
+}
+// two sessions side by side (after a driver, Proton or settings change, for example)
+let SES = [];
+const sesMarcadas = new Set();
+const CMP = [['fps', 'FPS', 1, 1], ['fps_low', '1 % low', 1, 1], ['cpu', 'th_cpu_p', -1, 0], ['tc_max', 'th_cpu_max', -1, 0], ['gpu', 'th_gpu_p', 0, 0],
+  ['tg_max', 'th_gpu_max', -1, 0], ['w_max', 'th_w_max', 0, 0], ['vram_max', 'th_vram_pico', -1, 'mib'], ['ram_min', 'th_ram_min', 1, 'mib'],
+  ['ping', 'th_ping_m', -1, 1], ['perda_max', 'th_perda_s', -1, 1], ['jit', 'th_jit_s', -1, 1], ['freio_t', 'th_freio_t', -1, 0], ['alertas', 'th_alertas', -1, 0]];
+function compararSessoes() {
+  const box = $('ses-cmp'), k = [...sesMarcadas].sort((a, b) => b - a);
+  if (k.length !== 2) { box.hidden = !SES.length; box.replaceChildren(el('span', 'nota', T('ses_cmp_n'))); return; }
+  const [a, b] = k.map(i => SES[i]), fmt = (v, t) => v == null ? '—' : t === 'mib' ? tamMib(v) : nf(v, t ? 1 : 0);
+  const quando = x => x.nome + ', ' + new Date(x.ini * 1000).toLocaleString(LOC, {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'});
+  const tab = el('table'), cab = el('tr');
+  cab.append(el('th', 'e', ''), el('th', '', quando(a)), el('th', '', quando(b)), el('th', '', T('ses_dif')));
+  tab.append(cab);
+  for (const [c, rot, melhor, t] of CMP) {
+    const va = a[c], vb = b[c];
+    if (va == null && vb == null) continue;
+    const tr = el('tr'), dif = el('td');
+    if (va != null && vb != null && va !== vb) {
+      const d = vb - va, pct = va ? Math.round(100 * d / Math.abs(va)) : null;
+      dif.textContent = (d > 0 ? '+' : '') + (t === 'mib' ? tamMib(Math.abs(d)).replace(/^/, d < 0 ? '-' : '') : nf(d, t ? 1 : 0)) + (pct != null && Math.abs(pct) >= 1 ? ' (' + (pct > 0 ? '+' : '') + pct + ' %)' : '');
+      if (melhor) dif.className = (d > 0) === (melhor > 0) ? 'cmp-bom' : 'cmp-ruim';
+    }
+    tr.append(el('td', 'e', T(rot)), el('td', '', fmt(va, t)), el('td', '', fmt(vb, t)), dif);
+    tab.append(tr);
+  }
+  box.hidden = false;
+  box.replaceChildren(el('p', 'nota', T('ses_cmp_t')), tab);
 }
 async function abaCaixa() {
   let d;
   try { d = await pedir('/caixa'); } catch (e) { return; }
-  $('cx-nota').textContent = (CFG && !CFG.caixa) || !d.ativa ? T('cx_off') : T('cx_nota');
-  $('cx-resumo').textContent = d.incidentes.length ? '' : T('cx_nada');
+  tx('cx-nota', (CFG && !CFG.caixa) || !d.ativa ? T('cx_off') : T('cx_nota'));
+  tx('cx-resumo', d.incidentes.length ? '' : T('cx_nada'));
   $('cx-cab').replaceChildren(); $('cx-corpo').replaceChildren(); $('cx-rel').hidden = true;
   $('cx-lista').replaceChildren(...d.incidentes.map((x, k) => {
     const b = el('button', '', T('cx_parou', new Date(x.t * 1000).toLocaleString(LOC, {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit'})));
@@ -2058,7 +2317,7 @@ async function verIncidente(id) {
   const ult = [T('cx_tc', n0(u.tc)), T('cx_tg', n0(u.tg)), u.w != null ? T('cx_w', u.w) : null, u.vr != null ? T('cx_vr', tamMib(u.vr)) : null,
     T('cx_ram', tamMib(u.ram)), u.swr ? T('cx_swr', nf(u.swr)) : null, u.j ? T('cx_jogo', u.j) : null, u.top ? T('cx_top', u.top[0], u.top[1]) : null];
   const final = [T('cx_tcmax', n0(mx('tc'))), T('cx_tgmax', n0(mx('tg'))), T('cx_rammin', tamMib(mn('ram'))), T('cx_swmax', nf(Math.max(0, mx('swr'))))];
-  $('cx-resumo').textContent = T('cx_ultimo', new Date(u.t * 1000).toLocaleString(LOC), ult.filter(Boolean).join(', ')) + ' ' + T('cx_final', final.join(', '));
+  tx('cx-resumo', T('cx_ultimo', new Date(u.t * 1000).toLocaleString(LOC), ult.filter(Boolean).join(', ')) + ' ' + T('cx_final', final.join(', ')));
   $('cx-rel').replaceChildren(...relatorioIncidente(R).map(t => el('li', '', t)));
   $('cx-rel').hidden = false;
   const cols = [[T('th_hora'), r => hora(r.t)], [T('th_cpu_p'), r => n0(r.cpu)], [T('th_cpu_t'), r => n0(r.tc)], [T('cx_ghz'), r => r.ghz == null ? '' : nf(r.ghz, 2)],
@@ -2076,7 +2335,7 @@ async function verIncidente(id) {
   }));
 }
 function tabelaEventos() {
-  $('ev-nota').textContent = T(EV.length ? 'ev_nota1' : 'ev_nota0');
+  tx('ev-nota', T(EV.length ? 'ev_nota1' : 'ev_nota0'));
   const ms = (A && A.silencio) || {}, botao = (txt, f) => { const b = el('button', '', txt); b.type = 'button'; b.onclick = f; return b; };
   const linha = [el('span', 'nota', T('mudo_todos')), ...[15, 60, 180].map(m => botao(T('m_' + m), () => silenciar('*', m)))];
   if (Object.keys(ms).length) linha.push(el('span', 'nota', T('mudo_ate', hora(Math.max(...Object.values(ms))).slice(0, 5))), botao(T('mudo_desfazer'), desfazerMudo));
@@ -2085,10 +2344,48 @@ function tabelaEventos() {
     const tr = el('tr'), nv = el('td', 'e'), acao = el('td');
     nv.append(el('i', 'g ' + e.nv, GL[e.nv]), ' ' + T('nv_' + e.nv));
     if (!e.fim && e.id) acao.append(botao(T('mudo_um'), () => silenciar(e.id, 60)));
+    if (A && A.t - e.t < 86400) {
+      tr.className = 'clica'; tr.title = T('ev_clique');
+      tr.onclick = ev => { if (!ev.target.closest('button')) verNoHistorico(e); };
+    }
     tr.append(el('td', '', new Date(e.t * 1000).toLocaleString(LOC)), el('td', '', e.fim ? dur(e.fim - e.t) : T('ainda')),
       nv, el('td', 'e', e[L]), el('td', 'e', e.jogo || ''), acao);
     return tr;
   }));
+}
+// an event opens the 24 h history on the metric it is about, with its time marked
+let marca24 = null;
+function metricaEvento(e) {
+  const id = e.id || '';
+  if (id.startsWith('temp-gpu') || id.startsWith('gpu-freio')) return 'tg_max';
+  if (id.startsWith('temp')) return 'tc_max';
+  if (id === 'perda') return 'perda_max';
+  if (id === 'jitter') return 'jit';
+  return {cpu: 'cpu', prog: 'cpu', vram: 'vram_max', ram: 'ram_min', rede: 'ping', bat: 'bat_min', jogo: 'fps', gpu: 'gpu'}[e.c] || 'cpu';
+}
+function verNoHistorico(e) {
+  if (!A || A.t - e.t >= 86400) { abrirEventos(); return; }
+  m24 = metricaEvento(e);
+  if (m24 === 'bat_min' && !A.bat) m24 = 'cpu';
+  marca24 = {t: e.t, fim: e.fim || A.t, txt: e[L], nv: ORD.includes(e.nv) ? e.nv : 'aviso'};
+  if ($('eventos').open) $('eventos').close();
+  abrirTabela('24');
+}
+// the processes behind one name of the Programs card (read only)
+async function abrirProg(nome) {
+  let d;
+  try { d = await pedir('/prog?n=' + encodeURIComponent(nome)); } catch (e) { return; }
+  tx('pr-tit', nome);
+  const data = t => new Date(t * 1000).toLocaleString(LOC, {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'});
+  $('pr-corpo').replaceChildren(...(d.procs.length ? d.procs.map(x => {
+    const tr = el('tr'), cmd = el('td', 'e cmd', x.cmd || '');
+    cmd.title = x.cmd || '';
+    tr.append(el('td', '', String(x.pid)), el('td', '', tam(x.kb)), el('td', '', x.swap ? tam(x.swap) : ''),
+      el('td', '', x.cpu == null ? '' : nf(x.cpu, 1) + ' %'), el('td', '', data(x.desde)), el('td', 'e', x.unidade), cmd);
+    return tr;
+  }) : [(() => { const tr = el('tr'), td = el('td', 'e', T('pr_nada')); td.colSpan = 7; tr.append(td); return tr; })()]));
+  tx('pr-nota', T('pr_nota', d.procs.length));
+  if (!$('prog').open) $('prog').showModal();
 }
 async function abrirEventos() { tabelaEventos(); if (!$('eventos').open) $('eventos').showModal(); puxarEventos().catch(() => {}); }
 async function abrirSensores() {
@@ -2102,7 +2399,10 @@ async function abrirSensores() {
   }));
   if (!$('sensores').open) $('sensores').showModal();
 }
-const custo = () => { const p = A && A.sis.painel; return p && p.cpu != null ? T('a_custo', nf(p.cpu, 2), p.mib) : ''; };
+const custo = () => {
+  const p = A && A.sis.painel, pag = custoPag.pct != null ? custoPag.pct : custoPag.ms / Math.max(1, performance.now() - custoPag.desde) * 100;
+  return (p && p.cpu != null ? T('a_custo', nf(p.cpu, 2), p.mib) + '. ' : '') + T('a_custo_pag', nf(pag, 2));
+};
 function marcarPerfil() {
   const perfil = $('aj-perfil').value;
   for (const i of $('aj-cartoes').querySelectorAll('input')) {
@@ -2115,15 +2415,15 @@ function infoAjustes(d) {
   alvo.replaceChildren(r.arquivos ? T('a_arqs', r.arquivos, tamB(r.bytes), r.pasta) : T('a_sem_arqs', r.pasta));
   if (r.hoje) { const a = el('a', '', T('a_baixar')); a.href = '/registro/hoje.csv'; a.style.color = 'var(--tinta2)'; alvo.append(a); }
   if (r.erro) alvo.append(T('a_ult_erro', r.erro));
-  $('aj-upd').textContent = u.rodando ? T('s_verificando') : u.quando == null ? T('a_upd_nunca') :
-    u.erro ? T('a_upd_erro', u.erro[L === 'en' ? 1 : 0]) : T('a_upd_res', u.pacotes.length, u.flatpak == null ? '?' : u.flatpak, dur(Date.now() / 1000 - u.quando));
-  $('aj-upd-lista').textContent = u.pacotes.join(', ') + (u.fora && u.fora.length ? (u.pacotes.length ? '\n' : '') + T('a_upd_fora', u.fora.length, u.fora.join(', ')) : '');
+  tx('aj-upd', u.rodando ? T('s_verificando') : u.quando == null ? T('a_upd_nunca') :
+    u.erro ? T('a_upd_erro', u.erro[L === 'en' ? 1 : 0]) : T('a_upd_res', u.pacotes.length, u.flatpak == null ? '?' : u.flatpak, dur(Date.now() / 1000 - u.quando)));
+  tx('aj-upd-lista', u.pacotes.join(', ') + (u.fora && u.fora.length ? (u.pacotes.length ? '\n' : '') + T('a_upd_fora', u.fora.length, u.fora.join(', ')) : ''));
   const n = d.novidade;
   $('aj-versao').dataset.versao = d.versao;
-  $('aj-versao').textContent = T('a_versao', d.versao) + (n.rodando ? ' ' + T('s_verificando') : n.erro ? T('a_ver_erro', n.erro[L === 'en' ? 1 : 0]) :
-    n.nova ? T('a_ver_nova', n.versao) : n.quando ? T('a_ver_ok') : '');
+  tx('aj-versao', T('a_versao', d.versao) + (n.rodando ? ' ' + T('s_verificando') : n.erro ? T('a_ver_erro', n.erro[L === 'en' ? 1 : 0]) :
+    n.nova ? T('a_ver_nova', n.versao) : n.quando ? T('a_ver_ok') : ''));
   $('aj-atualizar').hidden = !n.nova;
-  $('aj-custo').textContent = custo();
+  tx('aj-custo', custo());
 }
 async function abrirAjustes() {
   let d;
@@ -2149,7 +2449,7 @@ async function abrirAjustes() {
   $('aj-m-live').checked = c.modulos.live; $('aj-m-zomboid').checked = c.modulos.zomboid; $('aj-m-bateria').checked = c.modulos.bateria !== false; $('aj-reserva').value = c.ram_reserva;
   marcarPerfil();
   infoAjustes(d);
-  $('aj-erro').textContent = '';
+  tx('aj-erro', '');
   if (!$('ajustes').open) $('ajustes').showModal();
 }
 // thresholds table: one row per alert, three levels each
@@ -2206,7 +2506,7 @@ function montarLimites() {
   }
   const f = Object.entries(rec.fonte || {}).map(([m, v]) => T('lm_' + m).replace(/ \(.*\)$/, '') + ' ' + v);
   const ssd = Object.entries(rec.temp_ssd).map(([k, v]) => (k === '_' ? T('l_padrao') : k) + ' ' + v.filter(y => y != null).join('/'));
-  $('lim-fonte').textContent = (jogo ? T('l_jogo_n') + ' ' : '') + (f.length ? T('l_fonte', f.join(', ')) + ' ' : '') + T('l_ssd', ssd.join(', '));
+  tx('lim-fonte', (jogo ? T('l_jogo_n') + ' ' : '') + (f.length ? T('l_fonte', f.join(', ')) + ' ' : '') + T('l_ssd', ssd.join(', ')));
   $('lim-rec').onclick = () => {
     for (const tr of corpo.children) {
       if (!jogo) tr.querySelector('.lim-on').checked = true;
@@ -2243,16 +2543,16 @@ async function salvarAjustes() {
   corpo.limites = LIMS.n; corpo.limites_jogo = LIMS.j;
   try {
     const d = await pedir('/config', corpo);
-    if (d.erro) { $('aj-erro').textContent = d.erro; return; }
+    if (d.erro) { tx('aj-erro', d.erro); return; }
     CFG = d.cfg; rolar = false;
     if (CFG.avisar.som) bip();
     aplicarCfg(); desenhar();
     $('ajustes').close();
-  } catch (e) { $('aj-erro').textContent = T('a_nao_salvou'); }
+  } catch (e) { tx('aj-erro', T('a_nao_salvou')); }
 }
 async function verificar() {
   try { await pedir('/atualizacoes', {}); } catch (e) { return; }
-  $('aj-upd').textContent = T('s_verificando');
+  tx('aj-upd', T('s_verificando'));
   const espera = setInterval(async () => {
     try {
       const d = await pedir('/config');
@@ -2262,8 +2562,8 @@ async function verificar() {
 }
 
 async function procurarVersao() {
-  $('aj-versao').textContent = T('s_verificando');
-  try { infoAjustes(await pedir('/versao', {})); } catch (e) { $('aj-erro').textContent = T('a_nao_salvou'); }
+  tx('aj-versao', T('s_verificando'));
+  try { infoAjustes(await pedir('/versao', {})); } catch (e) { tx('aj-erro', T('a_nao_salvou')); }
 }
 function esperarNovaVersao() {
   // reload once the dashboard answers with another version (up to 3 minutes for a password)
@@ -2279,10 +2579,10 @@ function esperarNovaVersao() {
 async function atualizarPainel() {
   try {
     const d = await pedir('/atualizar', {});
-    if (d.erro) { $('aj-erro').textContent = d.erro; return; }
-    $('aj-versao').textContent = T(d.senha ? 'a_ver_senha' : 'a_ver_feito');
+    if (d.erro) { tx('aj-erro', d.erro); return; }
+    tx('aj-versao', T(d.senha ? 'a_ver_senha' : 'a_ver_feito'));
     esperarNovaVersao();
-  } catch (e) { $('aj-erro').textContent = T('a_nao_salvou'); }
+  } catch (e) { tx('aj-erro', T('a_nao_salvou')); }
 }
 
 // ---- fans
@@ -2374,9 +2674,9 @@ function fansAgora() {
   for (const n in blocos.placa) blocos.placa[n].vivo();
   $('fa-medir').disabled = f.calibrando != null;
   $('fa-aplicar').disabled = f.calibrando != null;
-  $('fa-estado').textContent = f.calibrando != null ? T('f_medindo', Math.min(7, f.calibrando + 1)) :
-    a ? (a.erros && a.erros.length ? T('f_problema', a.erros.join(', ')) : T('f_aplicado', hora(a.t))) : '';
-  if (f.velho) $('fa-erro').textContent = T('f_velho');
+  tx('fa-estado', f.calibrando != null ? T('f_medindo', Math.min(7, f.calibrando + 1)) :
+    a ? (a.erros && a.erros.length ? T('f_problema', a.erros.join(', ')) : T('f_aplicado', hora(a.t))) : '');
+  if (f.velho) tx('fa-erro', T('f_velho'));
 }
 async function abrirFans() {
   if (!A) return;
@@ -2399,7 +2699,7 @@ async function abrirFans() {
       blocos.placa[c.n] = b; partes.push(b.el);
     });
     $('fa-corpo').replaceChildren(...partes);
-    $('fa-erro').textContent = '';
+    tx('fa-erro', '');
     fansAgora();
   }
   if (!$('fans').open) $('fans').showModal();
@@ -2410,12 +2710,12 @@ async function aplicarFans() {
   for (const n in blocos.placa) { corpo.placa[n] = blocos.placa[n].ler(); corpo.nomes[n] = blocos.placa[n].nome(); }
   try {
     const d = await pedir('/fans', corpo);
-    $('fa-erro').textContent = d.erro || '';
+    tx('fa-erro', d.erro || '');
     if (!d.erro) { A.fans.escolha = d.escolha; A.fans.aplicado = d.aplicado; CFG.nomes_fans = d.nomes; fansAgora(); }
-  } catch (e) { $('fa-erro').textContent = T('f_nao_aplicou'); }
+  } catch (e) { tx('fa-erro', T('f_nao_aplicou')); }
 }
 async function medirFans() {
-  try { const d = await pedir('/fans/calibrar', {}); $('fa-erro').textContent = d.erro || ''; } catch (e) { $('fa-erro').textContent = T('f_nao_aplicou'); }
+  try { const d = await pedir('/fans/calibrar', {}); tx('fa-erro', d.erro || ''); } catch (e) { tx('fa-erro', T('f_nao_aplicou')); }
 }
 
 $('btn-tab').addEventListener('click', abrirTabela);
@@ -2441,6 +2741,7 @@ $('btn-ocultos').addEventListener('click', () => { rolar = !rolar; arranjar(true
 $('btn-rede').addEventListener('click', abrirRede);
 $('btn-rede2').addEventListener('click', abrirRede);
 for (const b of document.querySelectorAll('[data-fechar]')) b.addEventListener('click', () => b.closest('dialog').close());
+$('tabela').addEventListener('close', () => { marca24 = null; });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) ciclo(); });
 window.addEventListener('resize', () => { arranjar(true); desenhar(); });
 traduzir();

@@ -10,15 +10,16 @@ The interface is available in English and Portuguese.
 ## What it shows
 
 - RAM, swap, cache and memory pressure
-- Graphics card usage, VRAM, temperature, power, fan speed (NVIDIA, basic AMD); Intel and AMD integrated graphics with usage, clock and video memory per program
-- Processor usage per core, temperature, clock, load
+- Graphics card usage, VRAM, temperature, power, fan speed, memory clock, PCIe link and why the card holds its clock back under load (heat, hardware or power limit) (NVIDIA, basic AMD); Intel and AMD integrated graphics with usage, clock and video memory per program
+- Processor usage with a strip of every core, temperature, clock, load
 - Network ping, loss, jitter, download and upload, link speed and errors, and a full network view
-- Programs ranked by RAM, VRAM and CPU
+- Programs ranked by RAM, VRAM and CPU; scripts are named after the script (a Python or Node program shows its own name), and a click on a program lists its processes with RAM, CPU, start time, service and command line
 - Notebook battery: charge, time left or to full, power, health, cycles, age and charge limits (module, shown only when a battery exists)
 - Temperatures and fans (with the highest reading of the last 24 h, notebook fans read only), disks with health, temperature, speed and busy share
 - System health: kernel errors, crashed programs, pending reboot, pending updates (pacman or dnf; packages from outside the official repositories, such as the AUR, are counted and listed but never checked)
 - The running Steam game with FPS, frame time and what limits it (graphics card, processor or an FPS cap), an events list
-  with a 24 h strip, optional CSV logging
+  with a 24 h strip (a click on an event opens the 24 h history at that moment), optional CSV logging
+- Charts show the last 10 minutes, and a click on the period label switches them to the last hour or the last 24 h
 - An estimate of power drawn by the graphics card, and by the processor when its energy counter is readable; internet used today
 - Optional modules, off by default: OBS live card and Project Zomboid server card
 
@@ -128,10 +129,12 @@ report it as a whole number.
   processor clock that fell, free RAM that ran out, swap, disk waits, lost pings), or says nothing
   was out of the ordinary.
 - **24 h history**: one row per minute (averages and peaks), saved every 15 minutes, shown as a chart
-  per metric with the minutes a game was running marked.
+  per metric with the minutes a game was running marked. The page fetches only the new minutes.
+  The same rows feed the 1 h and 24 h periods of the main charts.
 - **Game sessions**: when a game closes (after at least 2 minutes) its duration, average use, peak
   temperatures and power, VRAM peak, lowest free RAM, game RAM, average FPS, 1 % low and alert count
-  are saved. The Game card shows the running session.
+  are saved, with the share of time the graphics card held its clock for heat or power. The Game
+  card shows the running session. Tick two sessions to compare them side by side.
 
 The black box and the history keep the service sampling every 10 s with the page closed (the same
 pace as the background alerts). Both can be turned off in Settings, Measuring.
@@ -207,7 +210,7 @@ The tray icon notices the new files and reloads itself and the dashboard.
 - The service listens only on `127.0.0.1`, rejects requests with a foreign `Host` or `Origin`, and needs a custom header for any change.
 - It only reads the system. It writes its own settings, the optional CSV log and the fan choice file.
 - The root fan helper runs for a moment when the choice changes or the PC boots. It validates everything it reads and falls back to 100 % on anything unexpected.
-- Cost measured on the development machine: about 0.6 % of one core and 40 MiB with the page open, nothing when idle.
+- Cost measured on the development machine with the page open: about 0.35 % of one core for the service and under 1 % for the browser tab, about 70 MiB of RAM (a third of it the NVIDIA library).
 
 ## Layout of this repository
 

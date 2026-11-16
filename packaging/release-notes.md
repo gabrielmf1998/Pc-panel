@@ -1,3 +1,35 @@
+## 0.6.0: longer charts, program details, why the graphics card slows down
+
+- **Chart periods**: a click on the period label under a chart switches it from the last 10 minutes to
+  the last hour or the last 24 h, built from the per minute history plus the newest live samples.
+  Stretches sampled slowly while the page was closed are shaded instead of drawn as loose dots.
+- **Program details**: a click on a program in the Programs card lists its processes with RAM, swap,
+  CPU, start time, service and command line. Read only.
+- **Scripts get their own name**: a program run by Python, Node, Perl, Ruby, Lua, PHP, Deno or Bun is
+  listed under the script or module name (a generic file such as main.py takes its folder name).
+- **Crashed programs are named**: a game that crashed under Proton shows as "Game (wine64-preloader)"
+  from its Steam app, instead of only the executable.
+- **Graphics card (NVIDIA)**: the share of busy time the card held its clock back for heat, for the
+  hardware or at its power limit, the memory clock, and the PCIe link against the maximum of the slot
+  and card. New alerts when the card slows down for heat or hardware, and when the PCIe link runs
+  narrower than it can (a loose card or a wrong slot). The idle drop of the PCIe generation is normal
+  and is not reported.
+- **Processor**: a strip with every core, so one busy core stands out, and the busiest core in text.
+- **Disks**: SSDs with a Phison controller (Kingston A400 and many others) show the life left and the
+  amount written from their own attributes, as listed in the smartmontools drive database, instead of
+  a reserve count that read as low health. The wear forecast is marked rough until it has 14 days of
+  readings and 5 % of wear.
+- **Events**: a click on an event opens the 24 h history on the right metric with the moment marked.
+- **Game sessions**: FPS, 1 % low and the share of time held for heat or power are columns; tick two
+  sessions to compare them side by side, with what got better or worse.
+- **24 h history**: the page fetches only the new minutes, the chart uses the whole width of the
+  window, and the panel memory is a metric. The temperature tooltip says when the 24 h peak happened.
+- **Lighter page**: text and bars are written only when they change and charts are drawn only when
+  their data changed. One update of the page went from about 5.8 ms to 3.8 ms on the development
+  machine, and the browser tab from 1.2 % to 0.9 % of one core. Settings shows what the page costs.
+  The page itself is cached by the browser (ETag).
+- "RAM LEFT zero" on the RAM chart reads "RAM LEFT runs out at".
+
 ## 0.5.3: every disk on short windows
 
 - When the Disks card is too short for all disks, the health and activity line under each disk is dropped
