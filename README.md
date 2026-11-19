@@ -20,7 +20,7 @@ The interface is available in English and Portuguese.
 - The running Steam game with FPS, frame time and what limits it (graphics card, processor or an FPS cap), an events list
   with a 24 h strip (a click on an event opens the 24 h history at that moment), optional CSV logging
 - Charts show the last 10 minutes, and a click on the period label switches them to the last hour or the last 24 h
-- An estimate of power drawn by the graphics card, and by the processor when its energy counter is readable; internet used today
+- Power: processor package and graphics card in watts, what is normal on this PC (idle, normal, gaming, high), peaks with what was running, energy per day and month with an optional cost, and a power alert based on your power supply (see Power below); internet used today
 - Optional modules, off by default: OBS live card and Project Zomboid server card
 
 ## What it controls
@@ -71,6 +71,45 @@ The per-program list costs something only while this view is open: it reads the 
 5 s (10 s while gaming) and stops when the view closes. The router is pinged with the same tiny
 packet and at the same pace as the internet target. The card itself stays small (ping, loss, jitter,
 rates and the one line verdict), so a small window next to a game shows only what matters.
+
+## Power
+
+The Power card shows what the processor and the graphics card draw right now, next to the **normal
+value of this PC** (the median of the last 24 h, one value per minute) and the peak of the day. A bar
+compares now with the highest peak of the last 24 h, with a mark at the normal value, and the badge
+says whether the reading is idle, normal, above normal or near the peak. Its **details** button opens
+a full screen view (also at `#energia`):
+
+- **Chart** of total, processor and graphics card, with the normal value as a dashed line. The 1 h
+  and 24 h periods show the peak of each minute, so a short spike is not averaged away.
+- **What is normal here**, for the total and each part: idle (lowest 10 % of the minutes), normal
+  (median), gaming (median of the minutes with a game open), high (95th percentile) and the peak.
+- **Biggest peaks of 24 h**, one per 15 minutes, with the processor and graphics card share and the
+  game or busiest program at that moment.
+- **Energy per day** for the last 30 days (kWh, measured time, peak, energy while gaming), today and
+  this month, and the cost when a price per kWh is set in Settings, Power.
+- **Limits**: the graphics card power limit in force, its factory default and the range it accepts,
+  the share of busy time it sat at its power limit or was braked by the hardware, and how much of the
+  power supply the 24 h peak uses when its rating is set in Settings.
+
+Game sessions also keep the average power and the energy used (Wh), and the CSV log has
+`cpu_watts` and `total_watts` columns.
+
+Where the numbers come from, no root needed:
+
+- **Processor**: AMD Ryzen processors with integrated graphics (every Ryzen 7000 and 9000, and the
+  APUs) report the power of the whole chip through the `amdgpu` sensor. Intel and AMD RAPL counters
+  are used when your user can read them (most distributions keep them root only, and the panel does
+  not change that).
+- **Graphics card**: NVIDIA through the driver library, including its energy counter, so the energy
+  between two samples is exact; AMD cards through the kernel sensor.
+- On battery, the notebook's whole draw from the battery.
+
+Each reading is about a one second average, so millisecond spikes do not show. The PC pulls more than
+this from the wall: the motherboard, memory, disks, fans and the power supply loss have no sensor.
+
+The power alert (processor + graphics card, 10 s average) has no recommended value until the power
+supply rating is typed in Settings, Power; then it warns at 60, 75 and 90 % of it.
 
 ## Alerts
 
@@ -194,7 +233,7 @@ Remove a quick install with `curl -fsSL https://raw.githubusercontent.com/gabrie
 
 - Linux with systemd and Python 3.12 or newer. No Python packages needed.
 - The tray icon is built for x86_64. On other machines the quick installer compiles it when a C compiler and the systemd headers exist.
-- Graphics card readings: NVIDIA with the proprietary driver, AMD through the kernel driver, or Intel integrated graphics (i915 or xe driver). Without one, those cards are hidden. Integrated graphics have no power or temperature reading of their own.
+- Graphics card readings: NVIDIA with the proprietary driver, AMD through the kernel driver, or Intel integrated graphics (i915 or xe driver). Without one, those cards are hidden. Integrated graphics have no power or temperature reading of their own (on AMD the chip power shows as the processor in the Power card).
 - Fan control and motherboard fan speeds: Nuvoton NCT67xx fan chips (driver `nct6775`). Other chips are not supported yet.
 - Developed and tested on one Arch Linux machine (Ryzen, RTX 3060 Ti, Radeon integrated graphics). Fedora packages are built by the release workflow and were run in a Fedora 45 container; Intel graphics and notebook batteries were tested with simulated kernel files, not on a real notebook yet. Reports are welcome.
 

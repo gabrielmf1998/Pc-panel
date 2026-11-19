@@ -1,3 +1,32 @@
+## 0.7.0: Power
+
+- **Power card.** What the processor and the graphics card draw now, the **normal value of this PC**
+  (median of the last 24 h) and the peak of the day. The bar compares now with the highest peak of
+  24 h with a mark at the normal value; the badge says idle, normal, above normal or near the peak.
+  A line under it gives the idle, gaming and 24 h peak values.
+- **Power view** (details button, or `#energia`): chart of total, processor and graphics card with
+  the normal value as a dashed line (1 h and 24 h show the peak of each minute); a table of idle,
+  normal, gaming, high and peak values for each part; the biggest peaks of 24 h with what was
+  running; energy per day for 30 days, today and this month; graphics card power limit in force,
+  factory default and accepted range, time at the power limit and hardware brake.
+- **Processor power without root on AMD Ryzen with integrated graphics** (Ryzen 7000, 9000 and the
+  APUs): the chip reports its whole socket power through the `amdgpu` sensor. Checked on a Ryzen 7
+  9800X3D: about 40 W idle and 126 W with all 16 threads busy. Some of these chips hand over the
+  value in mW where the kernel expects µW; the panel corrects that. RAPL is still used when readable.
+- **Exact graphics card energy (NVIDIA)** from the driver energy counter, so a spike between two
+  samples still counts. The power limit is read every sample, so a limit changed by another tool
+  shows at once.
+- **Cost**: type the price of one kWh (and the currency, taken from your locale by default) in
+  Settings, Power, and the card and view show the cost of today, the month and each day.
+- **Power alert** (processor + graphics card, 10 s average): its recommended levels are 60, 75 and
+  90 % of the power supply rating typed in Settings, Power; without it the alert stays quiet.
+- Game sessions keep the average power and the energy used; the 24 h history has power and processor
+  power peaks; the CSV log gets `cpu_watts` and `total_watts` (a log file of the same day started by an
+  older version is kept as `-antes.csv`); the tray tooltip shows the power.
+- AMD integrated graphics no longer show the whole chip power as the graphics card power.
+- Same cost as 0.6.0: measured side by side over 4 minutes with the page closed, 91 and 93 processor
+  ticks (0.38 % of one core both); working out the normal values takes about 1 ms once a minute.
+
 ## 0.6.0: longer charts, program details, why the graphics card slows down
 
 - **Chart periods**: a click on the period label under a chart switches it from the last 10 minutes to

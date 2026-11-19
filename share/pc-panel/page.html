@@ -9,7 +9,7 @@
 :root{color-scheme:dark;--plano:#0d0d0d;--sup:#1a1a19;--sup2:#262624;--tinta:#f0efec;--tinta2:#c3c2b7;
   --apagado:#898781;--grade:#2c2c2a;--eixo:#383835;--borda:rgba(255,255,255,.10);
   --s1:#3987e5;--s2:#d95926;--bom:#2fbf4a;--aviso:#f5bd3a;--serio:#f08a5d;--critico:#ef5a5a;--lin:1.64rem;--topo-h:46px;
-  --m-ram:#9085e9;--m-vram:#c06bd6;--m-gpu:#25afc2;--m-cpu:#3987e5;--m-fps:#b5bfd0}
+  --m-ram:#9085e9;--m-vram:#c06bd6;--m-gpu:#25afc2;--m-cpu:#3987e5;--m-fps:#b5bfd0;--m-pot:#e2d6bd}
 body[data-tema="preto"]{--plano:#000;--sup:#0b0b0b;--sup2:#1a1a19;--grade:#222220;--borda:rgba(255,255,255,.14)}
 body[data-tema="noite"]{--plano:#090e1a;--sup:#111a2c;--sup2:#1b2740;--grade:#1f2b45;--eixo:#2f3d5e;--tinta2:#c2c9d8;--apagado:#8490a8}
 body[data-tema="contraste"]{--plano:#000;--sup:#000;--sup2:#1a1a19;--tinta:#fff;--tinta2:#fff;--apagado:#c3c2b7;
@@ -18,7 +18,7 @@ body[data-tema="contraste"]{--plano:#000;--sup:#000;--sup2:#1a1a19;--tinta:#fff;
 body[data-tema="claro"]{color-scheme:light;--plano:#f0efec;--sup:#fcfcfb;--sup2:#f0efec;--tinta:#0b0b0b;--tinta2:#52514e;
   --apagado:#898781;--grade:#e1e0d9;--eixo:#c3c2b7;--borda:rgba(11,11,11,.12);--s1:#2a78d6;--s2:#eb6834;
   --bom:#14801a;--aviso:#a35f00;--serio:#c2410c;--critico:#b42318;
-  --m-ram:#6250d6;--m-vram:#9b3fb8;--m-gpu:#0e7f91;--m-cpu:#2a78d6;--m-fps:#5a6578}
+  --m-ram:#6250d6;--m-vram:#9b3fb8;--m-gpu:#0e7f91;--m-cpu:#2a78d6;--m-fps:#5a6578;--m-pot:#6b5a3a}
 body[data-cor="agua"]{--s1:#199e70}body[data-cor="violeta"]{--s1:#9085e9}body[data-cor="magenta"]{--s1:#d55181}
 body[data-tema="claro"][data-cor="agua"]{--s1:#1baf7a}body[data-tema="claro"][data-cor="violeta"]{--s1:#6250d6}
 body[data-tema="claro"][data-cor="magenta"]{--s1:#e87ba4}
@@ -70,7 +70,7 @@ body.semdados .cartao{opacity:.45}
 @keyframes pulso{from{opacity:.15}to{opacity:1}}
 @media (prefers-reduced-motion:reduce){.cartao.al-critico::after{animation:none;opacity:.7}}
 #c-chat{padding:0}
-#c-ram{--mc:var(--m-ram)}#c-vram{--mc:var(--m-vram)}#c-gpu{--mc:var(--m-gpu)}#c-cpu{--mc:var(--m-cpu)}#c-rede{--mc:var(--s1)}#c-jogo{--mc:var(--m-fps)}#c-bat{--mc:var(--m-fps)}
+#c-ram{--mc:var(--m-ram)}#c-vram{--mc:var(--m-vram)}#c-gpu{--mc:var(--m-gpu)}#c-cpu{--mc:var(--m-cpu)}#c-rede{--mc:var(--s1)}#c-jogo{--mc:var(--m-fps)}#c-bat{--mc:var(--m-fps)}#c-pot{--mc:var(--m-pot)}
 .cartao[data-acento]>header h2::before,#c-jogo .l1 h2::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;
   background:var(--mc);margin-right:7px;vertical-align:1px}
 .num b{transition:color .4s}
@@ -196,6 +196,19 @@ td.cmd{max-width:min(560px,50vw);overflow:hidden;text-overflow:ellipsis;font-fam
 #c-jogo.grande .d,#c-jogo.grande .d2{display:none}
 .bat-info{font-size:.86rem;color:var(--tinta2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:none;margin-top:7px}
 @container (max-height:9.2rem){.bat-info{display:none}}
+.pot-m{position:relative;overflow:visible}
+.pot-m s{position:absolute;top:-3px;bottom:-3px;width:2px;margin-left:-1px;background:var(--tinta);opacity:.75;border-radius:1px}
+.pot-m s[hidden]{display:none}
+.pt{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:1px}
+.pot-info{font-size:.86rem;color:var(--tinta2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:none;margin-top:7px}
+@container (max-height:9.2rem){.pot-info{display:none}}
+.ref{stroke:var(--tinta2);stroke-width:1;stroke-dasharray:2 4;opacity:.9}
+.en-dias{display:flex;align-items:flex-end;gap:3px;height:130px;padding-top:8px;flex:none}
+.en-dias div{flex:1 1 0;min-width:3px;background:var(--m-pot);opacity:.7;border-radius:2px 2px 0 0}
+.en-dias div.hoje{opacity:1;background:var(--s1)}
+.en-dias div:hover{opacity:1}
+.en-dias-r{display:flex;justify-content:space-between;font-size:.8rem;color:var(--apagado)}
+#en-tab td:not(.e),#en-picos td:not(.e){text-align:right;font-variant-numeric:tabular-nums}
 #c-jogo .full .info{font-size:.86rem;color:var(--tinta2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:none}
 #c-jogo .full .info2{font-size:.86rem;color:var(--apagado);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:none}
 #c-jogo .full .dica-fps{font-size:.86rem;color:var(--apagado);flex:none}
@@ -429,6 +442,23 @@ body[data-estreito] .hora{font-size:1.29rem}
     <div class="graf" id="g-bat"></div>
   </section>
 
+  <section class="cartao" id="c-pot" data-acento>
+    <header><h2><span data-i="c_pot"></span><small id="pot-fonte"></small></h2><span class="hd-dir"><button type="button" class="elo" id="btn-pot2" data-i="rd_mais"></button><span class="pilula" id="pot-st"></span></span></header>
+    <div class="resumo">
+      <div class="num"><b id="pot-v">0</b><span>W</span></div>
+      <dl class="sub">
+        <div data-it="pot_normal_t"><dt data-i="pot_normal"></dt><dd id="pot-normal"></dd></div>
+        <div data-it="pot_cpu_t"><dt><i class="pt" style="background:var(--m-cpu)"></i><span data-i="pot_cpu"></span></dt><dd id="pot-cpu"></dd></div>
+        <div data-it="pot_gpu_t"><dt><i class="pt" style="background:var(--m-gpu)"></i><span data-i="pot_gpu"></span></dt><dd id="pot-gpu"></dd></div>
+        <div id="pot-pico-b"><dt data-i="pot_pico"></dt><dd id="pot-pico"></dd></div>
+        <div id="pot-hoje-b"><dt data-i="pot_hoje"></dt><dd id="pot-hoje"></dd></div>
+      </dl>
+    </div>
+    <div class="med fino pot-m" id="pot-m" data-it="pot_m_t"><i></i><s id="pot-ref" hidden></s></div>
+    <div class="pot-info" id="pot-info"></div>
+    <div class="graf" id="g-pot"></div>
+  </section>
+
   <section class="cartao" id="c-prog">
     <header><h2 data-i="c_prog"></h2></header>
     <div class="duas">
@@ -499,7 +529,7 @@ body[data-estreito] .hora{font-size:1.29rem}
     <div class="ses-cmp" id="ses-cmp" hidden></div><div class="rolagem"><table>
     <thead><tr><th data-it="ses_marcar_t">⇄</th><th class="e" data-i="th_jogo2"></th><th data-i="th_comecou"></th><th data-i="th_durou"></th><th data-i="th_cpu_p"></th><th data-i="th_cpu_max"></th>
       <th data-i="th_gpu_p"></th><th data-i="th_gpu_max"></th><th data-i="th_w_max"></th><th data-i="th_vram_pico"></th><th data-i="th_vram_jogo"></th>
-      <th data-i="th_ram_min"></th><th data-i="th_ram_jogo"></th><th data-i="th_ping_s"></th><th data-i="th_perda_s"></th><th data-i="th_jit_s"></th><th>FPS</th><th>1 % low</th><th data-i="th_freio_t" data-it="th_freio_tt"></th><th data-i="th_freio_e" data-it="th_freio_et"></th><th data-i="th_alertas"></th></tr></thead>
+      <th data-i="th_ram_min"></th><th data-i="th_ram_jogo"></th><th data-i="th_ping_s"></th><th data-i="th_perda_s"></th><th data-i="th_jit_s"></th><th>FPS</th><th>1 % low</th><th data-i="th_freio_t" data-it="th_freio_tt"></th><th data-i="th_freio_e" data-it="th_freio_et"></th><th data-i="th_pw" data-it="th_pw_t"></th><th data-it="th_wh_t">Wh</th><th data-i="th_alertas"></th></tr></thead>
     <tbody id="ses-corpo"></tbody></table></div></div>
   <div data-painel="cx" hidden><p class="nota" id="cx-nota" style="margin-bottom:8px;max-width:940px"></p><div class="botoes" id="cx-lista"></div>
     <p class="nota" id="cx-resumo"></p><ul id="cx-rel" hidden></ul><div class="rolagem"><table><thead id="cx-cab"></thead><tbody id="cx-corpo"></tbody></table></div></div>
@@ -519,6 +549,21 @@ body[data-estreito] .hora{font-size:1.29rem}
     <section class="rd-b"><h3 data-i="rd_qual"></h3><table id="rd-qual"></table><p class="nota" data-i="rd_qual_n"></p></section>
     <section class="rd-b"><h3 data-i="rd_con"></h3><dl class="rd-dl" id="rd-con"></dl></section>
     <section class="rd-b"><h3 data-i="rd_progs"></h3><table id="rd-progs"></table><p class="nota" data-i="rd_progs_n"></p></section>
+  </div>
+</dialog>
+
+<dialog id="energia" class="tela">
+  <header><h2><span data-i="c_pot"></span> <small class="nota" id="en-fonte"></small></h2><button type="button" data-fechar data-i="fechar"></button></header>
+  <div class="rd-diag" id="en-diag"></div>
+  <div class="rd-tiles" id="en-tiles"></div>
+  <div class="rd-grade">
+    <section class="rd-b rd-gp"><h3 data-i="en_g"></h3>
+      <div class="legenda"><span><i style="background:var(--m-pot)"></i><span data-i="en_total"></span></span><span><i style="background:var(--m-cpu)"></i><span data-i="pot_cpu"></span></span><span><i style="background:var(--m-gpu)"></i><span data-i="pot_gpu"></span></span><span><i style="background:var(--tinta2);width:9px;height:2px"></i><span data-i="pot_normal"></span></span></div>
+      <div class="graf" id="en-g"></div></section>
+    <section class="rd-b"><h3 data-i="en_normal"></h3><table id="en-tab"></table><p class="nota" data-i="en_normal_n"></p></section>
+    <section class="rd-b"><h3 data-i="en_picos"></h3><table id="en-picos"></table><p class="nota" data-i="en_picos_n"></p></section>
+    <section class="rd-b"><h3 data-i="en_dias"></h3><div class="en-dias" id="en-dias"></div><div class="en-dias-r" id="en-dias-r"></div><p class="nota" id="en-dias-n"></p></section>
+    <section class="rd-b"><h3 data-i="en_placa"></h3><dl class="rd-dl" id="en-placa"></dl><p class="nota" id="en-como"></p></section>
   </div>
 </dialog>
 
@@ -596,6 +641,11 @@ body[data-estreito] .hora{font-size:1.29rem}
     <label class="campo"><span id="aj-upd" class="nota"></span><button type="button" id="aj-upd-btn" data-i="a_upd_btn"></button></label>
     <p class="nota" id="aj-upd-lista" style="max-height:6.5rem;overflow:auto;white-space:pre-line"></p>
     <p class="nota" data-i="a_upd_n"></p></fieldset>
+  <fieldset><legend data-i="c_pot"></legend><div class="dois">
+    <label class="campo"><span data-i="a_preco"></span><input type="number" id="aj-preco" class="curto" min="0" max="1000" step="0.01"></label>
+    <label class="campo"><span data-i="a_moeda"></span><input type="text" id="aj-moeda" class="curto" maxlength="4" spellcheck="false"></label>
+    <label class="campo"><span data-i="a_psu"></span><input type="number" id="aj-psu" class="curto" min="0" max="5000" step="50"></label>
+  </div><p class="nota" data-i="a_energia_n"></p></fieldset>
   <fieldset><legend data-i="a_modulos"></legend>
     <label><input type="checkbox" id="aj-m-live"> <span data-i="a_m_live"></span></label>
     <label><input type="checkbox" id="aj-m-zomboid"> <span data-i="a_m_zomboid"></span></label>
@@ -1022,23 +1072,79 @@ Object.assign(TX.en, {
   th_ping_m: 'Avg ping', ses_marcar_t: 'Tick two sessions to compare', ses_cmp_n: 'Tick two sessions in the first column to compare them side by side.',
   ses_cmp_t: 'Comparison, the older one on the left. Green = better, orange = worse.', ses_dif: 'Difference'});
 
+// strings added in 0.7 (Power)
+Object.assign(TX.pt, {
+  c_pot: 'Energia', pot_cpu: 'Processador', pot_gpu: 'Placa de vídeo', pot_normal: 'Normal', pot_pico: 'Pico hoje', pot_hoje: 'Hoje',
+  pot_cpu_t: 'Pacote do processador inteiro, lido do sensor do chip', pot_gpu_t: 'A placa de vídeo inteira, lida do driver, e o limite de energia em vigor',
+  pot_normal_t: 'Mediana das últimas 24 h deste PC, um valor por minuto', pot_m_t: 'Agora comparado ao maior pico das últimas 24 h; o traço é o normal deste PC',
+  pot_nb: 'notebook inteiro, na bateria', pot_medindo: 'medindo', pot_e_pico: 'perto do pico', pot_e_alto: 'acima do normal', pot_e_rep: 'em repouso', pot_e_normal: 'normal',
+  pot_pico_t: 'às {0}', pot_hoje_t: 'Processador + placa desde a meia-noite, medido por {0}',
+  pot_i_rep: 'repouso {0} W', pot_i_jogo: 'em jogo {0} W', pot_i_pico: 'pico 24 h {0} W às {1}', pot_i_junta: 'juntando histórico, o normal aparece após 10 minutos medidos',
+  en_g: 'Consumo (o período troca no botão do gráfico; 1 h e 24 h mostram o pico de cada minuto)', en_total: 'Total', en_normal: 'O que é normal neste PC (24 h)',
+  en_normal_n: 'Um valor por minuto das últimas 24 h. Repouso = os 10 % mais baixos, normal = a mediana, em jogo = a mediana dos minutos com jogo aberto, alto = só 5 % dos minutos passaram disso.',
+  en_picos: 'Maiores picos (24 h)', en_picos_n: 'Um pico por janela de 15 minutos, com o jogo ou o programa mais pesado daquele momento.',
+  en_dias: 'Por dia (até 30 dias)', en_placa: 'Limites e fonte',
+  en_f_rapl: 'contador RAPL do processador', en_f_smu: 'sensor do chip AMD (potência do soquete)', en_f_nao: 'sem leitura (o sensor deste processador só abre para o root)',
+  en_d_nada: 'Nenhuma peça deste PC informa o consumo.', en_d_junta: 'Agora {0} W. O normal deste PC aparece depois de 10 minutos medidos.',
+  en_d: 'Agora {0} W, {1}. O normal deste PC é {3} W, agora está em {2}× isso.',
+  en_agora: 'Agora (processador + placa)', en_m10: 'média de 10 s {0} W', en_lim: 'limite {0} W, usando {1} %', en_medido: 'medido por {0}',
+  en_mes: 'Este mês', en_por_dia: '{0} por dia', en_pico_hoje: 'Pico de hoje',
+  en_th_rep: 'Repouso', en_th_jogo: 'Em jogo', en_th_alto: 'Alto (95 %)', en_th_pico: 'Pico', en_sem_jogo: 'sem jogo', en_th_min: 'Média do minuto', en_th_oque: 'O que rodava',
+  en_pico_d: 'pico {0} W', en_jogo_d: '{0} em jogo', en_dias_n: '{0} dia(s), {1} no total, {2} por dia em média.', en_custo: 'Custo estimado {0}.',
+  en_p_lim: 'Limite da placa agora', en_p_padrao: 'Limite de fábrica', en_p_faixa: 'Faixa que a placa aceita', en_faixa_v: '{0} a {1} W',
+  en_p_freio_e: 'No limite de energia (últimos segundos ocupada)', en_p_freio_hw: 'Freio do hardware ou da fonte', en_p_psu: 'Fonte (PSU)',
+  en_p_psu_uso: 'pico de 24 h usa {0} % dela', en_p_psu_nao: 'não informada (Ajustes, Energia)',
+  en_como: 'Processador pelo sensor do próprio chip, placa de vídeo pelo driver, uma leitura por medida (média de cerca de 1 s), então picos de milissegundos não aparecem. A energia da placa NVIDIA vem do contador do driver, que pega tudo entre as medidas. Da tomada o PC puxa mais que isso, porque placa-mãe, memória, SSDs, fans e a perda da fonte não têm sensor.',
+  th_pw: 'W médio', th_pw_t: 'Processador + placa de vídeo, média da sessão', th_wh_t: 'Energia gasta na sessão (processador + placa)',
+  h24_pw: 'Energia W (pico)', h24_cw: 'Processador W (pico)', s_pot_cpu: 'processador {0} W',
+  a_preco: 'Preço do kWh', a_moeda: 'Moeda', a_psu: 'Fonte (PSU) em W',
+  a_energia_n: 'O preço do kWh está na conta de luz (valor total dividido pelos kWh). Com ele o painel mostra o custo. Com a potência da fonte o alerta de consumo recomendado avisa em 60, 75 e 90 % dela, só para processador + placa. Deixe vazio para não usar.',
+  lm_energia: 'Processador + placa de vídeo (W, média de 10 s)'});
+Object.assign(TX.en, {
+  c_pot: 'Power', pot_cpu: 'Processor', pot_gpu: 'Graphics card', pot_normal: 'Normal', pot_pico: 'Peak today', pot_hoje: 'Today',
+  pot_cpu_t: 'The whole processor package, read from the chip sensor', pot_gpu_t: 'The whole graphics card, read from the driver, and the power limit in force',
+  pot_normal_t: 'Median of the last 24 h of this PC, one value per minute', pot_m_t: 'Now against the highest peak of the last 24 h; the mark is the normal of this PC',
+  pot_nb: 'whole notebook, on battery', pot_medindo: 'measuring', pot_e_pico: 'near the peak', pot_e_alto: 'above normal', pot_e_rep: 'idle', pot_e_normal: 'normal',
+  pot_pico_t: 'at {0}', pot_hoje_t: 'Processor + graphics card since midnight, measured for {0}',
+  pot_i_rep: 'idle {0} W', pot_i_jogo: 'gaming {0} W', pot_i_pico: '24 h peak {0} W at {1}', pot_i_junta: 'building history, the normal value shows after 10 measured minutes',
+  en_g: 'Draw (switch the period on the chart button; 1 h and 24 h show the peak of each minute)', en_total: 'Total', en_normal: 'What is normal on this PC (24 h)',
+  en_normal_n: 'One value per minute over the last 24 h. Idle = the lowest 10 %, normal = the median, gaming = the median of the minutes with a game open, high = only 5 % of the minutes went above it.',
+  en_picos: 'Biggest peaks (24 h)', en_picos_n: 'One peak per 15 minute window, with the game or the busiest program of that moment.',
+  en_dias: 'Per day (up to 30 days)', en_placa: 'Limits and power supply',
+  en_f_rapl: 'processor RAPL counter', en_f_smu: 'AMD chip sensor (socket power)', en_f_nao: 'not readable (this processor sensor is open to root only)',
+  en_d_nada: 'No part of this PC reports its power.', en_d_junta: 'Now {0} W. The normal value of this PC shows after 10 measured minutes.',
+  en_d: 'Now {0} W, {1}. The normal of this PC is {3} W, now it is {2}× that.',
+  en_agora: 'Now (processor + graphics)', en_m10: '10 s average {0} W', en_lim: 'limit {0} W, using {1} %', en_medido: 'measured for {0}',
+  en_mes: 'This month', en_por_dia: '{0} per day', en_pico_hoje: 'Peak today',
+  en_th_rep: 'Idle', en_th_jogo: 'Gaming', en_th_alto: 'High (95 %)', en_th_pico: 'Peak', en_sem_jogo: 'no game', en_th_min: 'Minute average', en_th_oque: 'What was running',
+  en_pico_d: 'peak {0} W', en_jogo_d: '{0} gaming', en_dias_n: '{0} day(s), {1} in total, {2} per day on average.', en_custo: 'Estimated cost {0}.',
+  en_p_lim: 'Card limit now', en_p_padrao: 'Factory limit', en_p_faixa: 'Range the card accepts', en_faixa_v: '{0} to {1} W',
+  en_p_freio_e: 'At the power limit (last busy seconds)', en_p_freio_hw: 'Hardware or power supply brake', en_p_psu: 'Power supply (PSU)',
+  en_p_psu_uso: '24 h peak uses {0} % of it', en_p_psu_nao: 'not set (Settings, Power)',
+  en_como: 'Processor from the chip\'s own sensor, graphics card from the driver, one reading per sample (about a 1 s average), so millisecond spikes do not show. The NVIDIA card energy comes from the driver counter, which catches everything between samples. The PC pulls more than this from the wall, because the motherboard, memory, SSDs, fans and the power supply loss have no sensor.',
+  th_pw: 'Avg W', th_pw_t: 'Processor + graphics card, session average', th_wh_t: 'Energy used in the session (processor + graphics card)',
+  h24_pw: 'Power W (peak)', h24_cw: 'Processor W (peak)', s_pot_cpu: 'processor {0} W',
+  a_preco: 'Price per kWh', a_moeda: 'Currency', a_psu: 'Power supply (PSU) in W',
+  a_energia_n: 'The kWh price is on the electricity bill (total divided by the kWh). With it the panel shows the cost. With the power supply rating the recommended power alert warns at 60, 75 and 90 % of it, for processor + graphics card only. Leave empty to skip.',
+  lm_energia: 'Processor + graphics card (W, 10 s average)'});
+
 const $ = id => document.getElementById(id);
 const NS = 'http://www.w3.org/2000/svg';
 const JANELA = 600;
 const GL = {bom: '●', aviso: '▲', serio: '◆', critico: '■'};
 const ORD = ['bom', 'aviso', 'serio', 'critico'];
 const COR = {bom: 'var(--bom)', aviso: 'var(--aviso)', serio: 'var(--serio)', critico: 'var(--critico)'};
-const CARTOES = ['ram', 'vram', 'gpu', 'cpu', 'rede', 'bat', 'prog', 'temp', 'disc', 'saude', 'eventos', 'jogo', 'live', 'pz', 'sis'];
-const PERFIS = {tudo: CARTOES, jogo: ['ram', 'vram', 'gpu', 'cpu', 'rede', 'temp', 'prog', 'jogo'],
+const CARTOES = ['ram', 'vram', 'gpu', 'cpu', 'rede', 'bat', 'pot', 'prog', 'temp', 'disc', 'saude', 'eventos', 'jogo', 'live', 'pz', 'sis'];
+const PERFIS = {tudo: CARTOES, jogo: ['ram', 'vram', 'gpu', 'cpu', 'rede', 'pot', 'temp', 'prog', 'jogo'],
   live: ['ram', 'vram', 'gpu', 'cpu', 'rede', 'live', 'jogo', 'eventos', 'temp'],
-  hardware: ['ram', 'vram', 'gpu', 'cpu', 'bat', 'temp', 'disc', 'saude', 'sis']};
+  hardware: ['ram', 'vram', 'gpu', 'cpu', 'bat', 'pot', 'temp', 'disc', 'saude', 'sis']};
 // size of each card in columns x rows: l = wide screen (4 columns), m = half screen (2), c = compact
 const TAM = {ram: {l: [1, 5], m: [1, 3], c: [1, 2]}, vram: {l: [1, 5], m: [1, 3], c: [1, 2]}, gpu: {l: [1, 5], m: [1, 3], c: [1, 2]},
-  cpu: {l: [1, 5], m: [1, 3], c: [1, 2]}, rede: {l: [1, 6], m: [1, 4], c: [1, 2]}, bat: {l: [1, 4], m: [1, 3], c: [1, 2]}, prog: {l: [2, 6], m: [1, 4]},
+  cpu: {l: [1, 5], m: [1, 3], c: [1, 2]}, rede: {l: [1, 6], m: [1, 4], c: [1, 2]}, bat: {l: [1, 4], m: [1, 3], c: [1, 2]}, pot: {l: [1, 5], m: [1, 3], c: [1, 2]}, prog: {l: [2, 6], m: [1, 4]},
   temp: {l: [1, 4], m: [1, 5]}, disc: {l: [1, 3], m: [1, 3]}, saude: {l: [1, 3], m: [1, 3]}, eventos: {l: [1, 3], m: [1, 3]},
   jogo: {l: [1, 1], m: [1, 1], c: [1, 1]}, live: {l: [1, 1], m: [1, 1], c: [1, 1]}, pz: {l: [1, 1], m: [1, 1], c: [1, 1]},
   sis: {l: [1, 2], m: [1, 1]}, chat: {l: [1, 1], m: [2, 6]}};
-const PRIO = {ram: 1, vram: 2, gpu: 3, cpu: 4, rede: 5, bat: 5.5, chat: 6, temp: 30, prog: 31, disc: 32, saude: 33, eventos: 34, sis: 35, jogo: 40, live: 41, pz: 42};
+const PRIO = {ram: 1, vram: 2, gpu: 3, cpu: 4, rede: 5, bat: 5.5, pot: 5.7, chat: 6, temp: 30, prog: 31, disc: 32, saude: 33, eventos: 34, sis: 35, jogo: 40, live: 41, pz: 42};
 const ESSENCIAIS = ['ram', 'vram', 'gpu', 'cpu', 'rede'];
 
 let H = [], A = null, CFG = null, EV = [], seq = 0, inst = '', passo = 2, falhas = 0, L = 'pt', LOC = 'pt-BR', FONTE = 1;
@@ -1135,6 +1241,7 @@ function visivel(id) {
   if ((id === 'pz' && !CFG.modulos.zomboid) || (id === 'live' && !CFG.modulos.live)) return false;
   if ((id === 'vram' || id === 'gpu') && A && A.gpu.ausente) return false;     // PC without a supported graphics card
   if (id === 'bat' && (CFG.modulos.bateria === false || !A || !A.bat)) return false;   // desktop PC, or the module is off
+  if (id === 'pot' && A && (!A.energia || (A.energia.total == null && A.energia.nb == null))) return false;   // nothing reports its power
   return CFG.perfil === 'proprio' ? CFG.cartoes[id] !== false : (PERFIS[CFG.perfil] || CARTOES).includes(id);
 }
 const nomeDisco = n => n === '/' ? T('d_sistema') : n;
@@ -1163,7 +1270,7 @@ function linhas24(o, jan) {
 class Grafico {
   constructor(alvo, o) {
     this.el = alvo; this.o = o; this.mx = null; this.uid = 'gr' + (Grafico.n = (Grafico.n || 0) + 1);
-    this.per = '10'; this.W = 0; this.Ht = 0; this.sig = '';
+    this.per = o.per0 || '10'; this.W = 0; this.Ht = 0; this.sig = '';
     this.svg = sv('svg', {role: 'img'}, alvo);
     this.dica = el('div', 'dica'); this.dica.hidden = true; alvo.appendChild(this.dica);
     if (o.h24) {
@@ -1187,10 +1294,11 @@ class Grafico {
       rows = h.concat(H.filter((l, i) => l[0] > fim && (i === H.length - 1 || Math.floor(l[0] / 15) !== Math.floor(H[i + 1][0] / 15))));
     }
     const lim = o.limite && o.limite(), nvc = o.nv && o.nv(), corNv = nvc && nvc !== 'bom' ? COR[nvc] : null;
+    const refs = (o.ref && o.ref()) || [];
     const ult = rows.length ? rows[rows.length - 1][0] : 0;
     // the window slides with every new sample, so the newest time is part of the key
     const sig = [W, Ht, f, L, this.per, longo ? T24.t : 0, rows.length, ult, longo ? Math.floor(t1 / 60) : t1, lim && lim.v, lim && lim.rotulo, nvc,
-      CFG && CFG.tema, CFG && CFG.cor].join('|');
+      CFG && CFG.tema, CFG && CFG.cor, refs.map(r => r.v).join()].join('|');
     if (sig === this.sig) return;
     this.sig = sig;
     const esq = 32 * f, dir = 8, topo = 7, baixo = Ht >= 84 * f ? 16 * f : 3;
@@ -1251,7 +1359,8 @@ class Grafico {
     }
     const pontas = [];
     o.series.forEach((s, k) => {
-      const cor = corNv || s.cor || 'var(--s1)', segs = [], gid = this.uid + 'g' + k;
+      // with several parts (power) only the first line, the total, takes the alert colour
+      const cor = (o.nv1 && k ? null : corNv) || s.cor || 'var(--s1)', segs = [], gid = this.uid + 'g' + k;
       const lg = sv('linearGradient', {id: gid, x1: 0, y1: 0, x2: 0, y2: 1}, defs);
       sv('stop', {offset: 0, style: 'stop-color:' + cor + ';stop-opacity:.34'}, lg);
       sv('stop', {offset: 1, style: 'stop-color:' + cor + ';stop-opacity:0'}, lg);
@@ -1283,6 +1392,10 @@ class Grafico {
       sv('text', {x: W - dir, y: Y(lim.v) - 4, class: 'rot', 'text-anchor': 'end'}, svg).textContent = lim.rotulo + ' ' + o.fmt(lim.v);
     } else if (lim && lim.v >= max && ph >= 60)       // above the zoomed range: say where it is
       sv('text', {x: W - dir, y: topo + 10, class: 'rot', 'text-anchor': 'end'}, svg).textContent = '↑ ' + lim.rotulo + ' ' + o.fmt(lim.v);
+    for (const r of refs) if (r.v > min && r.v < max) {        // dashed reference (the normal value of this PC)
+      sv('line', {x1: esq, x2: W - dir, y1: Y(r.v), y2: Y(r.v), class: 'ref'}, svg);
+      if (ph >= 60) sv('text', {x: esq + 4, y: Y(r.v) - 4, class: 'rot'}, svg).textContent = r.rotulo + ' ' + o.fmt(r.v);
+    }
     for (const [q, cor] of pontas)
       sv('circle', {cx: q[0], cy: q[1], r: 4, style: 'fill:' + cor + ';stroke:var(--sup);stroke-width:2'}, svg);
     this.gm = sv('g', {}, svg);
@@ -1302,8 +1415,8 @@ class Grafico {
     sv('line', {x1: x, x2: x, y1: topo, y2: topo + ph, class: 'mira'}, g);
     d.replaceChildren(el('div', 'h', longo ? new Date(perto[0] * 1000).toLocaleTimeString(LOC, {hour: '2-digit', minute: '2-digit'}) + ' · ' + T('per_min') : hora(perto[0])));
     const nvc = this.o.nv && this.o.nv(), corNv = nvc && nvc !== 'bom' ? COR[nvc] : null;
-    for (const s of this.o.series) {
-      const v = perto[s.i], cor = corNv || s.cor || 'var(--s1)', r = el('div', 'r'), q = el('i');
+    for (const [k, s] of this.o.series.entries()) {
+      const v = perto[s.i], cor = (this.o.nv1 && k ? null : corNv) || s.cor || 'var(--s1)', r = el('div', 'r'), q = el('i');
       q.style.background = cor;
       r.append(q, el('b', '', v == null ? T('sem_medida') : v < 0 ? T('perdido') : this.o.fmt(v)), el('span', '', T(s.nome)));
       d.append(r);
@@ -1344,6 +1457,11 @@ const graficos = [
     limite: () => A.lims && A.lims.ping ? {v: A.lims.ping, rotulo: T('lim_alerta')} : null}),
   new Grafico($('g-net'), {series: [{i: 6, nome: 'Download'}, {i: 7, nome: 'Upload', cor: 'var(--s2)'}], piso: 1,
     fmt: v => nf(v, v < 10 ? 2 : 1) + ' Mbit/s', h24: [['rx'], ['tx']]}),
+  // power: per minute peaks in the long views, so a spike inside a minute still shows
+  new Grafico($('g-pot'), {series: [{i: 18, nome: 'en_total', cor: 'var(--m-pot)'}, {i: 17, nome: 'pot_gpu', cor: 'var(--m-gpu)'}, {i: 16, nome: 'pot_cpu', cor: 'var(--m-cpu)'}],
+    piso: 20, fmt: v => int(v) + ' W', h24: [['pw_max'], ['w_max'], ['cw_max']], nv: () => A.nv.pot, nv1: true, ref: refPot, limite: limPot}),
+  new Grafico($('en-g'), {series: [{i: 18, nome: 'en_total', cor: 'var(--m-pot)'}, {i: 17, nome: 'pot_gpu', cor: 'var(--m-gpu)'}, {i: 16, nome: 'pot_cpu', cor: 'var(--m-cpu)'}],
+    piso: 20, fmt: v => int(v) + ' W', h24: [['pw_max'], ['w_max'], ['cw_max']], per0: '60', ref: refPot, limite: limPot}),
   new Grafico($('rd-gping'), {series: [{i: 5, nome: 'rd_internet'}, {i: 10, nome: 'roteador', cor: 'var(--s2)'}], piso: 40,
     fmt: v => nf(v, v < 10 ? 1 : 0) + ' ms', perdas: true}),
   new Grafico($('rd-gnet'), {series: [{i: 6, nome: 'Download'}, {i: 7, nome: 'Upload', cor: 'var(--s2)'}], piso: 1,
@@ -1718,16 +1836,125 @@ function cFaixa() {
     $('mods').replaceChildren(...mods.map(([a, b]) => { const e = el('span', 'mod', a + ' '); e.append(el('b', '', b)); return e; }));
   }
 
-  const s = A.sis, b = s.bateria, gw = A.gpu.ok && (A.gpu.watts || !A.gpu.integrada) ? A.gpu.watts : null, cw = A.cpu.watts, nb = A.bat;
-  // on battery the notebook's whole draw is known; on AMD integrated graphics the card's reading includes the processor
+  const s = A.sis, b = s.bateria, en = A.energia || {}, nb = A.bat;
+  // on battery the notebook's whole draw is known; else the parts that report it
   const pot = nb && nb.status === 'Discharging' && nb.w_media ? T('s_pot_bat', nf(nb.w_media)) :
-    cw != null && gw != null && !A.gpu.integrada ? T('s_pot', int(cw + gw), int(cw), int(gw)) :
-    gw != null ? T(A.gpu.integrada ? 's_pot_soc' : 's_pot_gpu', int(gw)) : null;
+    en.cpu != null && en.gpu != null ? T('s_pot', int(en.total), int(en.cpu), int(en.gpu)) :
+    en.gpu != null ? T('s_pot_gpu', int(en.gpu)) : en.cpu != null ? T('s_pot_cpu', int(en.cpu)) : null;
   const hj = A.rede.hoje;
   por('sis', T('s_ligado', dur(s.ligado)), [pot, hj ? T('s_net', tamB(hj.rx), tamB(hj.tx)) : null,
     b ? b.nome + ' ' + b.pct + ' %' + (b.carregando ? ' ' + T('carregando') : '') : null].filter(Boolean).join(', '));
   const sd2 = ['kernel ' + s.kernel, s.driver ? 'NVIDIA ' + s.driver : null, A.registro ? T('s_registro') : null].filter(Boolean).join(', ');
   tx('sis-d2', sd2); $('sis-d2').title = sd2;
+}
+// ---------- Power: processor package + graphics card, what is normal here, peaks and energy per day
+const kwh = wh => wh == null ? '?' : wh < 1000 ? nf(wh, wh < 10 ? 1 : 0) + ' Wh' : nf(wh / 1000, 2) + ' kWh';
+const preco = wh => CFG && CFG.energia && CFG.energia.preco > 0 && wh != null ? CFG.energia.moeda + ' ' + nf(wh / 1000 * CFG.energia.preco, 2) : null;
+const hm = t => new Date(t * 1000).toLocaleTimeString(LOC, {hour: '2-digit', minute: '2-digit'});
+function refPot() { const r = A.energia && A.energia.ref; return r ? [{v: r.normal, rotulo: T('pot_normal')}] : []; }
+function limPot() { const l = A.lims && A.lims.pot; return l ? {v: l, rotulo: T('lim_alerta')} : null; }
+function estadoPot(w, r) {
+  // where the reading sits against this PC's own last 24 h
+  if (!r || w == null) return T('pot_medindo');
+  return w >= r.pico * 0.97 && r.pico > r.alto ? T('pot_e_pico') : w > r.alto ? T('pot_e_alto') : w <= r.repouso * 1.15 ? T('pot_e_rep') : T('pot_e_normal');
+}
+function cPot() {
+  const e = A.energia;
+  if (!e || !visivel('pot')) { cEnergiaDet(); return; }
+  const r = e.ref, nb = e.nb != null, w = nb ? e.nb : e.total, h = e.hoje || {};
+  tx('pot-fonte', nb ? T('pot_nb') : [e.cpu != null ? 'CPU' : null, e.gpu != null ? 'GPU' : null].filter(Boolean).join(' + '));
+  tx('pot-v', w == null ? '?' : int(w));
+  pilula($('pot-st'), A.nv.pot || 'bom', A.nv.pot && A.nv.pot !== 'bom' ? null : estadoPot(e.total, r));
+  nivelNum('pot-v', A.nv.pot);
+  tx('pot-cpu', e.cpu == null ? '' : int(e.cpu) + ' W');
+  tx('pot-gpu', e.gpu == null ? '' : e.gpu_lim ? T('w_de', int(e.gpu), e.gpu_lim) : int(e.gpu) + ' W');
+  tx('pot-normal', r ? int(r.normal) + ' W' : '');
+  tx('pot-pico', h.pico == null ? '' : int(h.pico) + ' W');
+  $('pot-pico-b').title = h.pico == null ? '' : T('pot_pico_t', hm(h.pico_t)) + (h.pico_o ? ', ' + h.pico_o : '');
+  const custo = preco(h.wh);
+  tx('pot-hoje', h.wh == null ? '' : kwh(h.wh) + (custo ? ', ' + custo : ''));
+  $('pot-hoje-b').title = h.s ? T('pot_hoje_t', dur(h.s)) : '';
+  for (const id of ['pot-cpu', 'pot-gpu', 'pot-normal', 'pot-pico', 'pot-hoje']) $(id).closest('div').hidden = $(id).textContent === '';
+  // the bar: now against the highest of the last 24 h, the mark is the normal value
+  const topo = Math.max(1, w || 0, r ? r.pico : 0, h.pico || 0);
+  medidor($('pot-m'), Math.min(100, 100 * (w || 0) / topo), A.nv.pot);
+  const mk = $('pot-ref');
+  mk.hidden = !r;
+  if (r) mk.style.left = Math.min(100, 100 * r.normal / topo).toFixed(1) + '%';
+  const info = r ? [T('pot_i_rep', int(r.repouso)), r.jogo ? T('pot_i_jogo', int(r.jogo)) : null,
+    T('pot_i_pico', int(r.pico), hm(r.pico_t))].filter(Boolean).join(', ') : T('pot_i_junta');
+  tx('pot-info', info); $('pot-info').title = info;
+  cEnergiaDet();
+}
+let EN = null, enT = 0;
+async function puxarEnergia() {
+  enT = Date.now();
+  try { EN = await pedir('/energia'); } catch (e) { return; }
+  cEnergiaDet();
+}
+function abrirEnergia() { if (!$('energia').open) $('energia').showModal(); puxarEnergia(); cEnergiaDet(); }
+function cEnergiaDet() {
+  if (!A || !$('energia').open) return;
+  if (Date.now() - enT > 60000) puxarEnergia();
+  const e = A.energia || {}, r = e.ref, h = e.hoje || {}, m = e.mes || {}, w = e.total;
+  const fonteCpu = e.fonte_cpu === 'rapl' ? T('en_f_rapl') : e.fonte_cpu === 'smu' ? T('en_f_smu') : T('en_f_nao');
+  tx('en-fonte', [e.cpu != null ? 'CPU' : null, e.gpu != null ? 'GPU' : null].filter(Boolean).join(' + '));
+  const nvd = A.nv.pot || 'bom';
+  $('en-diag').replaceChildren(el('i', 'g ' + nvd, GL[nvd]), el('span', '', w == null ? T('en_d_nada') : !r ? T('en_d_junta', int(w)) :
+    T('en_d', int(w), estadoPot(w, r), nf(w / Math.max(1, r.normal), 1), int(r.normal))));
+  $('en-diag').firstChild.style.color = COR[nvd] === 'var(--s1)' ? 'var(--bom)' : COR[nvd];
+  const tile = (k, v, sub, nv) => {
+    const d = el('div', 'rd-tile' + (nv && nv !== 'bom' ? ' ' + nv : ''));
+    d.append(el('div', 'k', k), el('div', 'v', v), el('small', '', sub || ' '));
+    d.lastChild.title = sub || '';
+    return d;
+  };
+  const mediaDia = m.n ? m.wh / m.n : null;
+  $('en-tiles').replaceChildren(
+    tile(T('en_agora'), w == null ? '?' : int(w) + ' W', e.m10 != null ? T('en_m10', int(e.m10)) : '', A.nv.pot),
+    tile(T('pot_cpu'), e.cpu == null ? '?' : nf(e.cpu, e.cpu < 10 ? 1 : 0) + ' W', fonteCpu),
+    tile(T('pot_gpu'), e.gpu == null ? '?' : int(e.gpu) + ' W', e.gpu_lim ? T('en_lim', e.gpu_lim, e.gpu ? int(100 * e.gpu / e.gpu_lim) : 0) : ''),
+    tile(T('pot_hoje'), kwh(h.wh), [preco(h.wh), h.s ? T('en_medido', dur(h.s)) : null].filter(Boolean).join(', ')),
+    tile(T('en_mes'), kwh(m.wh), [preco(m.wh), mediaDia != null ? T('en_por_dia', kwh(mediaDia)) : null].filter(Boolean).join(', ')),
+    tile(T('en_pico_hoje'), h.pico == null ? '?' : int(h.pico) + ' W', h.pico_t ? hm(h.pico_t) + (h.pico_o ? ', ' + h.pico_o : '') : ''));
+  const linha = (cel, tag) => { const tr = el('tr'); cel.forEach((c, k) => tr.append(el(tag || 'td', k ? '' : 'e', c))); return tr; };
+  const W_ = v => v == null ? '?' : int(v) + ' W';
+  const R = EN && EN.ref ? EN.ref : {};
+  $('en-tab').replaceChildren(linha(['', T('en_th_rep'), T('pot_normal'), T('en_th_jogo'), T('en_th_alto'), T('en_th_pico')], 'th'),
+    ...[['tot', T('en_total')], ['cpu', T('pot_cpu')], ['gpu', T('pot_gpu')]].filter(([k]) => R[k]).map(([k, nome]) => {
+      const x = R[k];
+      return linha([nome, W_(x.repouso), W_(x.normal), x.jogo == null ? T('en_sem_jogo') : W_(x.jogo), W_(x.alto), W_(x.pico)]);
+    }));
+  if (!Object.keys(R).length) $('en-tab').append(linha([T('pot_i_junta'), '', '', '', '', '']));
+  const P = EN ? EN.picos : [];
+  $('en-picos').replaceChildren(linha([T('th_hora'), T('en_th_pico'), 'CPU', 'GPU', T('en_th_min'), T('en_th_oque')], 'th'),
+    ...P.map(p => { const tr = linha([hm(p.t), W_(p.w), W_(p.cw), W_(p.gw), W_(p.media), '']); tr.lastChild.className = 'e'; tr.lastChild.textContent = p.o || ''; return tr; }));
+  if (!P.length) $('en-picos').append(linha([T('pot_i_junta'), '', '', '', '', '']));
+  // the last 30 days, one bar per day (today in the accent colour)
+  const dias = EN ? EN.dias.slice(-30) : [], hojeK = new Date().toLocaleDateString('sv');
+  const mx = Math.max(1, ...dias.map(d => d.wh));
+  $('en-dias').replaceChildren(...dias.map(d => {
+    const b = el('div', d.dia === hojeK ? 'hoje' : '');
+    b.style.height = Math.max(2, 100 * d.wh / mx) + '%';
+    const dt = new Date(d.dia + 'T12:00:00').toLocaleDateString(LOC, {day: '2-digit', month: '2-digit'});
+    b.title = [dt, kwh(d.wh), preco(d.wh), T('en_medido', dur(d.s)), d.pico != null ? T('en_pico_d', int(d.pico)) : null, d.jogo ? T('en_jogo_d', kwh(d.jogo)) : null].filter(Boolean).join(', ');
+    return b;
+  }));
+  const fmtD = d => new Date(d.dia + 'T12:00:00').toLocaleDateString(LOC, {day: '2-digit', month: '2-digit'});
+  $('en-dias-r').replaceChildren(el('span', '', dias.length ? fmtD(dias[0]) : ''), el('span', '', dias.length > 1 ? fmtD(dias[dias.length - 1]) : ''));
+  const soma = dias.reduce((a, d) => a + d.wh, 0);
+  tx('en-dias-n', dias.length ? T('en_dias_n', dias.length, kwh(soma), kwh(soma / dias.length)) + (preco(soma) ? ' ' + T('en_custo', preco(soma)) : '') : T('pot_i_junta'));
+  const g = A.gpu || {}, fr = g.freio, psu = CFG && CFG.energia ? CFG.energia.fonte : 0, pico24 = r ? r.pico : null;
+  const itens = [e.gpu_lim ? [T('en_p_lim'), e.gpu_lim + ' W'] : null,
+    e.gpu_padrao ? [T('en_p_padrao'), e.gpu_padrao + ' W'] : null,
+    e.gpu_faixa ? [T('en_p_faixa'), T('en_faixa_v', e.gpu_faixa[0], e.gpu_faixa[1])] : null,
+    fr ? [T('en_p_freio_e'), fr.energia + ' %'] : null,
+    fr ? [T('en_p_freio_hw'), fr.hw + ' %'] : null,
+    [T('en_p_psu'), psu ? psu + ' W' + (pico24 ? ', ' + T('en_p_psu_uso', int(100 * pico24 / psu)) : '') : T('en_p_psu_nao')],
+    [T('pot_cpu'), fonteCpu]];
+  $('en-placa').replaceChildren(...itens.filter(Boolean).flatMap(([k, v]) => [el('dt', '', k), el('dd', '', String(v))]));
+  $('en-placa').lastChild.title = fonteCpu;
+  tx('en-como', T('en_como'));
 }
 function cBat() {
   const b = A.bat;
@@ -2013,10 +2240,10 @@ function desenhar() {
   const t0 = performance.now();
   cRam(); cPlaca(); cCpu(); cRede(); cFaixa(); cTopo();
   arranjar();
-  cJogo(); cProg(); cTemp(); cDisc(); cSaude(); cEventos(); cLinha24(); cBat();
+  cJogo(); cProg(); cTemp(); cDisc(); cSaude(); cEventos(); cLinha24(); cBat(); cPot();
   if (sujo) { cortarListas(); sujo = false; }
   for (const g of graficos) g.desenhar();
-  if (graficos.some(g => g.per !== '10')) atualizar24();
+  if (graficos.some(g => g.per !== '10' && g.W >= 60)) atualizar24();
   const agora = performance.now();
   custoPag.ms += agora - t0;
   if (agora - custoPag.desde >= 60000) {
@@ -2109,7 +2336,7 @@ const M24 = [['cpu', 'h24_cpu', 100], ['tc_max', 'h24_tc'], ['gpu', 'h24_gpu', 1
   ['vram_max', 'h24_vram', null, v => v / 1024], ['ram_min', 'h24_ram', null, v => v / 1024], ['swap_max', 'h24_swap', null, v => v / 1024],
   ['ping', 'h24_ping'], ['perda_max', 'h24_perda', null, null, 1], ['jit', 'h24_jit', null, null, 1], ['rx', 'h24_rx', null, null, 2],
   ['tx', 'h24_tx', null, null, 2], ['fps', 'h24_fps'], ['bat_min', 'h24_bat', 100, null, 0, 'bat'], ['bw', 'h24_bw', null, null, 1, 'bat'],
-  ['pp_mib', 'h24_pp']];
+  ['pw_max', 'h24_pw'], ['cw_max', 'h24_cw'], ['pp_mib', 'h24_pp']];
 async function aba24() {
   $('h24-m').replaceChildren(...M24.filter(m => !m[5] || (A && A.bat)).map(m => {
     const b = el('button', '', T(m[1]));
@@ -2234,7 +2461,7 @@ async function abaSessoes() {
       x.ping == null ? '' : nf(x.ping, x.ping < 10 ? 1 : 0) + (x.ping_max != null ? ' / ' + int(x.ping_max) : ''),
       x.perda_max == null ? '' : nf(x.perda_max, x.perda_max && x.perda_max < 10 ? 1 : 0) + ' %', x.jit == null ? '' : nf(x.jit),
       x.fps == null ? '' : nf(x.fps, x.fps < 100 ? 1 : 0), x.fps_low == null ? '' : nf(x.fps_low, x.fps_low < 100 ? 1 : 0),
-      pc(x.freio_t), pc(x.freio_e), q(x.alertas)]) tr.append(el('td', '', c));
+      pc(x.freio_t), pc(x.freio_e), q(x.pw), x.wh == null ? '' : nf(x.wh, x.wh < 100 ? 1 : 0), q(x.alertas)]) tr.append(el('td', '', c));
     return tr;
   }));
 }
@@ -2243,7 +2470,7 @@ let SES = [];
 const sesMarcadas = new Set();
 const CMP = [['fps', 'FPS', 1, 1], ['fps_low', '1 % low', 1, 1], ['cpu', 'th_cpu_p', -1, 0], ['tc_max', 'th_cpu_max', -1, 0], ['gpu', 'th_gpu_p', 0, 0],
   ['tg_max', 'th_gpu_max', -1, 0], ['w_max', 'th_w_max', 0, 0], ['vram_max', 'th_vram_pico', -1, 'mib'], ['ram_min', 'th_ram_min', 1, 'mib'],
-  ['ping', 'th_ping_m', -1, 1], ['perda_max', 'th_perda_s', -1, 1], ['jit', 'th_jit_s', -1, 1], ['freio_t', 'th_freio_t', -1, 0], ['alertas', 'th_alertas', -1, 0]];
+  ['ping', 'th_ping_m', -1, 1], ['perda_max', 'th_perda_s', -1, 1], ['jit', 'th_jit_s', -1, 1], ['freio_t', 'th_freio_t', -1, 0], ['pw', 'th_pw', 0, 0], ['wh', 'Wh', 0, 0], ['alertas', 'th_alertas', -1, 0]];
 function compararSessoes() {
   const box = $('ses-cmp'), k = [...sesMarcadas].sort((a, b) => b - a);
   if (k.length !== 2) { box.hidden = !SES.length; box.replaceChildren(el('span', 'nota', T('ses_cmp_n'))); return; }
@@ -2447,6 +2674,7 @@ async function abrirAjustes() {
   $('aj-log').checked = c.registro.ligado; $('aj-pasta').value = c.registro.pasta;
   $('aj-int').value = c.registro.intervalo; $('aj-dias').value = c.registro.dias;
   $('aj-m-live').checked = c.modulos.live; $('aj-m-zomboid').checked = c.modulos.zomboid; $('aj-m-bateria').checked = c.modulos.bateria !== false; $('aj-reserva').value = c.ram_reserva;
+  $('aj-preco').value = c.energia.preco || ''; $('aj-moeda').value = c.energia.moeda; $('aj-psu').value = c.energia.fonte || '';
   marcarPerfil();
   infoAjustes(d);
   tx('aj-erro', '');
@@ -2537,6 +2765,7 @@ async function salvarAjustes() {
     alertas: {fundo: $('aj-fundo').checked, cada: +$('aj-cada').value},
     jogo: {limites: $('aj-jogo-lim').checked, leve: $('aj-jogo-leve').checked}, caixa: $('aj-caixa').checked, dica: $('aj-dica').checked,
     modulos: {live: $('aj-m-live').checked, zomboid: $('aj-m-zomboid').checked, bateria: $('aj-m-bateria').checked}, ram_reserva: +$('aj-reserva').value || 0,
+    energia: {preco: +$('aj-preco').value || 0, moeda: $('aj-moeda').value, fonte: +$('aj-psu').value || 0},
     registro: {ligado: $('aj-log').checked, pasta: $('aj-pasta').value, intervalo: +$('aj-int').value, dias: +$('aj-dias').value}};
   if (proprio) corpo.cartoes = cartoes;
   LIMS[modoLim] = Object.assign(LIMS[modoLim], lerLimites());
@@ -2740,6 +2969,7 @@ $('fa-medir').addEventListener('click', medirFans);
 $('btn-ocultos').addEventListener('click', () => { rolar = !rolar; arranjar(true); desenhar(); });
 $('btn-rede').addEventListener('click', abrirRede);
 $('btn-rede2').addEventListener('click', abrirRede);
+$('btn-pot2').addEventListener('click', abrirEnergia);
 for (const b of document.querySelectorAll('[data-fechar]')) b.addEventListener('click', () => b.closest('dialog').close());
 $('tabela').addEventListener('close', () => { marca24 = null; });
 document.addEventListener('visibilitychange', () => { if (!document.hidden) ciclo(); });
@@ -2751,7 +2981,7 @@ setInterval(relogio, 1000);
 relogio();
 ciclo().then(() => {
   const abrir = {'#ajustes': abrirAjustes, '#fans': abrirFans, '#eventos': abrirEventos, '#historico': abrirTabela, '#sensores': abrirSensores,
-    '#24h': () => abrirTabela('24'), '#sessoes': () => abrirTabela('ses'), '#caixa': () => abrirTabela('cx'), '#rede': abrirRede}[location.hash];
+    '#24h': () => abrirTabela('24'), '#sessoes': () => abrirTabela('ses'), '#caixa': () => abrirTabela('cx'), '#rede': abrirRede, '#energia': abrirEnergia}[location.hash];
   if (abrir) abrir();
 });
 </script>

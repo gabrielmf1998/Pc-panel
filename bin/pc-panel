@@ -19,6 +19,7 @@ import glob
 import hashlib
 import http.client
 import json
+import locale
 import mmap
 import os
 import re
@@ -36,7 +37,7 @@ import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 
-VERSAO = "0.6.0"
+VERSAO = "0.7.0"
 REPO = "gabrielmf1998/Pc-panel"         # owner/repository on GitHub, used only to look for a new version
 PASTA_CFG = os.path.join(os.environ.get("XDG_CONFIG_HOME") or os.path.expanduser("~/.config"), "pc-panel")
 
@@ -67,7 +68,7 @@ ARQ_PAGINA = os.path.join(AQUI, "..", "share", "pc-panel", "page.html")
 ARQ_FANS = "/var/lib/pc-panel/fans.json"
 ARQ_FANS_ESTADO = "/run/pc-panel-fans.json"
 AJUDANTES_FANS = ("/usr/lib/pc-panel/pc-panel-fans", "/usr/local/lib/pc-panel/pc-panel-fans")
-CARTOES = ("ram", "vram", "gpu", "cpu", "rede", "prog", "temp", "disc", "saude", "jogo", "live", "pz", "sis", "eventos", "bat")
+CARTOES = ("ram", "vram", "gpu", "cpu", "rede", "prog", "temp", "disc", "saude", "jogo", "live", "pz", "sis", "eventos", "bat", "pot")
 TEMAS = ("escuro", "preto", "noite", "claro", "contraste")
 CORES = ("azul", "agua", "violeta", "magenta")
 PERFIS = ("tudo", "jogo", "live", "hardware", "proprio")
@@ -82,6 +83,7 @@ METRICAS = {
     "temp_cpu": ("alto", 20, 130), "temp_gpu": ("alto", 20, 130), "temp_ssd": ("alto", 20, 130),
     "temp_mem": ("alto", 20, 130), "temp_placa": ("alto", 20, 130), "disco": ("alto", 1, 100),
     "ping": ("alto", 1, 10000), "perda": ("alto", 0.1, 100), "jitter": ("alto", 1, 1000), "bateria": ("baixo", 1, 99), "ssd_desgaste": ("alto", 1, 100),
+    "energia": ("alto", 10, 5000),
     "kernel": ("evento", 0, 0), "travou": ("evento", 0, 0), "parou": ("evento", 0, 0), "ssd_saude": ("evento", 0, 0),
 }
 NIVEL_EVENTO = {"parou": "serio", "ssd_saude": "critico"}     # default level of the one-off alerts, the rest start at "aviso"
@@ -190,6 +192,12 @@ def recomendados():
          "disco": [85, 93, 97], "ping": [60, 100, 180], "perda": [2, 6, 20], "jitter": [20, 40, 80], "temp_placa": [55, 65, 75],
          "bateria": [15, 8, 3], "ssd_desgaste": [80, 90, 97]}
     fonte = {"temp_cpu": "", "temp_gpu": "", "temp_mem": ""}
+    # processor + graphics card draw against the power supply the user typed in Settings
+    # (the rest of the PC also runs on it, so the levels stop well below its rating)
+    psu = cfg["energia"]["fonte"] if cfg else 0
+    r["energia"] = [round(psu * 0.6), round(psu * 0.75), round(psu * 0.9)] if psu else [None, None, None]
+    if psu:
+        fonte["energia"] = "PSU %d W" % psu
     mx, crit = limite_do_sensor(fontes["cpu"])
     if crit and "coretemp" in (ler(os.path.dirname(fontes["cpu"] or "") + "/name") or ""):
         r["temp_cpu"], fonte["temp_cpu"] = [round(crit) - 15, round(crit) - 8, round(crit) - 3], "Tjmax %d" % crit
@@ -352,6 +360,15 @@ def passo_pagina():
 
 # ---------------------------------------------------------------- settings
 
+def moeda_local():
+    # currency symbol of the user's locale (only LC_MONETARY is touched, numbers are not affected)
+    try:
+        locale.setlocale(locale.LC_MONETARY, "")
+        return (locale.localeconv()["currency_symbol"] or "$")[:4]
+    except locale.Error:
+        return "$"
+
+
 def cfg_padrao():
     return {"idioma": "pt" if os.environ.get("LANG", "").startswith("pt") else "en", "tema": "escuro", "cor": "azul", "fonte": 1, "passo": 2, "perfil": "tudo",
             "cartoes": {c: True for c in CARTOES}, "encaixe": True, "ping_alvo": "1.1.1.1",
@@ -374,6 +391,8 @@ def cfg_padrao():
             "modulos": {"zomboid": False, "live": False, "bateria": True},
             # MiB subtracted from available memory (3500 mimics the MangoHud "RAM LEFT" row)
             "ram_reserva": 0,
+            # price of one kWh (0 = do not show costs), currency symbol, power supply rating in W (0 = unknown)
+            "energia": {"preco": 0, "moeda": moeda_local(), "fonte": 0},
             "fans": None, "canais": [], "calib": {}, "nomes_fans": {}}
 
 
@@ -420,6 +439,14 @@ def limpar_cfg(d, base):
         for k in ("zomboid", "live", "bateria"):
             if k in d["modulos"]:
                 nova["modulos"][k] = bool(d["modulos"][k])
+    e = d.get("energia")
+    if isinstance(e, dict):
+        if numero(e.get("preco")):
+            nova["energia"]["preco"] = round(min(1000.0, max(0.0, float(e["preco"]))), 4)
+        if isinstance(e.get("moeda"), str):
+            nova["energia"]["moeda"] = e["moeda"].strip()[:4]
+        if numero(e.get("fonte")):
+            nova["energia"]["fonte"] = int(min(5000, max(0, e["fonte"])))
     if numero(d.get("ram_reserva")):
         nova["ram_reserva"] = int(min(16000, max(0, d["ram_reserva"])))
     alvo = d.get("ping_alvo")
@@ -519,6 +546,7 @@ def salvar_cfg(nova):
         json.dump(nova, f, indent=1, ensure_ascii=False)
     os.replace(ARQ_CFG + ".novo", ARQ_CFG)
     cfg = nova
+    rec_cache["v"] = None           # the power supply rating feeds the recommended power levels
     cfg_seq[0] += 1
 
 
@@ -528,7 +556,7 @@ class Registro:
     COLUNAS = ["hora", "ram_usada_gib", "ram_left_mib", "swap_gib", "vram_gib", "placa_uso", "placa_temp",
                "placa_watts", "placa_fan", "cpu_uso", "cpu_temp", "fans_rpm", "ping_ms", "download_mbit",
                "upload_mbit", "jogo", "jogo_ram_gib", "jogo_vram_gib", "espectadores", "pz_ticks", "pz_jogadores",
-               "bateria_pct", "bateria_watts"]
+               "bateria_pct", "bateria_watts", "cpu_watts", "total_watts"]
 
     def __init__(self):
         self.f = self.caminho = self.erro = None
@@ -549,6 +577,15 @@ class Registro:
         os.makedirs(self.pasta(), exist_ok=True)
         caminho = os.path.join(self.pasta(), nome)
         vazio = not os.path.exists(caminho) or os.path.getsize(caminho) == 0
+        if not vazio:
+            # a file started by an older version has other columns: keep it aside, start a new one
+            with open(caminho, encoding="utf-8", errors="replace") as f:
+                primeira = f.readline().strip()
+            if primeira != ",".join(cabecalho):
+                velho = caminho[:-4] + "-antes.csv"
+                if not os.path.exists(velho):
+                    os.replace(caminho, velho)
+                    vazio = True
         f = open(caminho, "a", newline="", encoding="utf-8")
         if vazio:
             csv.writer(f).writerow(cabecalho)
@@ -597,7 +634,8 @@ class Registro:
                 j["nome"] if j else "", n(j["kb"] / 1048576, 2) if j else "", n(j["vram"] / 1024, 2) if j else "",
                 sum(vivas) if vivas else "", n(z["ticks"]) if z else "",
                 len(z["jogadores"]) if z and z["jogadores"] is not None else "",
-                (a.get("bat") or {}).get("pct", ""), (a.get("bat") or {}).get("w") or ""]
+                (a.get("bat") or {}).get("pct", ""), (a.get("bat") or {}).get("w") or "",
+                n(c.get("watts")), n((a.get("energia") or {}).get("total"))]
 
     def evento(self, tipo, ev):
         if not cfg["registro"]["ligado"]:
@@ -767,6 +805,7 @@ ARQ_HOJE = PASTA_ESTADO + "/hoje.json"
 ARQ_SSD = PASTA_ESTADO + "/ssd.json"
 ARQ_SSD_RITMO = PASTA_ESTADO + "/ssd-ritmo.json"
 ARQ_SESSOES = PASTA_DADOS + "/sessoes.jsonl"
+ARQ_ENERGIA = PASTA_ESTADO + "/energia.json"
 ARQ_DICA = os.path.join(os.path.dirname(ARQ_ALERTA), "tip")
 BOOT_ID = (ler("/proc/sys/kernel/random/boot_id") or "?").strip().replace("-", "")[:12]
 
@@ -780,7 +819,7 @@ def resumo_amostra(a):
             "vr": g.get("vram"), "vt": g.get("vram_total"), "ram": r["left"] // 1024, "sw": r["swap"] // 1024,
             "swr": r["swap_mibs"], "pm": r["psi"], "pio": a["psi_io"], "ping": a["rede"]["ping"],
             "pl": a["rede"]["perda"], "jt": a["rede"]["osc"], "fps": (a.get("fps") or {}).get("fps"),
-            "cw": c.get("watts"), "bat": (a.get("bat") or {}).get("pct"),
+            "cw": c.get("watts"), "pw": (a.get("energia") or {}).get("total"), "bat": (a.get("bat") or {}).get("pct"),
             "bw": a["bat"]["w"] if a.get("bat") and a["bat"]["status"] == "Discharging" else None,
             "rx": None if a["rede"]["rx"] is None else round(a["rede"]["rx"] * 8 / 1e6, 2),
             "tx": None if a["rede"]["tx"] is None else round(a["rede"]["tx"] * 8 / 1e6, 2),
@@ -944,7 +983,8 @@ def caixa_ok():
 class Historico24:
     # one line per minute for the last 24 hours (averages and peaks), saved every 15 minutes
     COLS = ["t", "cpu", "cpu_max", "tc_max", "gpu", "gpu_max", "tg_max", "w_max", "vram_max", "ram_min",
-            "swap_max", "ping", "ping_max", "jogo", "nv", "perda_max", "jit", "rx", "tx", "fps", "fps_min", "bat_min", "bw", "pp_mib"]
+            "swap_max", "ping", "ping_max", "jogo", "nv", "perda_max", "jit", "rx", "tx", "fps", "fps_min", "bat_min", "bw", "pp_mib",
+            "cw", "cw_max", "gw", "pw", "pw_max", "pw_o"]
 
     def __init__(self):
         self.linhas = collections.deque(maxlen=1440)
@@ -973,9 +1013,12 @@ class Historico24:
             if self.minuto != m:
                 self.fechar()
                 self.minuto, self.acc = m, collections.defaultdict(list)
-            for k in ("cpu", "tc", "gpu", "tg", "w", "vr", "ram", "sw", "ping", "nv", "pl", "jt", "rx", "tx", "fps", "bat", "bw", "pp"):
+            for k in ("cpu", "tc", "gpu", "tg", "w", "vr", "ram", "sw", "ping", "nv", "pl", "jt", "rx", "tx", "fps", "bat", "bw", "pp", "cw", "pw"):
                 if r[k] is not None and r[k] >= 0:
                     self.acc[k].append(r[k])
+            if r["pw"] is not None and r["pw"] >= max(self.acc["pw"]):
+                # what was running at the strongest moment of the minute: the game, else the busiest program
+                self.acc["pw_o"] = [r["j"] or (r["top"][0] if r["top"] and r["top"][1] >= 5 else None)]
             if r["j"]:
                 self.acc["j"] = [r["j"]]
 
@@ -989,7 +1032,8 @@ class Historico24:
                             mx("vr"), min(x["ram"]) if x["ram"] else None, mx("sw"), media("ping"), mx("ping"),
                             (x["j"] or [None])[0], mx("nv") or 0, mx("pl"), media("jt"), media("rx"), media("tx"),
                             media("fps"), min(x["fps"]) if x["fps"] else None, min(x["bat"]) if x["bat"] else None,
-                            media("bw"), mx("pp")])
+                            media("bw"), mx("pp"), media("cw"), mx("cw"), media("w"), media("pw"), mx("pw"),
+                            (x["pw_o"] or [None])[0]])
         self.acc = None
         self.mudou = True
 
@@ -1027,7 +1071,7 @@ class Sessoes:
                               "ram_min": None, "ram_jogo": 0, "swap_max": 0, "ping_max": None,
                               "ping_s": 0.0, "ping_n": 0, "perda_max": None, "jit_s": 0.0, "jit_n": 0,
                               "fps_s": 0.0, "fps_n": 0, "ft": [0] * (len(self.BINS) + 1),
-                              "fr_n": 0, "fr_t": 0, "fr_e": 0}
+                              "fr_n": 0, "fr_t": 0, "fr_e": 0, "wh": 0.0, "pw_s": 0.0, "pw_n": 0, "pw_max": None, "cw_max": None}
         g, c, r = a["gpu"], a["cpu"], a["ram"]
         mx = lambda k, v: s.update({k: v if s[k] is None or (v is not None and v > s[k]) else s[k]})
         s["fim"] = round(a["t"])
@@ -1038,6 +1082,13 @@ class Sessoes:
         mx("tg_max", g.get("temp"))
         mx("w_max", g.get("watts"))
         mx("vram_max", g.get("vram"))
+        en = a.get("energia") or {}
+        if en.get("total") is not None:
+            s["wh"] += en.get("e") or 0.0
+            s["pw_s"] += en["total"]
+            s["pw_n"] += 1
+            mx("pw_max", en["total"])
+            mx("cw_max", c.get("watts"))
         mx("ping_max", a["rede"]["ping"] if (a["rede"]["ping"] or 0) >= 0 else None)
         rd = a["rede"]
         if rd["ping"] is not None and rd["ping"] >= 0:
@@ -1084,11 +1135,14 @@ class Sessoes:
         if not s:
             return None
         x = {k: v for k, v in s.items() if k not in ("cpu", "gpu", "n", "ping_s", "ping_n", "jit_s", "jit_n", "fps_s", "fps_n", "ft",
-                                                      "fr_n", "fr_t", "fr_e")}
+                                                      "fr_n", "fr_t", "fr_e", "pw_s", "pw_n")}
         # share of the busy time the graphics card held its clock for heat or for its power limit
         x["freio_t"] = round(100 * s["fr_t"] / s["fr_n"]) if s.get("fr_n") else None
         x["freio_e"] = round(100 * s["fr_e"] / s["fr_n"]) if s.get("fr_n") else None
         x["fps"] = round(s["fps_s"] / s["fps_n"], 1) if s.get("fps_n") else None
+        # processor + graphics card: average draw and energy used over the session
+        x["pw"] = round(s["pw_s"] / s["pw_n"]) if s.get("pw_n") else None
+        x["wh"] = round(s["wh"], 1) if s.get("pw_n") else None
         x["fps_low"] = self.baixa_1(s) if s.get("ft") else None
         x["ping"] = round(s["ping_s"] / s["ping_n"], 1) if s["ping_n"] else None
         x["jit"] = round(s["jit_s"] / s["jit_n"], 1) if s["jit_n"] else None
@@ -1185,6 +1239,170 @@ class Hoje:
 hoje = Hoje()
 
 
+def achar_soquete():
+    # AMD processors with integrated graphics (every Ryzen 7000 / 9000 and the APUs) report the
+    # power of the whole chip through the amdgpu sensor, readable without root. A discrete card
+    # (gpu_metrics format revision 1) reports its own board instead, so it is skipped here.
+    for d in sorted(glob.glob("/sys/class/drm/card[0-9]*/device")):
+        if (ler(d + "/vendor") or "").strip() != "0x1002":
+            continue
+        try:
+            with open(d + "/gpu_metrics", "rb") as f:
+                cab = f.read(4)
+        except OSError:
+            continue
+        if len(cab) < 4 or cab[2] < 2:
+            continue
+        for h in sorted(glob.glob(d + "/hwmon/hwmon*")):
+            for nome in ("power1_average", "power1_input"):
+                if ler_int(h + "/" + nome) is not None:
+                    return h + "/" + nome
+    return None
+
+
+def percentil(ordenada, q):
+    return ordenada[min(len(ordenada) - 1, int(q * (len(ordenada) - 1) + 0.5))] if ordenada else None
+
+
+class Energia:
+    # Power of the parts that report it (processor package and graphics card), energy per day,
+    # the peaks and what is normal on this PC, worked out from the per-minute history.
+    def __init__(self):
+        self.trava = threading.Lock()
+        self.soquete = None
+        self.procurar_em = 0.0
+        self.dias = {}              # "YYYY-MM-DD" -> energy (Wh), seconds measured and the peak of that day
+        self.ant = None             # (monotonic, processor W, graphics card energy counter mJ)
+        self.ult10 = collections.deque(maxlen=40)     # (time, total W) for the 10 s average
+        self.ref, self.ref_em = None, 0.0
+        self.mudou = False
+
+    def carregar(self):
+        try:
+            d = json.loads(ler(ARQ_ENERGIA) or "null")
+            if isinstance(d, dict) and isinstance(d.get("dias"), dict):
+                self.dias = {k: v for k, v in d["dias"].items() if isinstance(v, dict) and isinstance(v.get("wh"), (int, float))}
+        except (ValueError, TypeError):
+            pass
+
+    def salvar(self):
+        if not self.mudou:
+            return
+        self.mudou = False
+        try:
+            with self.trava:
+                dias = copia(self.dias)
+            gravar_json(ARQ_ENERGIA, {"v": 1, "dias": dias})
+        except OSError as e:
+            avisar("energia", e)
+
+    def medir(self, t, cpu, gpu, bat, jogo, topo):
+        mono = time.monotonic()
+        fonte = "rapl" if cpu.get("watts") is not None else None
+        if fonte is None:
+            if self.soquete is None and mono >= self.procurar_em:
+                self.soquete = achar_soquete() or False
+                self.procurar_em = mono + 600
+            v = ler_int(self.soquete) if self.soquete else None
+            if v is not None:
+                # hwmon power is in µW, but some chips (Ryzen 7000 / 9000 desktop) hand over mW there:
+                # a whole chip never draws under 0.4 W while running, so a smaller µW number is mW
+                cpu["watts"], fonte = round(v / (1e3 if v < 400000 else 1e6), 1), "smu"
+        cw = cpu.get("watts")
+        gw = gpu.get("watts") if gpu.get("ok") else None
+        partes = [x for x in (cw, gw) if x is not None]
+        total = round(sum(partes), 1) if partes else None
+        mj = gpu.get("mj")
+        e_cpu = e_gpu = 0.0
+        a, self.ant = self.ant, (mono, cw, mj, gw)
+        dt = mono - a[0] if a else 0.0
+        # a gap of more than 75 s (nothing was measured) is left out instead of guessed
+        medido = 0 < dt <= 75
+        if medido:
+            if cw is not None:
+                # RAPL is a counter, its watts already average the whole step; the AMD sensor is a reading
+                e_cpu = (cw if fonte == "rapl" or a[1] is None else (cw + a[1]) / 2) * dt / 3600
+            if mj is not None and a[2] is not None and 0 <= mj - a[2] <= 3000 * 1000 * dt:
+                e_gpu = (mj - a[2]) / 3.6e6
+            elif gw is not None:
+                e_gpu = (gw if a[3] is None else (gw + a[3]) / 2) * dt / 3600
+        if total is not None:
+            self.ult10.append((t, total))
+        m10 = [w for (q, w) in self.ult10 if t - q <= 10.5]
+        dia = time.strftime("%Y-%m-%d", time.localtime(t))
+        with self.trava:
+            d = self.dias.get(dia)
+            if d is None:
+                d = self.dias[dia] = {"wh": 0.0, "cpu": 0.0, "gpu": 0.0, "s": 0, "jogo": 0.0, "sj": 0,
+                                      "pico": None, "pico_t": None, "pico_o": None, "pc": None, "pg": None}
+                for velho in sorted(self.dias)[:-400]:
+                    del self.dias[velho]
+            if medido and total is not None:
+                d["cpu"] = round(d["cpu"] + e_cpu, 4)
+                d["gpu"] = round(d["gpu"] + e_gpu, 4)
+                d["wh"] = round(d["cpu"] + d["gpu"], 3)
+                d["s"] = round(d["s"] + dt, 1)
+                if jogo:
+                    d["jogo"] = round(d["jogo"] + e_cpu + e_gpu, 4)
+                    d["sj"] = round(d["sj"] + dt, 1)
+                self.mudou = True
+            if total is not None and (d["pico"] is None or total > d["pico"]):
+                d.update(pico=total, pico_t=round(t), pico_o=jogo or topo)
+            if cw is not None and (d["pc"] is None or cw > d["pc"]):
+                d["pc"] = cw
+            if gw is not None and (d["pg"] is None or gw > d["pg"]):
+                d["pg"] = gw
+            hoje_ = dict(d)
+            mes = [x for k, x in self.dias.items() if k[:7] == dia[:7]]
+        if mono >= self.ref_em:
+            self.ref_em = mono + 60
+            self.ref = self.referencias()
+        nb = bat["w"] if bat and bat.get("status") == "Discharging" and bat.get("w") else None
+        return {"total": total, "cpu": cw, "gpu": gw, "fonte_cpu": fonte, "nb": nb,
+                "m10": round(sum(m10) / len(m10), 1) if m10 else None, "e": e_cpu + e_gpu if medido else 0.0,
+                "gpu_lim": gpu.get("watts_max") if gw is not None else None, "gpu_padrao": gpu.get("w_padrao"),
+                "gpu_faixa": gpu.get("w_faixa"), "hoje": hoje_,
+                "mes": {"wh": round(sum(x["wh"] for x in mes), 2), "s": round(sum(x["s"] for x in mes)), "n": len(mes)},
+                "ref": (self.ref or {}).get("tot")}
+
+    def referencias(self):
+        # what is normal here, from the last 24 h of per-minute averages: idle (10th percentile),
+        # normal (median), while gaming (median of the minutes with a game), high (95th) and the peak
+        D = h24.dados()
+        c = {k: i for i, k in enumerate(D["cols"])}
+        linhas = D["linhas"]
+        saida = {}
+        for parte, (med, mx) in (("tot", ("pw", "pw_max")), ("cpu", ("cw", "cw_max")), ("gpu", ("gw", "w_max"))):
+            v = sorted(l[c[med]] for l in linhas if l[c[med]] is not None)
+            if len(v) < 10:
+                continue
+            j = sorted(l[c[med]] for l in linhas if l[c[med]] is not None and l[c["jogo"]])
+            pico = max((l for l in linhas if l[c[mx]] is not None), key=lambda l: l[c[mx]], default=None)
+            saida[parte] = {"repouso": percentil(v, 0.1), "normal": percentil(v, 0.5), "alto": percentil(v, 0.95),
+                            "jogo": percentil(j, 0.5) if len(j) >= 5 else None, "n": len(v),
+                            "pico": pico[c[mx]] if pico else None, "pico_t": pico[0] if pico else None,
+                            "pico_o": (pico[c["pw_o"]] or pico[c["jogo"]]) if pico else None}
+        return saida
+
+    def detalhes(self):
+        # for the Power view: the table of normal values, the biggest peaks of 24 h and the last 30 days
+        D = h24.dados()
+        c = {k: i for i, k in enumerate(D["cols"])}
+        picos = []
+        for l in sorted((l for l in D["linhas"] if l[c["pw_max"]] is not None), key=lambda l: -l[c["pw_max"]]):
+            if all(abs(l[0] - p["t"]) >= 900 for p in picos):
+                picos.append({"t": l[0], "w": l[c["pw_max"]], "cw": l[c["cw_max"]], "gw": l[c["w_max"]],
+                              "media": l[c["pw"]], "o": l[c["pw_o"]] or l[c["jogo"]]})
+            if len(picos) >= 6:
+                break
+        with self.trava:
+            dias = [dict(v, dia=k) for k, v in sorted(self.dias.items())[-31:]]
+        return {"ref": self.referencias(), "picos": picos, "dias": dias}
+
+
+energia = Energia()
+
+
 class Gargalo:
     # what limits the game: the busiest thread of the game process, read every 10 s (one small file per thread)
     def __init__(self):
@@ -1258,6 +1476,9 @@ def escrever_dica(a):
     if g.get("ok"):
         linhas.append("GPU %s %% · %s °C · VRAM %.1f / %.0f GiB" % (n0(g["uso"]), n0(g["temp"]), g["vram"] / 1024, g["vram_total"] / 1024))
     linhas.append(("RAM livre %.1f GiB" if pt else "Free RAM %.1f GiB") % (r["left"] / 1048576))
+    en = a.get("energia") or {}
+    if en.get("total") is not None:
+        linhas.append(("Energia %s W" if pt else "Power %s W") % n0(en["total"]))
     if a["rede"]["ping"] is not None and a["rede"]["ping"] >= 0:
         linhas.append("Ping %d ms" % round(a["rede"]["ping"]))
     if a["jogos"]:
@@ -1753,6 +1974,16 @@ class Nvidia:
             rec_cache["v"] = None
             self.fixo = {"nome": nome.value.decode(errors="replace").replace("NVIDIA GeForce ", ""),
                          "driver": drv.value.decode(errors="replace"), "watts_max": round(lim.value / 1000)}
+            # power limit range the card accepts and its factory default (the limit in force is read per sample,
+            # other tools change it while the panel runs)
+            pd, pmin, pmax = ctypes.c_uint(), ctypes.c_uint(), ctypes.c_uint()
+            try:
+                if lib.nvmlDeviceGetPowerManagementDefaultLimit(h, ctypes.byref(pd)) == 0:
+                    self.fixo["w_padrao"] = round(pd.value / 1000)
+                if lib.nvmlDeviceGetPowerManagementLimitConstraints(h, ctypes.byref(pmin), ctypes.byref(pmax)) == 0:
+                    self.fixo["w_faixa"] = [round(pmin.value / 1000), round(pmax.value / 1000)]
+            except AttributeError:
+                pass
             g, w = ctypes.c_uint(), ctypes.c_uint()
             try:
                 if lib.nvmlDeviceGetMaxPcieLinkGeneration(h, ctypes.byref(g)) == 0 and lib.nvmlDeviceGetMaxPcieLinkWidth(h, ctypes.byref(w)) == 0:
@@ -1806,6 +2037,15 @@ class Nvidia:
         info = dict(self.fixo, ok=True, uso=uso.gpu, vram=(mem.total - mem.livre) >> 20,
                     vram_total=mem.total >> 20, temp=temp.value, watts=round(mw.value / 1000),
                     fan=fan.value, rpm=rpm, mhz=mhz.value, enc=enc.value)
+        lim, mj = ctypes.c_uint(), ctypes.c_ulonglong()
+        try:
+            if lib.nvmlDeviceGetEnforcedPowerLimit(h, ref(lim)) == 0 and lim.value:
+                info["watts_max"] = round(lim.value / 1000)
+            # energy counter since the driver loaded (mJ): exact energy between samples, spikes included
+            if lib.nvmlDeviceGetTotalEnergyConsumption(h, ref(mj)) == 0:
+                info["mj"] = mj.value
+        except AttributeError:
+            pass
         mhz_mem = ctypes.c_uint()
         if lib.nvmlDeviceGetClockInfo(h, 2, ref(mhz_mem)) == 0:        # NVML_CLOCK_MEM
             info["mhz_mem"] = mhz_mem.value
@@ -2018,7 +2258,9 @@ class Amd:
                 self.procs = {}
         return {"ok": True, "nome": self.nome, "driver": None, "watts_max": None, "integrada": self.integrada,
                 "compartilhada": self.integrada, "uso": ler_int(d + "/gpu_busy_percent") or 0, "vram": usada >> 20, "vram_total": max(1, total >> 20),
-                "temp": round(temp / 1000) if temp else None, "watts": round(watts / 1e6) if watts else None,
+                # on integrated graphics the sensor reads the whole chip (processor included): the Power card
+                # shows it as the processor package instead, so it is not counted twice
+                "temp": round(temp / 1000) if temp else None, "watts": round(watts / 1e6) if watts and not self.integrada else None,
                 "fan": None if pwm is None else round(pwm / 2.55), "rpm": [rpm] if rpm else [],
                 "mhz": round(mhz / 1e6) if mhz else None, "enc": None}, dict(self.procs)
 
@@ -3361,6 +3603,14 @@ class Medidor:
         if pc_bat and lim_bat and pc_bat["status"] == "Discharging" and pc_bat["pct"] is not None:
             nv["bat"] = av("bateria-pc", "bat", nivel_min(pc_bat["pct"], lim_bat), "Bateria do notebook em %d %%" % pc_bat["pct"],
                            "Notebook battery at %d %%" % pc_bat["pct"])
+        # power: processor package + graphics card, the energy of the day and the peaks
+        topo = ((extra["progs"] or {}).get("cpu") or [None])[0]
+        pot = energia.medir(t, cpu, gpu, pc_bat, jogo, topo["nome"][:32] if topo and topo["pct"] / NCPU >= 5 else None)
+        nv["pot"] = av("energia", "pot", nivel(pot["m10"], limite("energia")),
+                       "Processador + placa de vídeo puxando %d W (média de 10 s)" % (pot["m10"] or 0),
+                       "Processor + graphics card drawing %d W (10 s average)" % (pot["m10"] or 0))
+        if "gpu-freio-hw" in {x["id"] for x in avisos}:
+            nv["pot"] = max(nv["pot"], "serio", key=NIVEIS.index)
         proteger_fans(gpu.get("temp"), tcpu)
         guiar_gpu(gpu.get("temp"))
         with trava_ev:
@@ -3377,7 +3627,7 @@ class Medidor:
         hoje.anotar(t, temps, rede)
         prim = lambda m: next((y for y in (limite(m) or ()) if y is not None), None)
         agora = {"t": round(t, 2), "cpu": cpu, "ram": ram, "gpu": gpu, "rede": rede, "temps": temps,
-                 "bat": pc_bat,
+                 "bat": pc_bat, "energia": pot,
                  "fans": {"canais": canais, "ro": so_ver, "pode": fans["pode"], "escolha": cfg["fans"], "aplicado": fans["aplicado"],
                           "alvo_gpu": curva_gpu["alvo"], "calibrando": fans["calibrando"], "velho": fans["velho"]},
                  "discos": lista_discos, "psi_io": psi("io"),
@@ -3389,7 +3639,7 @@ class Medidor:
                  "jogando": jogando(), "sessao": sessoes.resumo(sessoes.atual), "fps": quadros,
                  "fps_log": leitor_fps.pasta is not None,
                  "gargalo": {"tipo": limita, "fio": fio[0] if fio else None, "fio_nome": fio[1] if fio else None} if limita else None,
-                 "lims": {"vram": prim("vram"), "cpu": prim("cpu_uso"), "ping": prim("ping")},
+                 "lims": {"vram": prim("vram"), "cpu": prim("cpu_uso"), "ping": prim("ping"), "pot": prim("energia")},
                  "rede_progs": extra["rede_progs"] if time.monotonic() - rede_pedida[0] < 15 else None,
                  "ev": ev_seq[0], "cfg": cfg_seq[0], "registro": cfg["registro"]["ligado"],
                  "espaco": lento[0] or float(cfg["passo"])}
@@ -3399,7 +3649,8 @@ class Medidor:
                  round(tx * 8 / 1e6, 3) if tx is not None else None, tcpu, gpu.get("temp"), gw,
                  quadros["fps"] if quadros else None, quadros["ft_max"] if quadros else None,
                  quadros["ft"] if quadros else None, pc_bat["pct"] if pc_bat else None,
-                 (pc_bat["w"] if pc_bat["status"] == "Discharging" else -pc_bat["w"]) if pc_bat and pc_bat["w"] else None]
+                 (pc_bat["w"] if pc_bat["status"] == "Discharging" else -pc_bat["w"]) if pc_bat and pc_bat["w"] else None,
+                 cpu["watts"], pot["gpu"], pot["total"]]
         registro.medida(agora)
         return linha, agora
 
@@ -3498,6 +3749,7 @@ def laco_lento():
             if vence("h24", 900):
                 h24.salvar()
                 hoje.salvar()
+                energia.salvar()
             if vence("sis", 60 if aberta else 300):
                 extra["sis"] = info_sistema()
             if vence("saude", 120 if aberta or cfg["alertas"]["fundo"] else 900):
@@ -3648,6 +3900,8 @@ class Pedido(BaseHTTPRequestHandler):
             self.json(h24.dados(desde))
         elif u.path == "/prog":
             self.json(detalhes_prog(parse_qs(u.query).get("n", [""])[0][:80]))
+        elif u.path == "/energia":
+            self.json(energia.detalhes())
         elif u.path == "/sessoes":
             self.json({"sessoes": sessoes.lista(), "atual": sessoes.resumo(sessoes.atual)})
         elif u.path == "/registro/hoje.csv":
@@ -3814,6 +4068,7 @@ def sair(*_):
             h24.fechar()
         h24.salvar()
         hoje.salvar()
+        energia.salvar()
     except Exception as e:
         avisar("sair", e)
     ao_parar()
@@ -3843,6 +4098,7 @@ if __name__ == "__main__":
     carregar_cfg()
     h24.carregar()
     hoje.carregar()
+    energia.carregar()
     caixa.iniciar()
     caixa.avisar_novo()
     try:
